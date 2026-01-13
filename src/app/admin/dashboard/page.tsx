@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
-    Zap, LogOut, Users, TrendingUp, DollarSign, Clock,
+    Zap, LogOut, Users, TrendingUp, Clock,
     RefreshCw, Sparkles, Mail, Phone, FileText, ExternalLink,
     CheckCircle, Clock3, XCircle, Loader2, ChevronDown, BarChart3,
-    ArrowUpDown, ArrowDownUp, Trash2
+    ArrowUpDown, ArrowDownUp, Trash2, IndianRupee
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
@@ -309,19 +309,18 @@ export default function AdminDashboard() {
                         color="text-yellow-400"
                     />
                     <StatCard
-                        title="Closed"
-                        value={stats.closed}
-                        icon={DollarSign}
+                        title="Pipeline Value"
+                        value={`₹${stats.totalValue.toLocaleString()}`}
+                        icon={IndianRupee}
                         color="text-green-400"
                     />
                     <StatCard
                         title="Total Value"
                         value={`₹${stats.totalValue.toLocaleString()}`}
-                        icon={DollarSign}
+                        icon={IndianRupee}
                         color="text-green-500"
                         isCurrency
-                    />
-                </div>
+                    />                </div>
 
                 {/* Analytics Graphs */}
                 <div className="grid lg:grid-cols-2 gap-8 mb-8">
@@ -408,7 +407,7 @@ export default function AdminDashboard() {
                                             : 'bg-[var(--secondary)] hover:bg-[var(--border)]'
                                             }`}
                                     >
-                                        <DollarSign className="w-3 h-3" />
+                                        <IndianRupee className="w-3 h-3" />
                                         Value
                                         {sortBy === 'value' && (
                                             sortOrder === 'desc' ? <ArrowDownUp className="w-3 h-3" /> : <ArrowUpDown className="w-3 h-3" />
@@ -523,7 +522,7 @@ export default function AdminDashboard() {
                                                 )}
                                             </div>
                                         )}
-                                        )}
+
 
                                         <div className="mt-4 pt-4 border-t border-[var(--border)] flex justify-end">
                                             <button
