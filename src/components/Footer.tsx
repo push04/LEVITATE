@@ -21,10 +21,10 @@ const footerLinks = {
 
 const socialLinks = [
     { icon: MessageCircle, href: 'https://wa.me/916299549112', label: 'WhatsApp' },
-    { icon: Mail, href: 'mailto:hello@levitatelabs.com', label: 'Email' },
-    { icon: Linkedin, href: 'https://linkedin.com', label: 'LinkedIn' },
-    { icon: Twitter, href: 'https://twitter.com', label: 'Twitter' },
-    { icon: Github, href: 'https://github.com', label: 'GitHub' },
+    { icon: Mail, href: 'mailto:pushpal.sanyal_btech24@gsv.ac.in', label: 'Email' },
+    { icon: Linkedin, href: 'https://www.linkedin.com/in/pushpalgsv/', label: 'LinkedIn' },
+    { icon: Twitter, href: 'https://x.com/PushpalSanyal', label: 'X (Twitter)' },
+    { icon: Github, href: 'https://github.com/push04/', label: 'GitHub' },
 ];
 
 export default function Footer() {
