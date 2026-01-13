@@ -54,7 +54,7 @@ export default function AIChatWidget() {
                     ...prev,
                     {
                         role: 'assistant',
-                        content: "I'm having trouble connecting right now. Please try again or use our contact form!"
+                        content: `Error: ${data.error || "I'm having trouble connecting right now. Please try again or use our contact form!"}`
                     },
                 ]);
             }
@@ -143,8 +143,8 @@ export default function AIChatWidget() {
                                     )}
                                     <div
                                         className={`max-w-[75%] p-3 rounded-2xl text-sm ${msg.role === 'user'
-                                                ? 'bg-[var(--primary)] text-white rounded-br-md'
-                                                : 'bg-[var(--secondary)] rounded-bl-md'
+                                            ? 'bg-[var(--primary)] text-white rounded-br-md'
+                                            : 'bg-[var(--secondary)] rounded-bl-md'
                                             }`}
                                     >
                                         {msg.content}

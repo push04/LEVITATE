@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error('AI chat error:', error);
         return NextResponse.json(
-            { success: false, error: 'Internal server error' },
+            { success: false, error: error instanceof Error ? error.message : 'Internal Server Error' },
             { status: 500 }
         );
     }
