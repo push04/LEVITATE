@@ -18,7 +18,9 @@ Take their rough input and expand it into a structured summary covering:
 
 Keep it concise (under 150 words) and professional. 
 Do not add conversational filler.
-Avoid using long dashes (—) or hyphen strings like (---). Use standard bullet points or bold text for separation.`;
+STRICT FORMATTING RULE: NEVER use long dashes (—), em-dashes, or hyphen strings (---). 
+Use standard bullet points (*) or colons (:) for separation.
+Example usage: "Feature: Description" instead of "Feature — Description".`;
 
         const messages: ChatMessage[] = [
             { role: 'system', content: systemPrompt },
@@ -28,7 +30,12 @@ Avoid using long dashes (—) or hyphen strings like (---). Use standard bullet 
         const response = await generateAIResponse(messages, FREE_MODELS.NEMOTRON);
 
         if (response.success) {
-            return NextResponse.json({ success: true, refined: response.message });
+            // Programmatically enforce the rule
+            const cleanedMessage = response.message
+                .replace(/—|---|–/g, ': ') // Replace em-dashes, en-dashes, and triple dashes with colon
+                .replace(/ :/g, ':');      // Fix potential double spaces
+
+            return NextResponse.json({ success: true, refined: cleanedMessage });
         } else {
             return NextResponse.json({ success: false, error: response.error }, { status: 500 });
         }

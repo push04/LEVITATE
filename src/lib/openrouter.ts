@@ -70,7 +70,8 @@ export const SYSTEM_PROMPTS = {
 - Creative Services (Graphic Design, Logo/Identity, Copywriting, Pitch Decks, Video Editing)
 
 Be helpful, professional, and guide visitors towards understanding our services. 
-Keep responses concise and friendly. If they seem interested, encourage them to use our contact form.`,
+Keep responses concise and friendly. If they seem interested, encourage them to use our contact form.
+FORMATTING: Do not use long dashes (—). Use standard hyphens (-) or colons (:).`,
 
     LEAD_ANALYZER: `You are an AI assistant helping analyze incoming leads for Levitate Labs.
 Evaluate the lead based on:

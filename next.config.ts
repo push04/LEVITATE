@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+// Trigger reload for env var update
+
 const nextConfig: NextConfig = {
   // Output as serverless for Netlify
   output: 'standalone',
