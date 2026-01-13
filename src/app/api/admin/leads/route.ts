@@ -64,29 +64,31 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
     try {
-        const { id, status, deal_value } = await request.json();
+        const body = await request.json();
+        const { id, ...updates } = body;
 
         if (!id) {
             return NextResponse.json(
-                { success: false, error: 'ID and status are required' },
+                { success: false, error: 'ID is required' },
                 { status: 400 }
             );
         }
 
-        const updateData: any = {};
-        if (status) {
-            if (!['New', 'Contacted', 'Follow Up', 'Closed'].includes(status)) {
-                return NextResponse.json({ success: false, error: 'Invalid status' }, { status: 400 });
-            }
-            updateData.status = status;
+        const adminAuth = await checkAdminAuth(request);
+        if (!adminAuth.isAuthenticated) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
-        if (deal_value !== undefined) updateData.deal_value = deal_value;
+
+        // Validate status if present
+        if (updates.status && !['New', 'Contacted', 'Follow Up', 'Closed'].includes(updates.status)) {
+            return NextResponse.json({ success: false, error: 'Invalid status' }, { status: 400 });
+        }
 
         const supabase = getServiceSupabase();
 
         const { data, error } = await supabase
             .from('leads')
-            .update(updateData)
+            .update(updates)
             .eq('id', id)
             .select();
 

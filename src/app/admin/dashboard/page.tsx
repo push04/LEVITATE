@@ -7,7 +7,7 @@ import {
     Zap, LogOut, Users, TrendingUp, Clock,
     RefreshCw, Sparkles, Mail, Phone, FileText, ExternalLink,
     CheckCircle, Clock3, XCircle, Loader2, ChevronDown, BarChart3,
-    ArrowUpDown, ArrowDownUp, Trash2, IndianRupee
+    ArrowUpDown, ArrowDownUp, Trash2, IndianRupee, Pencil
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
@@ -46,10 +46,10 @@ export default function AdminDashboard() {
             const data = await response.json();
 
             // Merge valid API data with fallback data if needed, or just use API data
-            const allLeads = data.success && Array.isArray(data.data) ? data.data : [];
+            const allLeads: Lead[] = data.success && Array.isArray(data.data) ? data.data : [];
 
             // Deduplicate by ID
-            const uniqueLeads = Array.from(new Map(allLeads.map((item: Lead) => [item.id, item])).values());
+            const uniqueLeads = Array.from(new Map(allLeads.map((item) => [item.id, item])).values());
 
             setLeads(uniqueLeads);
         } catch (error) {
@@ -188,6 +188,7 @@ export default function AdminDashboard() {
         status: 'New',
         deal_value: ''
     });
+    const [editingId, setEditingId] = useState<string | null>(null);
 
     const handleAddClient = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -198,15 +199,29 @@ export default function AdminDashboard() {
                 deal_value: newClient.deal_value ? parseFloat(newClient.deal_value) : 0
             };
 
-            const response = await fetch('/api/admin/leads', {
-                method: 'POST',
+            const url = editingId ? '/api/admin/leads' : '/api/admin/leads';
+            const method = editingId ? 'PATCH' : 'POST';
+            const body = editingId ? { id: editingId, ...payload } : payload;
+
+            const response = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                body: JSON.stringify(body),
             });
             const data = await response.json();
+
             if (data.success) {
-                setShowAddModal(false);
+                // Refresh all leads to ensure consistency and avoid type issues
                 fetchLeads();
+
+                // If editing the currently selected lead, update it too
+                if (editingId && selectedLead?.id === editingId) {
+                    // Fetch the updated single lead or just merge locally (safe merge)
+                    const updatedLead = { ...selectedLead, ...payload, updated_at: new Date().toISOString() } as Lead;
+                    setSelectedLead(updatedLead);
+                }
+
+                setShowAddModal(false);
                 setNewClient({
                     name: '',
                     email: '',
@@ -221,12 +236,32 @@ export default function AdminDashboard() {
                     status: 'New',
                     deal_value: ''
                 });
+                setEditingId(null);
             }
         } catch (error) {
-            console.error('Failed to add client:', error);
+            console.error('Failed to save client:', error);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const openEditModal = (lead: Lead) => {
+        setNewClient({
+            name: lead.name,
+            email: lead.email || '',
+            phone: lead.phone || '',
+            service_category: lead.service_category,
+            business_type: lead.business_type || '',
+            city: lead.city || '',
+            google_map_link: lead.google_map_link || '',
+            website_link: lead.website_link || '',
+            is_followup: lead.is_followup || false,
+            notes: lead.notes || '',
+            status: lead.status,
+            deal_value: lead.deal_value ? String(lead.deal_value) : ''
+        });
+        setEditingId(lead.id);
+        setShowAddModal(true);
     };
 
     return (
@@ -246,7 +281,7 @@ export default function AdminDashboard() {
                         </a>
                         <div className="flex items-center gap-4">
                             <motion.button
-                                onClick={() => setShowAddModal(true)}
+                                onClick={() => { setShowAddModal(true); setEditingId(null); setNewClient({ name: '', email: '', phone: '', service_category: 'web', business_type: '', city: '', google_map_link: '', website_link: '', is_followup: false, notes: '', status: 'New', deal_value: '' }); }}
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-white 
@@ -456,6 +491,7 @@ export default function AdminDashboard() {
                                             onAnalyze={() => analyzeLeadWithAI(lead)}
                                             onSelect={() => setSelectedLead(lead)}
                                             isSelected={selectedLead?.id === lead.id}
+                                            openEditModal={openEditModal}
                                         />
                                     ))
                                 )}
@@ -468,7 +504,7 @@ export default function AdminDashboard() {
                         <div className="glass-card p-6 sticky top-24">
                             <div className="flex items-center gap-2 mb-4">
                                 <Sparkles className="w-5 h-5 text-[var(--primary)]" />
-                                <h2 className="font-bold">AI Analysis</h2>
+                                <h2 className="font-bold">Lead Details</h2>
                             </div>
 
                             {selectedLead ? (
@@ -524,7 +560,14 @@ export default function AdminDashboard() {
                                         )}
 
 
-                                        <div className="mt-4 pt-4 border-t border-[var(--border)] flex justify-end">
+                                        <div className="mt-4 pt-4 border-t border-[var(--border)] flex justify-end gap-2">
+                                            <button
+                                                onClick={() => openEditModal(selectedLead)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition-colors"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                                Edit Client
+                                            </button>
                                             <button
                                                 onClick={() => handleDeleteLead(selectedLead.id, selectedLead.name)}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
@@ -538,7 +581,7 @@ export default function AdminDashboard() {
                                     {isAnalyzing ? (
                                         <div className="p-8 text-center">
                                             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-[var(--primary)]" />
-                                            <p className="text-sm text-[var(--muted)]">Analyzing with AI...</p>
+                                            <p className="text-sm text-[var(--muted)]">Analyzing...</p>
                                         </div>
                                     ) : aiAnalysis ? (
                                         <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
@@ -582,8 +625,8 @@ export default function AdminDashboard() {
                                 className="bg-[var(--surface)] rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-[var(--border)]"
                             >
                                 <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--secondary)]">
-                                    <h3 className="font-bold">Add New Client manually</h3>
-                                    <button onClick={() => setShowAddModal(false)} className="text-[var(--muted)] hover:text-[var(--foreground)]">
+                                    <h3 className="font-bold">{editingId ? 'Edit Client Details' : 'Add New Client manually'}</h3>
+                                    <button onClick={() => { setShowAddModal(false); setEditingId(null); setNewClient({ name: '', email: '', phone: '', service_category: 'web', business_type: '', city: '', google_map_link: '', website_link: '', is_followup: false, notes: '', status: 'New', deal_value: '' }); }} className="text-[var(--muted)] hover:text-[var(--foreground)]">
                                         <XCircle className="w-5 h-5" />
                                     </button>
                                 </div>
@@ -720,12 +763,14 @@ function LeadCard({
     onAnalyze,
     onSelect,
     isSelected,
+    openEditModal
 }: {
     lead: Lead;
     onStatusChange: (id: string, status: 'New' | 'Contacted' | 'Closed') => void;
     onAnalyze: () => void;
     onSelect: () => void;
     isSelected: boolean;
+    openEditModal: (lead: Lead) => void;
 }) {
     const [showDropdown, setShowDropdown] = useState(false);
     const status = statusConfig[lead.status] || statusConfig['New'];
@@ -735,9 +780,9 @@ function LeadCard({
             layout
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            onClick={onSelect}
             className={`p-4 hover:bg-[var(--secondary)]/50 transition-colors cursor-pointer ${isSelected ? 'bg-[var(--primary)]/5 border-l-2 border-[var(--primary)]' : ''
                 }`}
+            onClick={onSelect}
         >
             <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -752,6 +797,16 @@ function LeadCard({
                             </span>
                         )}
                         <span className={`w-2 h-2 rounded-full ${status.color}`} />
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openEditModal(lead);
+                            }}
+                            className="p-1 hover:bg-[var(--surface)] rounded text-[var(--muted)] hover:text-[var(--primary)]"
+                            title="Edit"
+                        >
+                            <Pencil className="w-3 h-3" />
+                        </button>
                     </div>
                     {lead.business_type && (
                         <p className="text-xs text-[var(--primary)] mb-0.5">{lead.business_type} • {lead.city}</p>
