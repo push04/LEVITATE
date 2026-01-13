@@ -24,35 +24,68 @@ export async function generateAIResponse(
     messages: ChatMessage[],
     model: string = FREE_MODELS.NEMOTRON
 ): Promise<AIResponse> {
-    try {
-        const response = await fetch(OPENROUTER_API_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://levitatelabs.com',
-                'X-Title': 'Levitate Labs',
-            },
-            body: JSON.stringify({
-                model,
-                messages,
-                max_tokens: 1000,
-                temperature: 0.7,
-            }),
-        });
+    if (!process.env.OPENROUTER_API_KEY) {
+        console.error('CRITICAL: OPENROUTER_API_KEY is missing in server environment.');
+        return { success: false, message: '', error: 'Server configuration error (Missing API Key)' };
+    }
 
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`OpenRouter API error: ${error}`);
+    try {
+        // defined inside to allow recursive retry or loop, but here we just do simple linear fallback
+        const attemptFetch = async (targetModel: string) => {
+            console.log(`[AI] Attempting generation with model: ${targetModel}`);
+            const response = await fetch(OPENROUTER_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://levitatelabs.com',
+                    'X-Title': 'Levitate Labs',
+                },
+                body: JSON.stringify({
+                    model: targetModel,
+                    messages,
+                    max_tokens: 1000,
+                    temperature: 0.7,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API Error (${response.status}): ${errorText}`);
+            }
+
+            const data = await response.json();
+            if (!data.choices || data.choices.length === 0) {
+                throw new Error('No choices returned from AI');
+            }
+
+            return data.choices[0]?.message?.content || 'No response generated';
+        };
+
+        try {
+            // First attempt
+            const content = await attemptFetch(model);
+            return { success: true, message: content };
+        } catch (primaryError) {
+            console.warn(`[AI] Primary model ${model} failed:`, primaryError);
+
+            // Fallback strategy: If we tried NEMOTRON, try MIMO. 
+            // If we initially tried something else (like for specific tasks), stick to it or define specific fallbacks.
+            if (model === FREE_MODELS.NEMOTRON) {
+                console.log(`[AI] Switching to fallback model: ${FREE_MODELS.MIMO}`);
+                try {
+                    const fallbackContent = await attemptFetch(FREE_MODELS.MIMO);
+                    return { success: true, message: fallbackContent };
+                } catch (fallbackError) {
+                    console.error(`[AI] Fallback model failed:`, fallbackError);
+                    throw fallbackError; // Throw the original or fallback error? Throw fallback.
+                }
+            }
+            throw primaryError;
         }
 
-        const data = await response.json();
-        return {
-            success: true,
-            message: data.choices[0]?.message?.content || 'No response generated',
-        };
     } catch (error) {
-        console.error('AI generation error:', error);
+        console.error('[AI] Final Generation Error:', error);
         return {
             success: false,
             message: '',
