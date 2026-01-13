@@ -108,7 +108,7 @@ export default function AdminDashboard() {
             <header className="bg-[var(--surface)] border-b border-[var(--border)] sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
-                        <div className="flex items-center gap-3">
+                        <a href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                             <div className="p-2 rounded-lg bg-[var(--primary)]">
                                 <Zap className="w-5 h-5 text-white" />
                             </div>
@@ -116,8 +116,16 @@ export default function AdminDashboard() {
                                 <h1 className="font-bold">Levitate Labs</h1>
                                 <p className="text-xs text-[var(--muted)]">Admin Dashboard</p>
                             </div>
-                        </div>
+                        </a>
                         <div className="flex items-center gap-4">
+                            <a
+                                href="/"
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--secondary)] 
+                                         hover:bg-[var(--border)] transition-colors text-sm font-medium"
+                            >
+                                <ExternalLink className="w-4 h-4" />
+                                View Website
+                            </a>
                             <motion.button
                                 onClick={fetchLeads}
                                 whileHover={{ scale: 1.05 }}
@@ -183,8 +191,8 @@ export default function AdminDashboard() {
                                             key={status}
                                             onClick={() => setFilter(status)}
                                             className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${filter === status
-                                                    ? 'bg-[var(--primary)] text-white'
-                                                    : 'bg-[var(--secondary)] hover:bg-[var(--border)]'
+                                                ? 'bg-[var(--primary)] text-white'
+                                                : 'bg-[var(--secondary)] hover:bg-[var(--border)]'
                                                 }`}
                                         >
                                             {status === 'all' ? 'All' : status}
