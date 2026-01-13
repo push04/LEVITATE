@@ -1,0 +1,11 @@
+[dotenv@17.2.3] injecting env (6) from .env.local -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+--- SUPABASE DEBUG START ---
+
+1. Fetching leads as ADMIN (Service Role)...
+SUCCESS: Found 0 leads.
+
+2. Inserting test lead as PUBLIC (Anon)...
+FAIL: Public insert error: new row violates row-level security policy for table "leads"
+RLS POLICY VIOLATION
+
+--- SUPABASE DEBUG END ---

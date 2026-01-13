@@ -402,9 +402,9 @@ INSERT INTO team_members (name, title, role_tagline, bio, skills, display_order)
 -- INSERT CASE STUDIES DATA
 -- ============================================
 INSERT INTO case_studies (name, slug, url, description, tech_stack, highlights, metrics, is_featured, display_order) VALUES
-('Stootap.com', 'stootap', 'https://stootap.com', 'Enterprise-grade platform with serverless architecture and robust security.', 
-'[{"name": "AWS Lambda", "type": "backend"}, {"name": "MongoDB", "type": "database"}, {"name": "RBAC Security", "type": "security"}]',
-ARRAY['Serverless backend for infinite scalability', 'NoSQL database optimized for high throughput', 'Role-based access control for enterprise security'],
+('Stootap.com', 'stootap', 'https://stootap.com', 'Serverless marketplace with React/Vite frontend and Netlify Functions backend.', 
+'[{"name": "Netlify Functions", "type": "backend"}, {"name": "Supabase Auth", "type": "auth"}, {"name": "Drizzle ORM", "type": "database"}]',
+ARRAY['Secure auth with middleware & role separation (RBAC)', 'Razorpay commerce flows with webhook reconciliation', 'Type-safe database access with Drizzle & Zod validation'],
 '[{"label": "Latency", "value": "<100ms"}, {"label": "Uptime", "value": "99.9%"}, {"label": "Users", "value": "10K+"}]',
 true, 1),
 ('Zenjaura.in', 'zenjaura', 'https://zenjaura.in', 'Premium WordPress website with custom theme and optimized performance.',

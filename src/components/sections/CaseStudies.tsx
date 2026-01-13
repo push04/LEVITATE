@@ -17,16 +17,16 @@ const caseStudies: CaseStudy[] = [
     {
         name: 'Stootap.com',
         url: 'https://stootap.com',
-        description: 'Enterprise-grade platform with serverless architecture and robust security.',
+        description: 'Serverless marketplace with React/Vite frontend and Netlify Functions backend.',
         techStack: [
-            { name: 'AWS Lambda', icon: Server },
-            { name: 'MongoDB', icon: Cpu },
-            { name: 'RBAC Security', icon: Shield },
+            { name: 'Netlify Functions', icon: Server },
+            { name: 'Supabase Auth', icon: Shield },
+            { name: 'Drizzle ORM', icon: Cpu },
         ],
         highlights: [
-            'Serverless backend for infinite scalability',
-            'NoSQL database optimized for high throughput',
-            'Role-based access control for enterprise security',
+            'Secure auth with middleware & role separation (RBAC)',
+            'Razorpay commerce flows with webhook reconciliation',
+            'Type-safe database access with Drizzle & Zod validation',
         ],
         metrics: [
             { label: 'Latency', value: '<100ms' },
