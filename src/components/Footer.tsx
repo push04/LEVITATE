@@ -53,7 +53,7 @@ export default function Footer() {
                             </span>
                         </Link>
                         <p className="text-[var(--muted)] text-sm mb-6">
-                            Websites, CAD, marketing, design—all under one roof. We keep things simple so you get results faster.
+                            Websites, CAD, marketing, design. All under one roof. We keep things simple so you get results faster.
                         </p>
                         {/* Social Links */}
                         <div className="flex gap-4">

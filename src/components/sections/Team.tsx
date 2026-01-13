@@ -18,7 +18,7 @@ const team: TeamMember[] = [
         name: 'Pushpal Sanyal',
         title: 'Chief Architect',
         role: 'Web & Apps',
-        tagline: 'Turns ideas into working products. Websites, apps, dashboards—if it runs on code, he builds it.',
+        tagline: 'Turns ideas into working products. Websites, apps, dashboards. If it runs on code, he builds it.',
         stack: ['React', 'Node.js', 'Databases'],
         icon: Code,
         gradient: 'from-cobalt to-blue-400',
