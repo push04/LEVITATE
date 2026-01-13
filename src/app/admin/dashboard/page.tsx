@@ -6,8 +6,13 @@ import { useRouter } from 'next/navigation';
 import {
     Zap, LogOut, Users, TrendingUp, DollarSign, Clock,
     RefreshCw, Sparkles, Mail, Phone, FileText, ExternalLink,
-    CheckCircle, Clock3, XCircle, Loader2, ChevronDown
+    CheckCircle, Clock3, XCircle, Loader2, ChevronDown, BarChart3,
+    ArrowUpDown, ArrowDownUp
 } from 'lucide-react';
+import {
+    BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
+    ResponsiveContainer, PieChart, Pie, Cell
+} from 'recharts';
 import type { Lead } from '@/lib/supabase';
 
 const statusConfig = {
@@ -24,7 +29,9 @@ export default function AdminDashboard() {
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
     const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [filter, setFilter] = useState<'all' | 'New' | 'Contacted' | 'Closed'>('all');
+    const [filter, setFilter] = useState<'all' | 'New' | 'Contacted' | 'Follow Up' | 'Closed'>('all');
+    const [sortBy, setSortBy] = useState<'date' | 'value'>('date');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
     useEffect(() => {
         fetchLeads();
@@ -49,9 +56,6 @@ export default function AdminDashboard() {
 
             // Deduplicate by ID
             const uniqueLeads = Array.from(new Map(allLeads.map(item => [item.id, item])).values());
-
-            // Sort by date new to old
-            uniqueLeads.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
             setLeads(uniqueLeads);
         } catch (error) {
@@ -108,19 +112,55 @@ export default function AdminDashboard() {
         router.push('/admin');
     };
 
-    const filteredLeads = filter === 'all'
-        ? leads
-        : leads.filter(lead => lead.status === filter);
+    const filteredLeads = leads
+        .filter(lead => filter === 'all' || lead.status === filter)
+        .sort((a, b) => {
+            if (sortBy === 'date') {
+                return sortOrder === 'desc'
+                    ? new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                    : new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+            } else {
+                return sortOrder === 'desc'
+                    ? (b.deal_value || 0) - (a.deal_value || 0)
+                    : (a.deal_value || 0) - (b.deal_value || 0);
+            }
+        });
 
     const stats = {
         total: leads.length,
         new: leads.filter(l => l.status === 'New').length,
         contacted: leads.filter(l => l.status === 'Contacted').length,
         closed: leads.filter(l => l.status === 'Closed').length,
+        totalValue: leads.reduce((sum, l) => sum + (l.deal_value || 0), 0)
     };
 
+    const statusData = [
+        { name: 'New', value: stats.new, color: '#3b82f6' },
+        { name: 'Contacted', value: stats.contacted + leads.filter(l => l.status === 'Follow Up').length, color: '#eab308' },
+        { name: 'Closed', value: stats.closed, color: '#22c55e' },
+    ].filter(d => d.value > 0);
+
+    const revenueData = leads
+        .filter(l => l.deal_value && l.deal_value > 0)
+        .map(l => ({ name: l.name.split(' ')[0], value: l.deal_value }))
+        .sort((a, b) => (b.value || 0) - (a.value || 0))
+        .slice(0, 5);
+
     const [showAddModal, setShowAddModal] = useState(false);
-    const [newClient, setNewClient] = useState({
+    const [newClient, setNewClient] = useState<{
+        name: string;
+        email: string;
+        phone: string;
+        service_category: string;
+        business_type: string;
+        city: string;
+        google_map_link: string;
+        website_link: string;
+        is_followup: boolean;
+        notes: string;
+        status: string;
+        deal_value?: string;
+    }>({
         name: '',
         email: '',
         phone: '',
@@ -131,17 +171,23 @@ export default function AdminDashboard() {
         website_link: '',
         is_followup: false,
         notes: '',
-        status: 'New'
+        status: 'New',
+        deal_value: ''
     });
 
     const handleAddClient = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         try {
+            const payload = {
+                ...newClient,
+                deal_value: newClient.deal_value ? parseFloat(newClient.deal_value) : 0
+            };
+
             const response = await fetch('/api/admin/leads', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newClient),
+                body: JSON.stringify(payload),
             });
             const data = await response.json();
             if (data.success) {
@@ -158,7 +204,8 @@ export default function AdminDashboard() {
                     website_link: '',
                     is_followup: false,
                     notes: '',
-                    status: 'New'
+                    status: 'New',
+                    deal_value: ''
                 });
             }
         } catch (error) {
@@ -253,6 +300,62 @@ export default function AdminDashboard() {
                         icon={DollarSign}
                         color="text-green-400"
                     />
+                    <StatCard
+                        title="Total Value"
+                        value={`₹${stats.totalValue.toLocaleString()}`}
+                        icon={DollarSign}
+                        color="text-green-500"
+                        isCurrency
+                    />
+                </div>
+
+                {/* Analytics Graphs */}
+                <div className="grid lg:grid-cols-2 gap-8 mb-8">
+                    <div className="glass-card p-6">
+                        <h3 className="font-bold mb-4 flex items-center gap-2">
+                            <TrendingUp className="w-5 h-5 text-[var(--primary)]" />
+                            Revenue Pipeline (Top 5)
+                        </h3>
+                        <div className="h-64 w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={revenueData}>
+                                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `₹${val / 1000}k`} />
+                                    <RechartsTooltip
+                                        cursor={{ fill: 'transparent' }}
+                                        contentStyle={{ backgroundColor: 'var(--surface)', borderRadius: '8px', border: '1px solid var(--border)' }}
+                                    />
+                                    <Bar dataKey="value" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                    <div className="glass-card p-6">
+                        <h3 className="font-bold mb-4 flex items-center gap-2">
+                            <BarChart3 className="w-5 h-5 text-purple-500" />
+                            Lead Status Distribution
+                        </h3>
+                        <div className="h-64 w-full flex items-center justify-center">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={statusData}
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {statusData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip
+                                        contentStyle={{ backgroundColor: 'var(--surface)', borderRadius: '8px', border: '1px solid var(--border)' }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="grid lg:grid-cols-3 gap-8">
@@ -262,7 +365,7 @@ export default function AdminDashboard() {
                             <div className="p-4 border-b border-[var(--border)] flex flex-wrap items-center justify-between gap-4">
                                 <h2 className="font-bold">Inquiry Feed</h2>
                                 <div className="flex gap-2">
-                                    {(['all', 'New', 'Contacted', 'Closed'] as const).map((status) => (
+                                    {(['all', 'New', 'Contacted', 'Follow Up', 'Closed'] as const).map((status) => (
                                         <button
                                             key={status}
                                             onClick={() => setFilter(status)}
@@ -274,6 +377,50 @@ export default function AdminDashboard() {
                                             {status === 'all' ? 'All' : status}
                                         </button>
                                     ))}
+
+                                    <div className="w-[1px] h-6 bg-[var(--border)] mx-1" />
+
+                                    <button
+                                        onClick={() => {
+                                            if (sortBy === 'value') {
+                                                setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                                            } else {
+                                                setSortBy('value');
+                                                setSortOrder('desc');
+                                            }
+                                        }}
+                                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${sortBy === 'value'
+                                            ? 'bg-green-500/10 text-green-500 border border-green-500/20'
+                                            : 'bg-[var(--secondary)] hover:bg-[var(--border)]'
+                                            }`}
+                                    >
+                                        <DollarSign className="w-3 h-3" />
+                                        Value
+                                        {sortBy === 'value' && (
+                                            sortOrder === 'desc' ? <ArrowDownUp className="w-3 h-3" /> : <ArrowUpDown className="w-3 h-3" />
+                                        )}
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            if (sortBy === 'date') {
+                                                setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                                            } else {
+                                                setSortBy('date');
+                                                setSortOrder('desc');
+                                            }
+                                        }}
+                                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${sortBy === 'date'
+                                            ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                                            : 'bg-[var(--secondary)] hover:bg-[var(--border)]'
+                                            }`}
+                                    >
+                                        <Clock className="w-3 h-3" />
+                                        Date
+                                        {sortBy === 'date' && (
+                                            sortOrder === 'desc' ? <ArrowDownUp className="w-3 h-3" /> : <ArrowUpDown className="w-3 h-3" />
+                                        )}
+                                    </button>
                                 </div>
                             </div>
 
@@ -294,6 +441,7 @@ export default function AdminDashboard() {
                                             lead={lead}
                                             onStatusChange={updateLeadStatus}
                                             onAnalyze={() => analyzeLeadWithAI(lead)}
+                                            onSelect={() => setSelectedLead(lead)}
                                             isSelected={selectedLead?.id === lead.id}
                                         />
                                     ))
@@ -313,11 +461,25 @@ export default function AdminDashboard() {
                             {selectedLead ? (
                                 <div className="space-y-4">
                                     <div className="p-4 rounded-xl bg-[var(--secondary)]">
-                                        <p className="font-medium mb-1">{selectedLead.name}</p>
-                                        <p className="text-sm text-[var(--muted)]">{selectedLead.email}</p>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <p className="font-medium text-lg">{selectedLead.name}</p>
+                                                <p className="text-sm text-[var(--muted)]">{selectedLead.email}</p>
+                                            </div>
+                                            {selectedLead.deal_value && (
+                                                <div className="text-right">
+                                                    <p className="text-sm text-[var(--muted)]">Deal Value</p>
+                                                    <p className="font-bold text-green-500">₹{selectedLead.deal_value.toLocaleString()}</p>
+                                                </div>
+                                            )}
+                                        </div>
+
                                         {selectedLead.phone && (
-                                            <p className="text-sm text-[var(--muted)]">{selectedLead.phone}</p>
+                                            <p className="text-sm text-[var(--muted)] flex items-center gap-2 mb-2">
+                                                <Phone className="w-3 h-3" /> {selectedLead.phone}
+                                            </p>
                                         )}
+
                                         <div className="flex flex-wrap items-center gap-2 mt-2">
                                             <span className="px-2 py-0.5 rounded text-xs bg-[var(--primary)]/10 text-[var(--primary)]">
                                                 {selectedLead.service_category}
@@ -445,12 +607,21 @@ export default function AdminDashboard() {
                                         <option value="Closed">Status: Closed</option>
                                     </select>
                                 </div>
-                                <input
-                                    placeholder="Website Link"
-                                    className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
-                                    value={newClient.website_link}
-                                    onChange={e => setNewClient({ ...newClient, website_link: e.target.value })}
-                                />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input
+                                        placeholder="Deal Value (₹)"
+                                        type="number"
+                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm font-mono"
+                                        value={newClient.deal_value}
+                                        onChange={e => setNewClient({ ...newClient, deal_value: e.target.value })}
+                                    />
+                                    <input
+                                        placeholder="Website Link"
+                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                        value={newClient.website_link}
+                                        onChange={e => setNewClient({ ...newClient, website_link: e.target.value })}
+                                    />
+                                </div>
                                 <input
                                     placeholder="Google Map Link"
                                     className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
@@ -493,12 +664,14 @@ function StatCard({
     title,
     value,
     icon: Icon,
-    color
+    color,
+    isCurrency
 }: {
     title: string;
-    value: number;
+    value: number | string;
     icon: React.ElementType;
     color: string;
+    isCurrency?: boolean;
 }) {
     return (
         <motion.div
@@ -510,7 +683,7 @@ function StatCard({
                 <span className="text-sm text-[var(--muted)]">{title}</span>
                 <Icon className={`w-5 h-5 ${color}`} />
             </div>
-            <p className="text-2xl font-bold">{value}</p>
+            <p className={`text-2xl font-bold ${isCurrency ? 'font-mono' : ''}`}>{value}</p>
         </motion.div>
     );
 }
@@ -519,11 +692,13 @@ function LeadCard({
     lead,
     onStatusChange,
     onAnalyze,
+    onSelect,
     isSelected,
 }: {
     lead: Lead;
     onStatusChange: (id: string, status: 'New' | 'Contacted' | 'Closed') => void;
     onAnalyze: () => void;
+    onSelect: () => void;
     isSelected: boolean;
 }) {
     const [showDropdown, setShowDropdown] = useState(false);
@@ -531,9 +706,11 @@ function LeadCard({
 
     return (
         <motion.div
+            layout
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className={`p-4 hover:bg-[var(--secondary)]/50 transition-colors ${isSelected ? 'bg-[var(--primary)]/5 border-l-2 border-[var(--primary)]' : ''
+            onClick={onSelect}
+            className={`p-4 hover:bg-[var(--secondary)]/50 transition-colors cursor-pointer ${isSelected ? 'bg-[var(--primary)]/5 border-l-2 border-[var(--primary)]' : ''
                 }`}
         >
             <div className="flex items-start justify-between gap-4">
@@ -542,6 +719,11 @@ function LeadCard({
                         <h3 className="font-medium truncate">{lead.name}</h3>
                         {lead.source === 'manual_entry' && (
                             <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-purple-500/10 text-purple-400 border border-purple-500/20">Manual</span>
+                        )}
+                        {lead.deal_value && lead.deal_value > 0 && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-500/10 text-green-500 border border-green-500/20 font-mono">
+                                ₹{lead.deal_value.toLocaleString()}
+                            </span>
                         )}
                         <span className={`w-2 h-2 rounded-full ${status.color}`} />
                     </div>

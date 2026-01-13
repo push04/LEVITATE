@@ -64,27 +64,29 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
     try {
-        const { id, status } = await request.json();
+        const { id, status, deal_value } = await request.json();
 
-        if (!id || !status) {
+        if (!id) {
             return NextResponse.json(
                 { success: false, error: 'ID and status are required' },
                 { status: 400 }
             );
         }
 
-        if (!['New', 'Contacted', 'Follow Up', 'Closed'].includes(status)) {
-            return NextResponse.json(
-                { success: false, error: 'Invalid status' },
-                { status: 400 }
-            );
+        const updateData: any = {};
+        if (status) {
+            if (!['New', 'Contacted', 'Follow Up', 'Closed'].includes(status)) {
+                return NextResponse.json({ success: false, error: 'Invalid status' }, { status: 400 });
+            }
+            updateData.status = status;
         }
+        if (deal_value !== undefined) updateData.deal_value = deal_value;
 
         const supabase = getServiceSupabase();
 
         const { data, error } = await supabase
             .from('leads')
-            .update({ status })
+            .update(updateData)
             .eq('id', id)
             .select();
 

@@ -30,6 +30,7 @@ export interface Lead {
     website_link?: string;
     is_followup?: boolean;
     notes?: string;
+    deal_value?: number;
     source?: 'web_form' | 'manual_entry';
 }
 
