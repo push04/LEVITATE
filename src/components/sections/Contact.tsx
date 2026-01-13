@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Paperclip, X, CheckCircle, AlertCircle, Loader2, Zap } from 'lucide-react';
+import { Send, Paperclip, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 interface FormData {
     name: string;
@@ -276,34 +276,6 @@ export default function Contact() {
                             <div>
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="block text-sm font-medium">Project Details</label>
-                                    <motion.button
-                                        type="button"
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={async () => {
-                                            if (!formData.message.trim()) return;
-                                            addToTerminal('> Requesting AI refinement...');
-                                            try {
-                                                const res = await fetch('/api/ai-refine', {
-                                                    method: 'POST',
-                                                    body: JSON.stringify({ message: formData.message })
-                                                });
-                                                const data = await res.json();
-                                                if (data.success) {
-                                                    setFormData(prev => ({ ...prev, message: data.refined }));
-                                                    addToTerminal('> SUCCESS: Message refined by AI.');
-                                                } else {
-                                                    addToTerminal(`> ERROR: AI refinement failed: ${data.error || 'Unknown error'}`);
-                                                }
-                                            } catch (e) {
-                                                addToTerminal('> ERROR: AI connection lost.');
-                                            }
-                                        }}
-                                        className="text-xs text-cobalt flex items-center gap-1 hover:underline"
-                                    >
-                                        <Zap className="w-3 h-3" />
-                                        Refine with AI
-                                    </motion.button>
                                 </div>
                                 <textarea
                                     required

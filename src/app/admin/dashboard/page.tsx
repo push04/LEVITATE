@@ -97,30 +97,6 @@ export default function AdminDashboard() {
         }
     };
 
-    const analyzeLeadWithAI = async (lead: Lead) => {
-        setSelectedLead(lead);
-        setIsAnalyzing(true);
-        setAiAnalysis(null);
-
-        try {
-            const response = await fetch('/api/admin/ai-analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ leadId: lead.id }),
-            });
-            const data = await response.json();
-            if (data.success) {
-                setAiAnalysis(data.analysis);
-            } else {
-                setAiAnalysis('Unable to generate analysis. Please try again.');
-            }
-        } catch (error) {
-            setAiAnalysis('Error connecting to AI service.');
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-
     const handleLogout = async () => {
         await fetch('/api/admin/login', { method: 'DELETE' });
         router.push('/admin');
@@ -488,7 +464,6 @@ export default function AdminDashboard() {
                                             key={lead.id}
                                             lead={lead}
                                             onStatusChange={updateLeadStatus}
-                                            onAnalyze={() => analyzeLeadWithAI(lead)}
                                             onSelect={() => setSelectedLead(lead)}
                                             isSelected={selectedLead?.id === lead.id}
                                             openEditModal={openEditModal}
@@ -760,14 +735,12 @@ function StatCard({
 function LeadCard({
     lead,
     onStatusChange,
-    onAnalyze,
     onSelect,
     isSelected,
     openEditModal
 }: {
     lead: Lead;
     onStatusChange: (id: string, status: 'New' | 'Contacted' | 'Closed') => void;
-    onAnalyze: () => void;
     onSelect: () => void;
     isSelected: boolean;
     openEditModal: (lead: Lead) => void;

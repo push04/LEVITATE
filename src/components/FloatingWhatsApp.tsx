@@ -13,7 +13,7 @@ export default function FloatingWhatsApp() {
             animate={{ scale: 1, opacity: 1 }}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            className="fixed bottom-6 left-6 z-50 p-4 rounded-full bg-[#25D366] text-white 
+            className="fixed bottom-8 right-8 z-50 p-4 rounded-full bg-[#25D366] text-white 
                        shadow-lg hover:shadow-[#25D366]/50 transition-shadow cursor-pointer
                        flex items-center justify-center"
             title="Chat on WhatsApp"
