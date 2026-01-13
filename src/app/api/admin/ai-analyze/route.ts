@@ -33,15 +33,20 @@ export async function POST(request: NextRequest) {
         const prompt = `Analyze this lead for Levitate Labs:
 Name: ${lead.name}
 Email: ${lead.email}
+Phone: ${lead.phone || 'N/A'}
 Service: ${lead.service_category}
-Budget: ${lead.budget}
-Message: ${lead.message}
+Business Type: ${lead.business_type || 'N/A'}
+City: ${lead.city || 'N/A'}
+Website: ${lead.website_link || 'N/A'}
+Budget: ${lead.budget || 'N/A'}
+Message: ${lead.message || 'N/A'}
+Notes: ${lead.notes || 'N/A'}
+Source: ${lead.source || 'Web Form'}
 
 Provide a brief analysis including:
 1. Lead quality score (1-10)
 2. Service fit assessment
-3. Suggested next steps
-4. Recommended response template`;
+3. Suggested next steps`;
 
         const messages: ChatMessage[] = [
             { role: 'system', content: SYSTEM_PROMPTS.LEAD_ANALYZER },
