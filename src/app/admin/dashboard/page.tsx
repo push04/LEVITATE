@@ -7,7 +7,7 @@ import {
     Zap, LogOut, Users, TrendingUp, DollarSign, Clock,
     RefreshCw, Sparkles, Mail, Phone, FileText, ExternalLink,
     CheckCircle, Clock3, XCircle, Loader2, ChevronDown, BarChart3,
-    ArrowUpDown, ArrowDownUp
+    ArrowUpDown, ArrowDownUp, Trash2
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
@@ -40,22 +40,16 @@ export default function AdminDashboard() {
     const fetchLeads = async () => {
         setIsLoading(true);
         try {
-            // Fetch from Supabase (Persistent)
-            const dbResponse = await fetch('/api/admin/leads');
-            const dbData = await dbResponse.json();
+            const response = await fetch('/api/admin/leads', {
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+            const data = await response.json();
 
-            // Fetch from Local Memory (Fallback)
-            const localResponse = await fetch('/api/contact');
-            const localData = await localResponse.json();
-
-            // Merge unique leads
-            const allLeads = [
-                ...(dbData.success ? dbData.data : []),
-                ...(localData.success ? localData.localLeads : [])
-            ];
+            // Merge valid API data with fallback data if needed, or just use API data
+            const allLeads = data.success && Array.isArray(data.data) ? data.data : [];
 
             // Deduplicate by ID
-            const uniqueLeads = Array.from(new Map(allLeads.map(item => [item.id, item])).values());
+            const uniqueLeads = Array.from(new Map(allLeads.map((item: Lead) => [item.id, item])).values());
 
             setLeads(uniqueLeads);
         } catch (error) {
@@ -80,6 +74,26 @@ export default function AdminDashboard() {
             }
         } catch (error) {
             console.error('Failed to update lead:', error);
+        }
+    };
+
+    const handleDeleteLead = async (id: string, name: string) => {
+        if (!confirm(`Are you sure you want to delete ${name}? This cannot be undone.`)) return;
+
+        try {
+            const response = await fetch(`/api/admin/leads?id=${id}`, { method: 'DELETE' });
+            const data = await response.json();
+
+            if (data.success) {
+                // Remove locally to update UI instantly
+                setLeads(prev => prev.filter(l => l.id !== id));
+                if (selectedLead?.id === id) setSelectedLead(null);
+            } else {
+                alert('Failed to delete lead: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Delete failed:', error);
+            alert('Failed to delete lead');
         }
     };
 
@@ -509,6 +523,17 @@ export default function AdminDashboard() {
                                                 )}
                                             </div>
                                         )}
+                                        )}
+
+                                        <div className="mt-4 pt-4 border-t border-[var(--border)] flex justify-end">
+                                            <button
+                                                onClick={() => handleDeleteLead(selectedLead.id, selectedLead.name)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                                Delete Client
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {isAnalyzing ? (
@@ -539,124 +564,126 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 </div>
-            </main>
+            </main >
 
             {/* Add Client Modal */}
             <AnimatePresence>
-                {showAddModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-                    >
+                {
+                    showAddModal && (
                         <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-[var(--surface)] rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-[var(--border)]"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
                         >
-                            <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--secondary)]">
-                                <h3 className="font-bold">Add New Client manually</h3>
-                                <button onClick={() => setShowAddModal(false)} className="text-[var(--muted)] hover:text-[var(--foreground)]">
-                                    <XCircle className="w-5 h-5" />
-                                </button>
-                            </div>
-                            <form onSubmit={handleAddClient} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <input
-                                        placeholder="Client Name *"
-                                        required
-                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
-                                        value={newClient.name}
-                                        onChange={e => setNewClient({ ...newClient, name: e.target.value })}
-                                    />
-                                    <input
-                                        placeholder="Email"
-                                        type="email"
-                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
-                                        value={newClient.email}
-                                        onChange={e => setNewClient({ ...newClient, email: e.target.value })}
-                                    />
-                                    <input
-                                        placeholder="Phone Number"
-                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
-                                        value={newClient.phone}
-                                        onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
-                                    />
-                                    <input
-                                        placeholder="Business Type"
-                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
-                                        value={newClient.business_type}
-                                        onChange={e => setNewClient({ ...newClient, business_type: e.target.value })}
-                                    />
-                                    <input
-                                        placeholder="City"
-                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
-                                        value={newClient.city}
-                                        onChange={e => setNewClient({ ...newClient, city: e.target.value })}
-                                    />
-                                    <select
-                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
-                                        value={newClient.status || 'New'}
-                                        onChange={e => setNewClient({ ...newClient, status: e.target.value })}
-                                    >
-                                        <option value="New">Status: New</option>
-                                        <option value="Contacted">Status: Contacted</option>
-                                        <option value="Follow Up">Status: Follow Up</option>
-                                        <option value="Closed">Status: Closed</option>
-                                    </select>
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.9, opacity: 0 }}
+                                className="bg-[var(--surface)] rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-[var(--border)]"
+                            >
+                                <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--secondary)]">
+                                    <h3 className="font-bold">Add New Client manually</h3>
+                                    <button onClick={() => setShowAddModal(false)} className="text-[var(--muted)] hover:text-[var(--foreground)]">
+                                        <XCircle className="w-5 h-5" />
+                                    </button>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
+                                <form onSubmit={handleAddClient} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <input
+                                            placeholder="Client Name *"
+                                            required
+                                            className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                            value={newClient.name}
+                                            onChange={e => setNewClient({ ...newClient, name: e.target.value })}
+                                        />
+                                        <input
+                                            placeholder="Email"
+                                            type="email"
+                                            className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                            value={newClient.email}
+                                            onChange={e => setNewClient({ ...newClient, email: e.target.value })}
+                                        />
+                                        <input
+                                            placeholder="Phone Number"
+                                            className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                            value={newClient.phone}
+                                            onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
+                                        />
+                                        <input
+                                            placeholder="Business Type"
+                                            className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                            value={newClient.business_type}
+                                            onChange={e => setNewClient({ ...newClient, business_type: e.target.value })}
+                                        />
+                                        <input
+                                            placeholder="City"
+                                            className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                            value={newClient.city}
+                                            onChange={e => setNewClient({ ...newClient, city: e.target.value })}
+                                        />
+                                        <select
+                                            className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                            value={newClient.status || 'New'}
+                                            onChange={e => setNewClient({ ...newClient, status: e.target.value })}
+                                        >
+                                            <option value="New">Status: New</option>
+                                            <option value="Contacted">Status: Contacted</option>
+                                            <option value="Follow Up">Status: Follow Up</option>
+                                            <option value="Closed">Status: Closed</option>
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <input
+                                            placeholder="Deal Value (₹)"
+                                            type="number"
+                                            className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm font-mono"
+                                            value={newClient.deal_value}
+                                            onChange={e => setNewClient({ ...newClient, deal_value: e.target.value })}
+                                        />
+                                        <input
+                                            placeholder="Website Link"
+                                            className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                            value={newClient.website_link}
+                                            onChange={e => setNewClient({ ...newClient, website_link: e.target.value })}
+                                        />
+                                    </div>
                                     <input
-                                        placeholder="Deal Value (₹)"
-                                        type="number"
-                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm font-mono"
-                                        value={newClient.deal_value}
-                                        onChange={e => setNewClient({ ...newClient, deal_value: e.target.value })}
-                                    />
-                                    <input
-                                        placeholder="Website Link"
+                                        placeholder="Google Map Link"
                                         className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
-                                        value={newClient.website_link}
-                                        onChange={e => setNewClient({ ...newClient, website_link: e.target.value })}
+                                        value={newClient.google_map_link}
+                                        onChange={e => setNewClient({ ...newClient, google_map_link: e.target.value })}
                                     />
-                                </div>
-                                <input
-                                    placeholder="Google Map Link"
-                                    className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
-                                    value={newClient.google_map_link}
-                                    onChange={e => setNewClient({ ...newClient, google_map_link: e.target.value })}
-                                />
-                                <textarea
-                                    placeholder="Notes / Comments"
-                                    className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm h-24"
-                                    value={newClient.notes}
-                                    onChange={e => setNewClient({ ...newClient, notes: e.target.value })}
-                                />
-                                <label className="flex items-center gap-2 text-sm text-[var(--foreground)] cursor-pointer bg-[var(--secondary)] p-3 rounded-lg">
-                                    <input
-                                        type="checkbox"
-                                        checked={newClient.is_followup}
-                                        onChange={e => setNewClient({ ...newClient, is_followup: e.target.checked })}
-                                        className="w-4 h-4 rounded border-gray-300 text-[var(--primary)] focus:ring-[var(--primary)]"
+                                    <textarea
+                                        placeholder="Notes / Comments"
+                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm h-24"
+                                        value={newClient.notes}
+                                        onChange={e => setNewClient({ ...newClient, notes: e.target.value })}
                                     />
-                                    Mark for Follow Up
-                                </label>
+                                    <label className="flex items-center gap-2 text-sm text-[var(--foreground)] cursor-pointer bg-[var(--secondary)] p-3 rounded-lg">
+                                        <input
+                                            type="checkbox"
+                                            checked={newClient.is_followup}
+                                            onChange={e => setNewClient({ ...newClient, is_followup: e.target.checked })}
+                                            className="w-4 h-4 rounded border-gray-300 text-[var(--primary)] focus:ring-[var(--primary)]"
+                                        />
+                                        Mark for Follow Up
+                                    </label>
 
-                                <button
-                                    type="submit"
-                                    disabled={isLoading}
-                                    className="w-full py-3 bg-[var(--primary)] text-white rounded-lg font-bold hover:bg-blue-600 transition-colors disabled:opacity-50"
-                                >
-                                    {isLoading ? 'Adding Client...' : 'Add Client'}
-                                </button>
-                            </form>
+                                    <button
+                                        type="submit"
+                                        disabled={isLoading}
+                                        className="w-full py-3 bg-[var(--primary)] text-white rounded-lg font-bold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                    >
+                                        {isLoading ? 'Adding Client...' : 'Add Client'}
+                                    </button>
+                                </form>
+                            </motion.div>
                         </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+                    )
+                }
+            </AnimatePresence >
+        </div >
     );
 }
 
