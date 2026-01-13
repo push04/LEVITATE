@@ -16,7 +16,9 @@ Take their rough input and expand it into a structured summary covering:
 - Key Features (implied or suggested)
 - Potential Tech Stack (if applicable)
 
-Keep it concise (under 150 words) and professional. Do not add conversational filler.`;
+Keep it concise (under 150 words) and professional. 
+Do not add conversational filler.
+Avoid using long dashes (—) or hyphen strings like (---). Use standard bullet points or bold text for separation.`;
 
         const messages: ChatMessage[] = [
             { role: 'system', content: systemPrompt },

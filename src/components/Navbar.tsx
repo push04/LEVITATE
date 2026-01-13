@@ -39,8 +39,8 @@ export default function Navbar() {
             initial={{ y: -100 }}
             animate={{ y: 0 }}
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
-                    ? 'bg-[var(--background)]/80 backdrop-blur-lg shadow-lg'
-                    : 'bg-transparent'
+                ? 'bg-[var(--background)]/80 backdrop-blur-lg shadow-lg'
+                : 'bg-transparent'
                 }`}
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -63,14 +63,18 @@ export default function Navbar() {
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center gap-8">
                         {navLinks.map((link) => (
-                            <button
+                            <a
                                 key={link.name}
-                                onClick={() => scrollToSection(link.href)}
+                                href={link.href}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    scrollToSection(link.href);
+                                }}
                                 className="text-[var(--foreground)]/70 hover:text-[var(--primary)] 
-                         transition-colors duration-300 font-medium"
+                         transition-colors duration-300 font-medium cursor-pointer"
                             >
                                 {link.name}
-                            </button>
+                            </a>
                         ))}
                         <ThemeToggle />
                         <Link

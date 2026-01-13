@@ -34,7 +34,7 @@ const team: TeamMember[] = [
     },
     {
         name: 'Rishi Singh',
-        title: 'Dir. Growth',
+        title: 'Director of Growth',
         role: 'Marketing & SEO',
         tagline: 'Gets your business found online. Ads, funnels, automation—traffic that converts to customers.',
         stack: ['Google Ads', 'SEO', 'Analytics'],
@@ -43,7 +43,7 @@ const team: TeamMember[] = [
     },
     {
         name: 'Shubham Yadav',
-        title: 'Creative Dir.',
+        title: 'Creative Director',
         role: 'Design & Brand',
         tagline: 'Makes your brand look premium. Logos, graphics, videos—visuals that people remember.',
         stack: ['Figma', 'After Effects', 'Branding'],
