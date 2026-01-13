@@ -20,7 +20,7 @@ export async function GET() {
             );
         }
 
-        return NextResponse.json({ success: true, count: data?.length || 0 });
+        return NextResponse.json({ success: true, data });
     } catch (error) {
         return NextResponse.json(
             { success: false, error: 'Internal Server Error' },
