@@ -293,7 +293,7 @@ export default function Contact() {
                                                     setFormData(prev => ({ ...prev, message: data.refined }));
                                                     addToTerminal('> SUCCESS: Message refined by AI.');
                                                 } else {
-                                                    addToTerminal('> ERROR: AI refinement failed.');
+                                                    addToTerminal(`> ERROR: AI refinement failed: ${data.error || 'Unknown error'}`);
                                                 }
                                             } catch (e) {
                                                 addToTerminal('> ERROR: AI connection lost.');
