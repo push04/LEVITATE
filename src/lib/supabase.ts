@@ -20,8 +20,17 @@ export interface Lead {
     message: string | null;
     budget: string | null;
     file_url: string | null;
-    status: 'New' | 'Contacted' | 'Closed';
+    status: 'New' | 'Contacted' | 'Follow Up' | 'Closed';
     created_at: string;
+    // Manual Entry Fields
+    phone?: string;
+    business_type?: string;
+    city?: string;
+    google_map_link?: string;
+    website_link?: string;
+    is_followup?: boolean;
+    notes?: string;
+    source?: 'web_form' | 'manual_entry';
 }
 
 export interface Service {

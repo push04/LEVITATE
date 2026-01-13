@@ -13,6 +13,7 @@ import type { Lead } from '@/lib/supabase';
 const statusConfig = {
     New: { color: 'bg-blue-500', icon: Clock3, label: 'New' },
     Contacted: { color: 'bg-yellow-500', icon: Phone, label: 'Contacted' },
+    'Follow Up': { color: 'bg-purple-500', icon: Clock3, label: 'Follow Up' },
     Closed: { color: 'bg-green-500', icon: CheckCircle, label: 'Closed' },
 };
 
@@ -118,6 +119,55 @@ export default function AdminDashboard() {
         closed: leads.filter(l => l.status === 'Closed').length,
     };
 
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [newClient, setNewClient] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        service_category: 'web',
+        business_type: '',
+        city: '',
+        google_map_link: '',
+        website_link: '',
+        is_followup: false,
+        notes: '',
+        status: 'New'
+    });
+
+    const handleAddClient = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            const response = await fetch('/api/admin/leads', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newClient),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setShowAddModal(false);
+                fetchLeads();
+                setNewClient({
+                    name: '',
+                    email: '',
+                    phone: '',
+                    service_category: 'web',
+                    business_type: '',
+                    city: '',
+                    google_map_link: '',
+                    website_link: '',
+                    is_followup: false,
+                    notes: '',
+                    status: 'New'
+                });
+            }
+        } catch (error) {
+            console.error('Failed to add client:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[var(--background)]">
             {/* Header */}
@@ -134,6 +184,16 @@ export default function AdminDashboard() {
                             </div>
                         </a>
                         <div className="flex items-center gap-4">
+                            <motion.button
+                                onClick={() => setShowAddModal(true)}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--primary)] text-white 
+                                     hover:bg-blue-600 transition-colors text-sm font-medium"
+                            >
+                                <Users className="w-4 h-4" />
+                                Add Client
+                            </motion.button>
                             <a
                                 href="/"
                                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--secondary)] 
@@ -255,14 +315,38 @@ export default function AdminDashboard() {
                                     <div className="p-4 rounded-xl bg-[var(--secondary)]">
                                         <p className="font-medium mb-1">{selectedLead.name}</p>
                                         <p className="text-sm text-[var(--muted)]">{selectedLead.email}</p>
-                                        <div className="flex items-center gap-2 mt-2">
+                                        {selectedLead.phone && (
+                                            <p className="text-sm text-[var(--muted)]">{selectedLead.phone}</p>
+                                        )}
+                                        <div className="flex flex-wrap items-center gap-2 mt-2">
                                             <span className="px-2 py-0.5 rounded text-xs bg-[var(--primary)]/10 text-[var(--primary)]">
                                                 {selectedLead.service_category}
                                             </span>
-                                            <span className="px-2 py-0.5 rounded text-xs bg-green-500/10 text-green-400">
-                                                {selectedLead.budget}
-                                            </span>
+                                            {selectedLead.budget && (
+                                                <span className="px-2 py-0.5 rounded text-xs bg-green-500/10 text-green-400">
+                                                    {selectedLead.budget}
+                                                </span>
+                                            )}
                                         </div>
+                                        {selectedLead.source === 'manual_entry' && (
+                                            <div className="mt-2 pt-2 border-t border-[var(--border)] text-xs text-[var(--muted)]">
+                                                <p><span className="font-semibold">Business:</span> {selectedLead.business_type || 'N/A'}</p>
+                                                <p><span className="font-semibold">City:</span> {selectedLead.city || 'N/A'}</p>
+                                                {selectedLead.website_link && (
+                                                    <a href={selectedLead.website_link} target="_blank" className="text-[var(--primary)] hover:underline block truncate">
+                                                        Website
+                                                    </a>
+                                                )}
+                                                {selectedLead.google_map_link && (
+                                                    <a href={selectedLead.google_map_link} target="_blank" className="text-[var(--primary)] hover:underline block truncate">
+                                                        Map Link
+                                                    </a>
+                                                )}
+                                                {selectedLead.notes && (
+                                                    <p className="mt-1 italic">&quot;{selectedLead.notes}&quot;</p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {isAnalyzing ? (
@@ -294,6 +378,113 @@ export default function AdminDashboard() {
                     </div>
                 </div>
             </main>
+
+            {/* Add Client Modal */}
+            <AnimatePresence>
+                {showAddModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-[var(--surface)] rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-[var(--border)]"
+                        >
+                            <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--secondary)]">
+                                <h3 className="font-bold">Add New Client manually</h3>
+                                <button onClick={() => setShowAddModal(false)} className="text-[var(--muted)] hover:text-[var(--foreground)]">
+                                    <XCircle className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <form onSubmit={handleAddClient} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input
+                                        placeholder="Client Name *"
+                                        required
+                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                        value={newClient.name}
+                                        onChange={e => setNewClient({ ...newClient, name: e.target.value })}
+                                    />
+                                    <input
+                                        placeholder="Email"
+                                        type="email"
+                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                        value={newClient.email}
+                                        onChange={e => setNewClient({ ...newClient, email: e.target.value })}
+                                    />
+                                    <input
+                                        placeholder="Phone Number"
+                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                        value={newClient.phone}
+                                        onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
+                                    />
+                                    <input
+                                        placeholder="Business Type"
+                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                        value={newClient.business_type}
+                                        onChange={e => setNewClient({ ...newClient, business_type: e.target.value })}
+                                    />
+                                    <input
+                                        placeholder="City"
+                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                        value={newClient.city}
+                                        onChange={e => setNewClient({ ...newClient, city: e.target.value })}
+                                    />
+                                    <select
+                                        className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                        value={newClient.status || 'New'}
+                                        onChange={e => setNewClient({ ...newClient, status: e.target.value })}
+                                    >
+                                        <option value="New">Status: New</option>
+                                        <option value="Contacted">Status: Contacted</option>
+                                        <option value="Follow Up">Status: Follow Up</option>
+                                        <option value="Closed">Status: Closed</option>
+                                    </select>
+                                </div>
+                                <input
+                                    placeholder="Website Link"
+                                    className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                    value={newClient.website_link}
+                                    onChange={e => setNewClient({ ...newClient, website_link: e.target.value })}
+                                />
+                                <input
+                                    placeholder="Google Map Link"
+                                    className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm"
+                                    value={newClient.google_map_link}
+                                    onChange={e => setNewClient({ ...newClient, google_map_link: e.target.value })}
+                                />
+                                <textarea
+                                    placeholder="Notes / Comments"
+                                    className="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] w-full text-sm h-24"
+                                    value={newClient.notes}
+                                    onChange={e => setNewClient({ ...newClient, notes: e.target.value })}
+                                />
+                                <label className="flex items-center gap-2 text-sm text-[var(--foreground)] cursor-pointer bg-[var(--secondary)] p-3 rounded-lg">
+                                    <input
+                                        type="checkbox"
+                                        checked={newClient.is_followup}
+                                        onChange={e => setNewClient({ ...newClient, is_followup: e.target.checked })}
+                                        className="w-4 h-4 rounded border-gray-300 text-[var(--primary)] focus:ring-[var(--primary)]"
+                                    />
+                                    Mark for Follow Up
+                                </label>
+
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="w-full py-3 bg-[var(--primary)] text-white rounded-lg font-bold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                >
+                                    {isLoading ? 'Adding Client...' : 'Add Client'}
+                                </button>
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -336,7 +527,7 @@ function LeadCard({
     isSelected: boolean;
 }) {
     const [showDropdown, setShowDropdown] = useState(false);
-    const status = statusConfig[lead.status];
+    const status = statusConfig[lead.status] || statusConfig['New'];
 
     return (
         <motion.div
@@ -349,16 +540,29 @@ function LeadCard({
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-medium truncate">{lead.name}</h3>
+                        {lead.source === 'manual_entry' && (
+                            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-purple-500/10 text-purple-400 border border-purple-500/20">Manual</span>
+                        )}
                         <span className={`w-2 h-2 rounded-full ${status.color}`} />
                     </div>
-                    <p className="text-sm text-[var(--muted)] truncate">{lead.email}</p>
+                    {lead.business_type && (
+                        <p className="text-xs text-[var(--primary)] mb-0.5">{lead.business_type} • {lead.city}</p>
+                    )}
+                    <p className="text-sm text-[var(--muted)] truncate">{lead.email || lead.phone || 'No contact info'}</p>
+                    {lead.is_followup && (
+                        <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 font-medium">
+                            <Clock3 className="w-3 h-3" /> Follow Up Required
+                        </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-2 mt-2">
                         <span className="px-2 py-0.5 rounded text-xs bg-[var(--secondary)] capitalize">
                             {lead.service_category}
                         </span>
-                        <span className="px-2 py-0.5 rounded text-xs bg-[var(--secondary)]">
-                            {lead.budget}
-                        </span>
+                        {lead.budget && (
+                            <span className="px-2 py-0.5 rounded text-xs bg-[var(--secondary)]">
+                                {lead.budget}
+                            </span>
+                        )}
                         {lead.file_url && (
                             <a
                                 href={lead.file_url}

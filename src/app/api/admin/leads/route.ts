@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceSupabase } from '@/lib/supabase';
+import { checkAdminAuth } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
 export async function GET() {
     try {
         const supabase = getServiceSupabase();
@@ -18,11 +20,43 @@ export async function GET() {
             );
         }
 
-        return NextResponse.json({ success: true, data });
+        return NextResponse.json({ success: true, count: data?.length || 0 });
     } catch (error) {
-        console.error('Server error:', error);
         return NextResponse.json(
-            { success: false, error: 'Internal server error' },
+            { success: false, error: 'Internal Server Error' },
+            { status: 500 }
+        );
+    }
+}
+
+export async function POST(request: NextRequest) {
+    try {
+        const adminAuth = await checkAdminAuth(request);
+        if (!adminAuth.isAuthenticated) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const body = await request.json();
+        const supabase = getServiceSupabase();
+
+        const { data, error } = await supabase
+            .from('leads')
+            .insert([{
+                ...body,
+                created_at: new Date().toISOString(),
+                status: 'New', // Default status
+                source: 'manual_entry'
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        return NextResponse.json({ success: true, lead: data });
+    } catch (error) {
+        console.error('Create lead error:', error);
+        return NextResponse.json(
+            { success: false, error: 'Internal Server Error' },
             { status: 500 }
         );
     }
@@ -39,7 +73,7 @@ export async function PATCH(request: NextRequest) {
             );
         }
 
-        if (!['New', 'Contacted', 'Closed'].includes(status)) {
+        if (!['New', 'Contacted', 'Follow Up', 'Closed'].includes(status)) {
             return NextResponse.json(
                 { success: false, error: 'Invalid status' },
                 { status: 400 }
