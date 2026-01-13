@@ -15,9 +15,6 @@ const nextConfig: NextConfig = {
     unoptimized: false,
   },
 
-  // Disable telemetry
-  telemetry: false,
-
   // Compress responses
   compress: true,
 
