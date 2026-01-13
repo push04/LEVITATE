@@ -32,11 +32,27 @@ export default function AdminDashboard() {
     const fetchLeads = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('/api/admin/leads');
-            const data = await response.json();
-            if (data.success) {
-                setLeads(data.data || []);
-            }
+            // Fetch from Supabase (Persistent)
+            const dbResponse = await fetch('/api/admin/leads');
+            const dbData = await dbResponse.json();
+
+            // Fetch from Local Memory (Fallback)
+            const localResponse = await fetch('/api/contact');
+            const localData = await localResponse.json();
+
+            // Merge unique leads
+            const allLeads = [
+                ...(dbData.success ? dbData.data : []),
+                ...(localData.success ? localData.localLeads : [])
+            ];
+
+            // Deduplicate by ID
+            const uniqueLeads = Array.from(new Map(allLeads.map(item => [item.id, item])).values());
+
+            // Sort by date new to old
+            uniqueLeads.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+            setLeads(uniqueLeads);
         } catch (error) {
             console.error('Failed to fetch leads:', error);
         } finally {

@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 
 export const metadata: Metadata = {
   title: "Levitate Labs | Industrial Futurism Agency",
@@ -34,6 +35,7 @@ export default function RootLayout({
           <main className="flex-1 pt-16">
             {children}
           </main>
+          <FloatingWhatsApp />
           <Footer />
         </ThemeProvider>
       </body>
