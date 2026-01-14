@@ -140,6 +140,7 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
                 businessElements.forEach((el) => {
                     const nameEl = el.querySelector('.dbg0pd span') || el.querySelector('.dbg0pd');
                     const ratingEl = el.querySelector('.BTtC6e');
+                    // @ts-ignore
                     const detailsText = el.innerText || '';
 
                     // Regex for Indian Mobile Numbers (starts with 6-9, 10 digits) or generic (+91...)
