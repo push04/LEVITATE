@@ -151,7 +151,7 @@ function TerminalContact() {
 
         const msg = input.trim();
         setIsSending(true);
-        setHistory(prev => [...prev, `> ${msg}`, '⏳ AI thinking...']);
+        setHistory(prev => [...prev, `> ${msg}`, '[ Processing query... ]']);
         setInput('');
 
         const newChatHistory = [...chatHistory, { role: 'user' as const, content: msg }];
@@ -167,13 +167,13 @@ function TerminalContact() {
 
             if (data.success) {
                 // Remove the "thinking" message and add AI response
-                setHistory(prev => [...prev.slice(0, -1), `🤖 ${data.message}`]);
+                setHistory(prev => [...prev.slice(0, -1), `[AI] ${data.message}`]);
                 setChatHistory(prev => [...prev, { role: 'assistant', content: data.message }]);
             } else {
-                setHistory(prev => [...prev.slice(0, -1), '❌ AI unavailable. Contact us directly!']);
+                setHistory(prev => [...prev.slice(0, -1), '[!] AI unavailable. Contact us directly.']);
             }
         } catch (e) {
-            setHistory(prev => [...prev.slice(0, -1), '❌ Connection error. Try WhatsApp!']);
+            setHistory(prev => [...prev.slice(0, -1), '[!] Connection error. Try WhatsApp.']);
         } finally {
             setIsSending(false);
         }
@@ -185,11 +185,11 @@ function TerminalContact() {
                 <div className="text-[var(--primary)] opacity-70">root@levitate:~$ ./ai_assistant.sh</div>
                 {history.map((line, i) => (
                     <div key={i} className={
-                        line.startsWith('🤖') ? 'text-green-400' :
-                            line.startsWith('❌') ? 'text-red-400' :
+                        line.startsWith('[AI]') ? 'text-green-400' :
+                            line.startsWith('[!]') ? 'text-red-400' :
                                 line.startsWith('>') ? 'text-white' :
-                                    line.startsWith('⏳') ? 'text-yellow-400 animate-pulse' :
-                                        'text-[var(--muted)]'
+                                    line.startsWith('[') ? 'text-yellow-400 animate-pulse' :
+                                        'text-gray-400'
                     }>
                         {line}
                     </div>
