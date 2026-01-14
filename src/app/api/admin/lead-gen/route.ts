@@ -81,7 +81,7 @@ async function fetchOSMData(city: string, category: string, limit: number) {
             website: item.extratags?.website || item.extratags?.['contact:website'] || null,
             city: city,
             category: category,
-            raw: JSON.stringify(item)
+            raw_data: item // Changed from 'raw' to 'raw_data'
         }));
     } catch (e) {
         console.error('OSM Fallback Failed:', e);
@@ -162,7 +162,7 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
                         website: websiteLink,
                         address: 'Google Search Result',
                         category: 'Scraped',
-                        raw: detailsText
+                        raw_data: { text: detailsText } // Changed from 'raw' to 'raw_data'
                     });
                 });
                 return currentItems;
@@ -227,7 +227,7 @@ async function enrichLeadsWithAI(leads: any[]) {
     You are a Lead Qualification Expert. Analyze these businesses found for the category: ${leads[0].category} in ${leads[0].city}.
     
     Leads:
-    ${JSON.stringify(leadsForAI.map((l, i) => ({ id: i, name: l.business_name, website: l.website, phone: l.phone, details: l.raw })))}
+    ${JSON.stringify(leadsForAI.map((l, i) => ({ id: i, name: l.business_name, website: l.website, phone: l.phone, details: l.raw_data })))}
 
     For each lead, assign a 'score' (0-100) based on:
     - Availability of Contact Info (Phone/Website)
