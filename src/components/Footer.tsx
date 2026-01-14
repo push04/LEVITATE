@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Github, Linkedin, Twitter, Mail, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -114,26 +115,7 @@ export default function Footer() {
                     {/* Terminal CTA Column */}
                     <div>
                         <h3 className="font-bold text-lg mb-4 font-heading">Quick Contact</h3>
-                        <div className="terminal text-sm">
-                            <div className="flex items-center gap-2 text-green-400 mb-2">
-                                <span className="text-[var(--primary)]">root@levitate:~$</span>
-                            </div>
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ repeat: Infinity, duration: 1 }}
-                                className="flex items-center gap-1"
-                            >
-                                <span className="text-gray-400">type idea...</span>
-                                <span className="w-2 h-4 bg-green-400 animate-pulse" />
-                            </motion.div>
-                            <Link
-                                href="#contact"
-                                className="block mt-4 text-[var(--primary)] hover:underline"
-                            >
-                                → Launch full terminal
-                            </Link>
-                        </div>
+                        <TerminalContact />
                     </div>
                 </div>
 
@@ -154,5 +136,58 @@ export default function Footer() {
                 </div>
             </div>
         </footer>
+    );
+}
+
+function TerminalContact() {
+    const [input, setInput] = useState('');
+    const [history, setHistory] = useState<string[]>(['Type your message...']);
+    const [isSending, setIsSending] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!input.trim() || isSending) return;
+
+        const msg = input.trim();
+        setIsSending(true);
+        setHistory(prev => [...prev, `> ${msg}`, 'Transmission initialized...']);
+        setInput('');
+
+        // Simulate network delay
+        setTimeout(() => {
+            setHistory(prev => [...prev, '✔ Message received via subspace.', 'We will contact you shortly.']);
+            setIsSending(false);
+        }, 1500);
+    };
+
+    return (
+        <div className="terminal font-mono text-sm p-4 rounded-lg bg-black/80 border border-[var(--primary)]/30 min-h-[160px] flex flex-col">
+            <div className="flex-1 overflow-y-auto space-y-1 mb-2 max-h-[120px] scrollbar-hide">
+                <div className="text-[var(--primary)] opacity-70">root@levitate:~$ ./contact_daemon.sh</div>
+                {history.map((line, i) => (
+                    <div key={i} className={line.startsWith('✔') ? 'text-green-400' : line.startsWith('>') ? 'text-white' : 'text-[var(--muted)]'}>
+                        {line}
+                    </div>
+                ))}
+            </div>
+            <form onSubmit={handleSubmit} className="flex items-center gap-2 relative">
+                <span className="text-[var(--primary)] shrink-0">➜</span>
+                <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    className="flex-1 bg-transparent border-none outline-none text-[var(--foreground)] placeholder:text-[var(--muted)]/30"
+                    placeholder={isSending ? "Transmitting..." : "Say hello..."}
+                    disabled={isSending}
+                    autoComplete="off"
+                />
+                <motion.span
+                    animate={{ opacity: [1, 0] }}
+                    transition={{ repeat: Infinity, duration: 0.8 }}
+                    className="absolute right-0 w-2 h-4 bg-[var(--primary)] pointer-events-none"
+                    style={{ left: `calc(1.5rem + ${input.length}ch)` }} // Approximation of cursor pos
+                />
+            </form>
+        </div>
     );
 }
