@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         const aiResponse = await generateAIResponse([
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
-        ], FREE_MODELS.GEMINI_FLASH);
+        ], FREE_MODELS.MOLMO_8B);
 
         // Parse JSON
         let result;

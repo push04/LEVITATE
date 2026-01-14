@@ -1,9 +1,12 @@
 
 export const FREE_MODELS = {
-    GEMINI_FLASH: 'google/gemini-2.0-flash-exp:free',
-    GEMINI_PRO: 'google/gemini-pro-1.5-exp',
-    MISTRAL_NEMO: 'mistral/mistral-2-nemo-free',
-    LLAMA_3_8B: 'meta-llama/llama-3-8b-instruct:free',
+    MOLMO_8B: 'allenai/molmo-2-8b:free',
+    MIMO_FLASH: 'xiaomi/mimo-v2-flash:free',
+    NEMOTRON_30B: 'nvidia/nemotron-3-nano-30b-a3b:free',
+    DEVSTRAL: 'mistralai/devstral-2512:free',
+    RIVERFLOW: 'sourceful/riverflow-v2-max-preview',
+    TRINITY: 'arcee-ai/trinity-mini:free',
+    NEMOTRON_12B_VL: 'nvidia/nemotron-nano-12b-v2-vl:free',
 };
 
 export interface ChatMessage {
@@ -13,7 +16,7 @@ export interface ChatMessage {
 
 export async function generateAIResponse(
     messages: ChatMessage[],
-    model: string = FREE_MODELS.GEMINI_FLASH
+    model: string = FREE_MODELS.MOLMO_8B
 ): Promise<string> {
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
@@ -21,14 +24,18 @@ export async function generateAIResponse(
         return 'AI Configuration Error: Missing API Key';
     }
 
+    // Order of fallback
     const modelsToTry = [
-        model,
-        FREE_MODELS.GEMINI_PRO,
-        FREE_MODELS.MISTRAL_NEMO,
-        FREE_MODELS.LLAMA_3_8B
+        model, // Primary choice
+        FREE_MODELS.MIMO_FLASH,
+        FREE_MODELS.NEMOTRON_30B,
+        FREE_MODELS.DEVSTRAL,
+        FREE_MODELS.RIVERFLOW,
+        FREE_MODELS.TRINITY,
+        FREE_MODELS.NEMOTRON_12B_VL
     ];
 
-    // Deduplicate
+    // Deduplicate in case 'model' argument is one of the fallbacks
     const uniqueModels = [...new Set(modelsToTry)];
 
     for (const currentModel of uniqueModels) {

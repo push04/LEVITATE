@@ -335,7 +335,7 @@ async function enrichLeadsWithAI(leads: any[]) {
         const aiResponse = await generateAIResponse([
             { role: 'system', content: 'Output JSON only.' },
             { role: 'user', content: prompt }
-        ], FREE_MODELS.GEMINI_FLASH);
+        ], FREE_MODELS.MOLMO_8B);
 
         // Clean JSON
         const cleanJson = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
