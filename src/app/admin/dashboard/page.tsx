@@ -13,7 +13,7 @@ import {
     BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
     ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
-import type { Lead, PotentialLead } from '@/lib/supabase';
+import { supabase, type Lead, type PotentialLead } from '@/lib/supabase';
 
 const statusConfig = {
     New: { color: 'bg-blue-500', icon: Clock3, label: 'New' },
@@ -24,6 +24,7 @@ const statusConfig = {
 
 export default function AdminDashboard() {
     const router = useRouter();
+    // const supabase = createClientComponentClient(); -> using imported instance
     const [leads, setLeads] = useState<Lead[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -108,9 +109,13 @@ export default function AdminDashboard() {
     };
 
     // Lead Gen Handlers
+    const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+
     const handleGenerateLeads = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsGenerating(true);
+        setPotentialLeads([]);
+        setSelectedLeads(new Set());
         try {
             const res = await fetch('/api/admin/lead-gen', {
                 method: 'POST',
@@ -128,6 +133,57 @@ export default function AdminDashboard() {
             alert('Failed to generate leads');
         } finally {
             setIsGenerating(false);
+        }
+    };
+
+    const toggleSelectLead = (id: string) => {
+        const newSelected = new Set(selectedLeads);
+        if (newSelected.has(id)) {
+            newSelected.delete(id);
+        } else {
+            newSelected.add(id);
+        }
+        setSelectedLeads(newSelected);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedLeads.size === potentialLeads.length) {
+            setSelectedLeads(new Set());
+        } else {
+            setSelectedLeads(new Set(potentialLeads.map(l => l.id)));
+        }
+    };
+
+    const handleBulkApprove = async () => {
+        if (selectedLeads.size === 0) return;
+
+        const leadsToApprove = potentialLeads.filter(l => selectedLeads.has(l.id));
+
+        try {
+            const { error } = await supabase
+                .from('leads')
+                .insert(leadsToApprove.map(lead => ({
+                    name: lead.business_name,
+                    email: '',
+                    phone: lead.phone || '',
+                    service_category: 'web',
+                    status: 'New',
+                    city: lead.city,
+                    business_type: genCategory,
+                    website_link: lead.website,
+                    google_map_link: lead.address,
+                    source: 'AI Generator'
+                })));
+
+            if (error) throw error;
+
+            // Remove approved from list
+            setPotentialLeads(prev => prev.filter(l => !selectedLeads.has(l.id)));
+            setSelectedLeads(new Set());
+            alert(`Successfully added ${leadsToApprove.length} leads to CRM!`);
+            fetchLeads();
+        } catch (err: any) {
+            alert('Error in bulk approve: ' + err.message);
         }
     };
 
