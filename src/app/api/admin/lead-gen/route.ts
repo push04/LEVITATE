@@ -210,6 +210,47 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
             return items.slice(0, maxItems);
         }, limit);
 
+        // --- DEEP SCRAPING (Visit Websites) ---
+        // If we have leads with websites but no phone, visit them (Limit 5 to prevent timeouts)
+        const deepScrapeCandidates = results.filter((r: any) => !r.phone && r.website).slice(0, 5);
+
+        if (deepScrapeCandidates.length > 0) {
+            console.log(`Deep Scraping ${deepScrapeCandidates.length} websites for phone numbers...`);
+
+            for (const lead of deepScrapeCandidates) {
+                try {
+                    // Short timeout (10s) to avoid hanging
+                    await page.goto(lead.website, { waitUntil: 'domcontentloaded', timeout: 10000 });
+
+                    const bodyText = await page.evaluate(() => document.body.innerText);
+
+                    // Same regex pattern
+                    const mobileRegex = /(?:\+91[\-\s]?)?[6-9]\d{4}[\-\s]?\d{5}/g;
+                    const simpleMobile = /[6-9]\d{9}/g;
+                    const genericPhoneRegex = /(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g;
+
+                    let foundPhone = null;
+                    const mMatches = bodyText.match(mobileRegex) || bodyText.match(simpleMobile);
+                    if (mMatches) foundPhone = mMatches[0];
+                    else {
+                        const pMatches = bodyText.match(genericPhoneRegex);
+                        if (pMatches) foundPhone = pMatches[0];
+                    }
+
+                    if (foundPhone) {
+                        console.log(`Deep Scrape Success: Found ${foundPhone} for ${lead.business_name}`);
+                        lead.phone = foundPhone;
+                        if (!lead.raw_data) lead.raw_data = {};
+                        lead.raw_data.deep_scraped = true;
+                    }
+
+                } catch (err) {
+                    console.error(`Deep scrape failed for ${lead.business_name}:`, err);
+                }
+            }
+        }
+        // --------------------------------------
+
         return results.map(r => ({
             ...r,
             city,
