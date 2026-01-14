@@ -10,7 +10,7 @@ const isLocal = process.env.NODE_ENV === 'development';
 
 export async function POST(request: Request) {
     try {
-        const { city, category, limit = 5 } = await request.json();
+        const { city, category, limit = 5, requirePhone = false } = await request.json();
 
         if (!city || !category) {
             return NextResponse.json({ success: false, error: 'City and Category are required' }, { status: 400 });
@@ -20,8 +20,8 @@ export async function POST(request: Request) {
         let scrapedLeads: any[] = [];
 
         try {
-            console.log(`Attempting Puppeteer Scrape for ${category} in ${city}...`);
-            scrapedLeads = await runPuppeteerScraper(city, category, limit);
+            console.log(`Attempting Puppeteer Scrape for ${category} in ${city} (Limit: ${limit}, Require Phone: ${requirePhone})...`);
+            scrapedLeads = await runPuppeteerScraper(city, category, limit, requirePhone);
         } catch (e) {
             console.error('Puppeteer crashed/failed:', e);
         }
@@ -32,8 +32,15 @@ export async function POST(request: Request) {
             scrapedLeads = await fetchOSMData(city, category, limit);
         }
 
+        // Filter for Phone Number if required
+        if (requirePhone && scrapedLeads && scrapedLeads.length > 0) {
+            const originalCount = scrapedLeads.length;
+            scrapedLeads = scrapedLeads.filter(lead => lead.phone && lead.phone.length > 5);
+            console.log(`Filtered for Phone Only: ${originalCount} -> ${scrapedLeads.length}`);
+        }
+
         if (!scrapedLeads || scrapedLeads.length === 0) {
-            return NextResponse.json({ success: false, error: 'Could not find any leads even with fallback.' }, { status: 404 });
+            return NextResponse.json({ success: false, error: 'Could not find any leads with valid phone numbers.' }, { status: 404 });
         }
 
         // 3. AI ENRICHMENT STAGE
@@ -89,7 +96,7 @@ async function fetchOSMData(city: string, category: string, limit: number) {
     }
 }
 
-async function runPuppeteerScraper(city: string, category: string, limit: number) {
+async function runPuppeteerScraper(city: string, category: string, limit: number, requirePhone: boolean) {
     let browser = null;
     try {
         let executablePath: string | undefined = undefined;
@@ -212,6 +219,7 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
 
         // --- DEEP SCRAPING (Visit Websites) ---
         // If we have leads with websites but no phone, visit them (Limit 5 to prevent timeouts)
+        // Only run deep scrape if checking for phone or standard check
         const deepScrapeCandidates = results.filter((r: any) => !r.phone && r.website).slice(0, 5);
 
         if (deepScrapeCandidates.length > 0) {

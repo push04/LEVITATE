@@ -37,6 +37,7 @@ export default function AdminDashboard() {
     const [genCity, setGenCity] = useState('');
     const [genCategory, setGenCategory] = useState('');
     const [genLimit, setGenLimit] = useState(10);
+    const [genRequirePhone, setGenRequirePhone] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
     const [potentialLeads, setPotentialLeads] = useState<PotentialLead[]>([]);
 
@@ -121,7 +122,7 @@ export default function AdminDashboard() {
             const res = await fetch('/api/admin/lead-gen', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ city: genCity, category: genCategory, limit: genLimit })
+                body: JSON.stringify({ city: genCity, category: genCategory, limit: genLimit, requirePhone: genRequirePhone })
             });
             const data = await res.json();
             if (data.success) {
@@ -778,6 +779,17 @@ export default function AdminDashboard() {
                                         <option value={25}>25 Leads</option>
                                         <option value={50}>50 Leads</option>
                                     </select>
+                                </div>
+                                <div className="flex items-end pl-1 pb-3">
+                                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={genRequirePhone}
+                                            onChange={e => setGenRequirePhone(e.target.checked)}
+                                            className="w-4 h-4 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)] bg-[var(--background)]"
+                                        />
+                                        <span className="text-sm font-medium">Phone Number Only</span>
+                                    </label>
                                 </div>
                                 <div className="flex items-end md:col-span-3"> {/* Full width button */}
                                     <button
