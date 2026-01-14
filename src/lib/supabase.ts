@@ -53,6 +53,11 @@ export interface PotentialLead {
     category: string;
     ai_score: number;
     status: 'pending' | 'approved' | 'rejected';
-    raw_data: any;
+    raw_data: {
+        text?: string;
+        email?: string;
+        tech_stack?: string;
+        deep_scraped?: boolean;
+    };
     created_at: string;
 }

@@ -218,39 +218,63 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
         }, limit);
 
         // --- DEEP SCRAPING (Visit Websites) ---
-        // If we have leads with websites but no phone, visit them (Limit 5 to prevent timeouts)
-        // Only run deep scrape if checking for phone or standard check
-        const deepScrapeCandidates = results.filter((r: any) => !r.phone && r.website).slice(0, 5);
+        // If we have leads with websites, visit them (Limit 5 to prevent timeouts)
+        // Candidates: No phone OR no email (if we add email later) - for now just website owners
+        // Filter out if no website
+        const deepScrapeCandidates = results.filter((r: any) => r.website).slice(0, 5);
 
         if (deepScrapeCandidates.length > 0) {
-            console.log(`Deep Scraping ${deepScrapeCandidates.length} websites for phone numbers...`);
+            console.log(`Deep Scraping ${deepScrapeCandidates.length} websites for Phone, Email & Tech Stack...`);
 
             for (const lead of deepScrapeCandidates) {
                 try {
-                    // Short timeout (10s) to avoid hanging
+                    // Short timeout (10s)
                     await page.goto(lead.website, { waitUntil: 'domcontentloaded', timeout: 10000 });
 
                     const bodyText = await page.evaluate(() => document.body.innerText);
+                    const htmlContent = await page.evaluate(() => document.documentElement.outerHTML);
 
-                    // Same regex pattern
-                    const mobileRegex = /(?:\+91[\-\s]?)?[6-9]\d{4}[\-\s]?\d{5}/g;
-                    const simpleMobile = /[6-9]\d{9}/g;
-                    const genericPhoneRegex = /(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g;
+                    // 1. Phone Extraction
+                    if (!lead.phone) {
+                        const mobileRegex = /(?:\+91[\-\s]?)?[6-9]\d{4}[\-\s]?\d{5}/g;
+                        const simpleMobile = /[6-9]\d{9}/g;
+                        const genericPhoneRegex = /(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g;
 
-                    let foundPhone = null;
-                    const mMatches = bodyText.match(mobileRegex) || bodyText.match(simpleMobile);
-                    if (mMatches) foundPhone = mMatches[0];
-                    else {
-                        const pMatches = bodyText.match(genericPhoneRegex);
-                        if (pMatches) foundPhone = pMatches[0];
+                        let foundPhone = null;
+                        const mMatches = bodyText.match(mobileRegex) || bodyText.match(simpleMobile);
+                        if (mMatches) foundPhone = mMatches[0];
+                        else {
+                            const pMatches = bodyText.match(genericPhoneRegex);
+                            if (pMatches) foundPhone = pMatches[0];
+                        }
+                        if (foundPhone) lead.phone = foundPhone;
                     }
 
-                    if (foundPhone) {
-                        console.log(`Deep Scrape Success: Found ${foundPhone} for ${lead.business_name}`);
-                        lead.phone = foundPhone;
-                        if (!lead.raw_data) lead.raw_data = {};
-                        lead.raw_data.deep_scraped = true;
+                    // 2. Email Extraction
+                    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+                    const emailMatches = bodyText.match(emailRegex);
+                    if (emailMatches) {
+                        lead.email = emailMatches[0]; // Take first found email
+                        console.log(`Deep Scrape: Email found ${lead.email}`);
                     }
+
+                    // 3. Tech Stack Detection
+                    const techStack = [];
+                    if (htmlContent.includes('wp-content')) techStack.push('WordPress');
+                    if (htmlContent.includes('wix.com')) techStack.push('Wix');
+                    if (htmlContent.includes('shopify.com')) techStack.push('Shopify');
+                    if (htmlContent.includes('squarespace')) techStack.push('Squarespace');
+                    if (htmlContent.includes('react')) techStack.push('React');
+
+                    if (techStack.length > 0) {
+                        lead.tech_stack = techStack.join(', ');
+                        console.log(`Deep Scrape: Tech Stack ${lead.tech_stack}`);
+                    }
+
+                    if (!lead.raw_data) lead.raw_data = {};
+                    lead.raw_data.deep_scraped = true;
+                    lead.raw_data.tech_stack = lead.tech_stack;
+                    lead.raw_data.email = lead.email;
 
                 } catch (err) {
                     console.error(`Deep scrape failed for ${lead.business_name}:`, err);
@@ -287,6 +311,8 @@ async function enrichLeadsWithAI(leads: any[]) {
         name: l.business_name,
         web: l.website ? 'Yes' : 'No',
         ph: l.phone ? 'Yes' : 'No',
+        email: l.email ? 'Yes' : 'No',
+        tech: l.tech_stack || 'Unknown',
         desc: (l.raw_data?.text || '').substring(0, 100).replace(/[^a-zA-Z0-9 ]/g, '') // Sanitize
     }));
 
@@ -298,6 +324,10 @@ async function enrichLeadsWithAI(leads: any[]) {
     ${JSON.stringify(simplifiedLeads)}
 
     Task: Rate 0-100.
+    - +20 points if Tech Stack is found (means we can pitch migration/improvement).
+    - +20 points if Email is found.
+    - Low score if already has modern tech (e.g. React/Next.js) unless speed is slow.
+    
     Return JSON Array: [{ "id": 0, "ai_score": 90 }]
     `;
 

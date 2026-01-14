@@ -7,7 +7,7 @@ import {
     Zap, LogOut, Users, TrendingUp, Clock,
     RefreshCw, Mail, Phone, FileText, ExternalLink,
     CheckCircle, Clock3, XCircle, Loader2, ChevronDown, BarChart3,
-    ArrowUpDown, ArrowDownUp, Trash2, IndianRupee, Pencil, Search, Globe, Sparkles
+    ArrowUpDown, ArrowDownUp, Trash2, IndianRupee, Pencil, Search, Globe, Sparkles, Code
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
@@ -852,6 +852,8 @@ export default function AdminDashboard() {
                                                     <p className="text-sm text-[var(--muted)] mb-1">{lead.address}</p>
                                                     <div className="flex gap-4 text-xs">
                                                         {lead.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {lead.phone}</span>}
+                                                        {lead.raw_data?.email && <span className="flex items-center gap-1 text-[var(--primary)] font-bold"><Mail className="w-3 h-3" /> {lead.raw_data.email}</span>}
+                                                        {lead.raw_data?.tech_stack && <span className="flex items-center gap-1 text-[var(--muted)] border border-[var(--border)] px-1.5 rounded"><Code className="w-3 h-3" /> {lead.raw_data.tech_stack}</span>}
                                                         {lead.website ? (
                                                             <a href={lead.website} target="_blank" className="flex items-center gap-1 text-blue-400 hover:underline"><Globe className="w-3 h-3" /> Website Found</a>
                                                         ) : (
