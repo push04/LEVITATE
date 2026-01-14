@@ -115,7 +115,6 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
             executablePath: executablePath || undefined,
             // @ts-ignore
             headless: isLocal ? false : chromium.headless,
-            ignoreHTTPSErrors: true,
             // Slow down Puppeteer locally so user can watch
             slowMo: isLocal ? 50 : 0,
         });
