@@ -105,9 +105,6 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
             }
         }
 
-        // If we still don't have a path, and not local, we might fail. 
-        // But let's try to proceed, maybe puppeteer finds one? Unlikely in serverless.
-
         browser = await puppeteer.launch({
             args: isLocal ? puppeteer.defaultArgs() : chromium.args,
             // @ts-ignore
@@ -124,45 +121,84 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
         // Set User Agent to avoid detection
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
 
-        // Increase timeout for serverless, infinite for local observation to watch it
-        page.setDefaultNavigationTimeout(isLocal ? 0 : 15000);
+        // Timeout: Local = Infinite, Prod = 45s
+        page.setDefaultNavigationTimeout(isLocal ? 0 : 45000);
 
         const query = `${category} in ${city}`;
 
         // Trying Google "Places" list view via Search
         await page.goto(`https://www.google.com/search?tbm=lcl&q=${encodeURIComponent(query)}`, { waitUntil: 'networkidle2' });
 
-        const results = await page.evaluate((maxItems) => {
-            const items = [];
+        const results = await page.evaluate(async (maxItems) => {
+            const items: any[] = [];
+            const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-            // Try different selector patterns used by Google
-            const businessElements = document.querySelectorAll('.VkpGBb');
+            const getItems = () => {
+                const businessElements = document.querySelectorAll('.VkpGBb');
+                const currentItems: any[] = [];
 
-            for (const el of businessElements) {
+                businessElements.forEach((el) => {
+                    const nameEl = el.querySelector('.dbg0pd span') || el.querySelector('.dbg0pd');
+                    const ratingEl = el.querySelector('.BTtC6e');
+                    const detailsText = el.innerText || '';
+
+                    // Regex for Indian Mobile Numbers (starts with 6-9, 10 digits) or generic (+91...)
+                    const mobileRegex = /(?:\+91[\-\s]?)?[6789]\d{9}/g;
+                    const genericPhoneRegex = /(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g;
+
+                    const mobileMatches = detailsText.match(mobileRegex);
+                    const phoneMatches = detailsText.match(genericPhoneRegex);
+
+                    const phone = mobileMatches ? mobileMatches[0] : (phoneMatches ? phoneMatches[0] : null);
+
+                    const links = Array.from(el.querySelectorAll('a'));
+                    const websiteLink = links.find(a => a.textContent?.includes('Website'))?.getAttribute('href')
+                        || links.find(a => a.href.includes('http') && !a.href.includes('google'))?.href;
+
+                    currentItems.push({
+                        business_name: nameEl?.textContent || 'Unknown Business',
+                        rating: ratingEl?.textContent || 'N/A',
+                        phone: phone,
+                        website: websiteLink,
+                        address: 'Google Search Result',
+                        category: 'Scraped',
+                        raw: detailsText
+                    });
+                });
+                return currentItems;
+            };
+
+            // Auto-scroll loop
+            let previousHeight = 0;
+            let noNewDataCount = 0;
+
+            // Loop until we have enough items or stuck
+            while (items.length < maxItems && noNewDataCount < 3) {
+                const currentBatch = getItems();
+
+                for (const item of currentBatch) {
+                    if (!items.find(existing => existing.business_name === item.business_name)) {
+                        items.push(item);
+                    }
+                }
+
                 if (items.length >= maxItems) break;
 
-                const nameEl = el.querySelector('.dbg0pd span') || el.querySelector('.dbg0pd');
-                const ratingEl = el.querySelector('.BTtC6e');
-                const detailsText = el.textContent || '';
+                window.scrollTo(0, document.body.scrollHeight);
+                await delay(2000);
 
-                const phoneMatch = detailsText.match(/(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/);
-                const phone = phoneMatch ? phoneMatch[0] : null;
-
-                const links = Array.from(el.querySelectorAll('a'));
-                const websiteLink = links.find(a => a.textContent?.includes('Website'))?.getAttribute('href')
-                    || links.find(a => a.href.includes('http') && !a.href.includes('google'))?.href;
-
-                items.push({
-                    business_name: nameEl?.textContent || 'Unknown Business',
-                    rating: ratingEl?.textContent || 'N/A',
-                    phone: phone,
-                    website: websiteLink,
-                    address: 'Google Search Result',
-                    category: 'Scraped',
-                    raw: detailsText
-                });
+                const newHeight = document.body.scrollHeight;
+                if (newHeight === previousHeight) {
+                    noNewDataCount++;
+                    const moreBtn = document.querySelector('[aria-label="More places"]');
+                    if (moreBtn) (moreBtn as HTMLElement).click();
+                } else {
+                    noNewDataCount = 0;
+                }
+                previousHeight = newHeight;
             }
-            return items;
+
+            return items.slice(0, maxItems);
         }, limit);
 
         return results.map(r => ({

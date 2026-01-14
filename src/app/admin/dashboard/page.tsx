@@ -36,6 +36,7 @@ export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<'leads' | 'generator'>('leads');
     const [genCity, setGenCity] = useState('');
     const [genCategory, setGenCategory] = useState('');
+    const [genLimit, setGenLimit] = useState(10);
     const [isGenerating, setIsGenerating] = useState(false);
     const [potentialLeads, setPotentialLeads] = useState<PotentialLead[]>([]);
 
@@ -120,7 +121,7 @@ export default function AdminDashboard() {
             const res = await fetch('/api/admin/lead-gen', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ city: genCity, category: genCategory, limit: 10 })
+                body: JSON.stringify({ city: genCity, category: genCategory, limit: genLimit })
             });
             const data = await res.json();
             if (data.success) {
@@ -766,14 +767,26 @@ export default function AdminDashboard() {
                                         required
                                     />
                                 </div>
-                                <div className="flex items-end">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1.5">Limit</label>
+                                    <select
+                                        value={genLimit}
+                                        onChange={e => setGenLimit(Number(e.target.value))}
+                                        className="w-full px-4 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg"
+                                    >
+                                        <option value={10}>10 Leads</option>
+                                        <option value={25}>25 Leads</option>
+                                        <option value={50}>50 Leads</option>
+                                    </select>
+                                </div>
+                                <div className="flex items-end md:col-span-3"> {/* Full width button */}
                                     <button
                                         type="submit"
                                         disabled={isGenerating}
                                         className="w-full py-2 bg-[var(--primary)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                                     >
                                         {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                        {isGenerating ? 'Scraping...' : 'Find Leads'}
+                                        {isGenerating ? 'Scraping... (This may take a minute)' : 'Find Leads'}
                                     </button>
                                 </div>
                             </form>
