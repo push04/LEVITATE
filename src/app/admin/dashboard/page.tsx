@@ -781,30 +781,62 @@ export default function AdminDashboard() {
 
                         {potentialLeads.length > 0 && (
                             <div className="glass-card overflow-hidden">
-                                <div className="p-4 border-b border-[var(--border)]">
-                                    <h3 className="font-bold">Found {potentialLeads.length} Potential Leads</h3>
+                                <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <h3 className="font-bold">Found {potentialLeads.length} Potential Leads</h3>
+                                        {selectedLeads.size > 0 && (
+                                            <span className="text-sm text-[var(--primary)] font-medium">({selectedLeads.size} selected)</span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {selectedLeads.size > 0 && (
+                                            <button
+                                                onClick={handleBulkApprove}
+                                                className="px-3 py-1.5 rounded-lg bg-[var(--primary)] text-white text-sm font-medium hover:bg-blue-600 transition-colors"
+                                            >
+                                                Add Selected to CRM
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={toggleSelectAll}
+                                            className="px-3 py-1.5 rounded-lg bg-[var(--secondary)] hover:bg-[var(--border)] text-sm font-medium transition-colors"
+                                        >
+                                            {selectedLeads.size === potentialLeads.length ? 'Deselect All' : 'Select All'}
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="divide-y divide-[var(--border)]">
                                     {potentialLeads.map(lead => (
-                                        <div key={lead.id} className="p-4 hover:bg-[var(--secondary)]/50 transition-colors flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <h4 className="font-bold">{lead.business_name}</h4>
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${lead.ai_score > 70 ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
-                                                        Score: {lead.ai_score}
-                                                    </span>
+                                        <div key={lead.id} className={`p-4 hover:bg-[var(--secondary)]/50 transition-colors flex flex-col md:flex-row gap-4 justify-between items-start md:items-center ${selectedLeads.has(lead.id) ? 'bg-[var(--primary)]/5' : ''}`}>
+                                            <div className="flex items-start gap-3 flex-1">
+                                                <div className="pt-1">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedLeads.has(lead.id)}
+                                                        onChange={() => toggleSelectLead(lead.id)}
+                                                        className="w-4 h-4 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)] cursor-pointer"
+                                                    />
                                                 </div>
-                                                <p className="text-sm text-[var(--muted)] mb-1">{lead.address}</p>
-                                                <div className="flex gap-4 text-xs">
-                                                    {lead.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {lead.phone}</span>}
-                                                    {lead.website ? (
-                                                        <a href={lead.website} target="_blank" className="flex items-center gap-1 text-blue-400 hover:underline"><Globe className="w-3 h-3" /> Website Found</a>
-                                                    ) : (
-                                                        <span className="flex items-center gap-1 text-[var(--muted)] opacity-50"><Globe className="w-3 h-3" /> No Website</span>
-                                                    )}
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h4 className="font-bold">{lead.business_name}</h4>
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${lead.ai_score > 70 ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'}`}>
+                                                            Score: {lead.ai_score}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-[var(--muted)] mb-1">{lead.address}</p>
+                                                    <div className="flex gap-4 text-xs">
+                                                        {lead.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {lead.phone}</span>}
+                                                        {lead.website ? (
+                                                            <a href={lead.website} target="_blank" className="flex items-center gap-1 text-blue-400 hover:underline"><Globe className="w-3 h-3" /> Website Found</a>
+                                                        ) : (
+                                                            <span className="flex items-center gap-1 text-[var(--muted)] opacity-50"><Globe className="w-3 h-3" /> No Website</span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2 w-full md:w-auto">
+
+                                            <div className="flex gap-2 w-full md:w-auto pl-7 md:pl-0">
                                                 <button
                                                     onClick={() => handleRejectLead(lead.id)}
                                                     className="flex-1 md:flex-none px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs hover:bg-red-500/10 hover:text-red-500 transition-colors"

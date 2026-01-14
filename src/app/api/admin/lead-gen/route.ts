@@ -50,7 +50,7 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
         // If local, we need a local chrome executable path. 
         // If on cloud, we use chrome-aws-lambda or @sparticuz/chromium
 
-        let executablePath = await chromium.executablePath;
+        let executablePath: string | undefined = undefined;
 
         if (isLocal) {
             executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
@@ -66,7 +66,6 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
             executablePath: executablePath!,
             //@ts-ignore
             headless: chromium.headless === 'true' || chromium.headless === true,
-            ignoreHTTPSErrors: true,
         });
 
         const page = await browser.newPage();
