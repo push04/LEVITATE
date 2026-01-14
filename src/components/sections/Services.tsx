@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { Globe, Wrench, TrendingUp, Palette, ChevronRight } from 'lucide-react';
+import ServiceRecommender from '@/components/ServiceRecommender';
 
 type ServiceCategory = 'all' | 'web' | 'mechanical' | 'growth' | 'creative';
 
@@ -88,6 +89,9 @@ export default function Services() {
                         Pick what you need. Websites, engineering, marketing, or design—we handle it all so you can focus on running your business.
                     </p>
                 </motion.div>
+
+                {/* AI Service Recommender */}
+                <ServiceRecommender />
 
                 {/* Category Filter */}
                 <motion.div
