@@ -111,11 +111,13 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
         browser = await puppeteer.launch({
             args: isLocal ? puppeteer.defaultArgs() : chromium.args,
             // @ts-ignore
-            defaultViewport: chromium.defaultViewport,
+            defaultViewport: isLocal ? null : chromium.defaultViewport,
             executablePath: executablePath || undefined,
             // @ts-ignore
-            headless: isLocal ? true : chromium.headless,
+            headless: isLocal ? false : chromium.headless,
             ignoreHTTPSErrors: true,
+            // Slow down Puppeteer locally so user can watch
+            slowMo: isLocal ? 50 : 0,
         });
 
         const page = await browser.newPage();
@@ -123,8 +125,8 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
         // Set User Agent to avoid detection
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
 
-        // Increase timeout for serverless
-        page.setDefaultNavigationTimeout(15000);
+        // Increase timeout for serverless, infinite for local observation to watch it
+        page.setDefaultNavigationTimeout(isLocal ? 0 : 15000);
 
         const query = `${category} in ${city}`;
 
