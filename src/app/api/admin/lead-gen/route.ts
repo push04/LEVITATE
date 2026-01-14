@@ -16,16 +16,33 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, error: 'City and Category are required' }, { status: 400 });
         }
 
-        // 1. SCRAPING STAGE (Puppeteer)
-        const scrapedLeads = await runPuppeteerScraper(city, category, limit);
+        // 1. SCRAPING STAGE
+        let scrapedLeads: any[] = [];
 
-        // 2. AI ENRICHMENT STAGE
+        try {
+            console.log(`Attempting Puppeteer Scrape for ${category} in ${city}...`);
+            scrapedLeads = await runPuppeteerScraper(city, category, limit);
+        } catch (e) {
+            console.error('Puppeteer crashed/failed:', e);
+        }
+
+        // 2. FALLBACK STAGE
+        if (!scrapedLeads || scrapedLeads.length === 0) {
+            console.log('Puppeteer yielded 0 results. Falling back to OpenStreetMap (Nominatim).');
+            scrapedLeads = await fetchOSMData(city, category, limit);
+        }
+
+        if (!scrapedLeads || scrapedLeads.length === 0) {
+            return NextResponse.json({ success: false, error: 'Could not find any leads even with fallback.' }, { status: 404 });
+        }
+
+        // 3. AI ENRICHMENT STAGE
         const enrichedLeads = await enrichLeadsWithAI(scrapedLeads);
 
-        // 3. DATABASE SAVE STAGE
+        // 4. DATABASE SAVE STAGE
         const supabase = getServiceSupabase();
 
-        // We only save unique ones or update existing? For now, insert all to potential_leads
+        // Insert into potential_leads
         const { data, error } = await supabase
             .from('potential_leads')
             .insert(enrichedLeads)
@@ -43,29 +60,62 @@ export async function POST(request: Request) {
 
 // --- Helper Functions ---
 
+async function fetchOSMData(city: string, category: string, limit: number) {
+    try {
+        const query = `${category} in ${city}`;
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=${limit}&extratags=1`;
+
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'LevitateLabs-LeadGen/1.0 (admin@levitatelabs.com)'
+            }
+        });
+
+        if (!response.ok) return [];
+        const results = await response.json();
+
+        return results.map((item: any) => ({
+            business_name: item.name || item.display_name.split(',')[0],
+            address: item.display_name,
+            phone: item.extratags?.phone || item.extratags?.['contact:phone'] || null,
+            website: item.extratags?.website || item.extratags?.['contact:website'] || null,
+            city: city,
+            category: category,
+            raw: JSON.stringify(item)
+        }));
+    } catch (e) {
+        console.error('OSM Fallback Failed:', e);
+        return [];
+    }
+}
+
 async function runPuppeteerScraper(city: string, category: string, limit: number) {
     let browser = null;
     try {
-        // Launch Puppeteer
-        // If local, we need a local chrome executable path. 
-        // If on cloud, we use chrome-aws-lambda or @sparticuz/chromium
-
         let executablePath: string | undefined = undefined;
 
         if (isLocal) {
             executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
         } else {
-            //@ts-ignore
-            executablePath = await chromium.executablePath();
+            try {
+                // @ts-ignore
+                executablePath = await chromium.executablePath();
+            } catch (e) {
+                console.error("Failed to get chromium path:", e);
+            }
         }
+
+        // If we still don't have a path, and not local, we might fail. 
+        // But let's try to proceed, maybe puppeteer finds one? Unlikely in serverless.
 
         browser = await puppeteer.launch({
             args: isLocal ? puppeteer.defaultArgs() : chromium.args,
-            //@ts-ignore
+            // @ts-ignore
             defaultViewport: chromium.defaultViewport,
-            executablePath: executablePath!,
-            //@ts-ignore
-            headless: chromium.headless === 'true' || chromium.headless === true,
+            executablePath: executablePath || undefined,
+            // @ts-ignore
+            headless: isLocal ? true : chromium.headless,
+            ignoreHTTPSErrors: true,
         });
 
         const page = await browser.newPage();
@@ -73,36 +123,30 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
         // Set User Agent to avoid detection
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
 
-        const query = `${category} in ${city}`;
-        // Go to Google Maps (approximate URL logic)
-        // Note: Direct Google Maps scraping is hard due to dynamic classes. 
-        // We will try a simpler query on Google Search "Maps" tab logic if possible, 
-        // OR search on a directory site if Maps fails.
-        // Let's try Google Search directly which lists businesses in "Places"
+        // Increase timeout for serverless
+        page.setDefaultNavigationTimeout(15000);
 
+        const query = `${category} in ${city}`;
+
+        // Trying Google "Places" list view via Search
         await page.goto(`https://www.google.com/search?tbm=lcl&q=${encodeURIComponent(query)}`, { waitUntil: 'networkidle2' });
 
-        // Simple selector logic for Google "Local Pack" / Maps List
-        // Note: These class names change often. This is a best-effort robust selector strategy.
         const results = await page.evaluate((maxItems) => {
             const items = [];
 
             // Try different selector patterns used by Google
-            const businessElements = document.querySelectorAll('.VkpGBb'); // Common class for business card in list
+            const businessElements = document.querySelectorAll('.VkpGBb');
 
             for (const el of businessElements) {
                 if (items.length >= maxItems) break;
 
                 const nameEl = el.querySelector('.dbg0pd span') || el.querySelector('.dbg0pd');
                 const ratingEl = el.querySelector('.BTtC6e');
-                // Address/Phone often in sub-divs
                 const detailsText = el.textContent || '';
 
-                // Parse phone (naive regex)
                 const phoneMatch = detailsText.match(/(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/);
                 const phone = phoneMatch ? phoneMatch[0] : null;
 
-                // Website? Often inside an 'a' tag with 'Website' text
                 const links = Array.from(el.querySelectorAll('a'));
                 const websiteLink = links.find(a => a.textContent?.includes('Website'))?.getAttribute('href')
                     || links.find(a => a.href.includes('http') && !a.href.includes('google'))?.href;
@@ -112,7 +156,7 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
                     rating: ratingEl?.textContent || 'N/A',
                     phone: phone,
                     website: websiteLink,
-                    address: 'See details', // Hard to extract clean address from list view
+                    address: 'Google Search Result',
                     category: 'Scraped',
                     raw: detailsText
                 });
@@ -128,7 +172,7 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
 
     } catch (error) {
         console.error('Puppeteer Scraping Failed:', error);
-        // Fallback or rethrow
+        // Fallback
         return [];
     } finally {
         if (browser) await browser.close();
@@ -139,11 +183,14 @@ async function enrichLeadsWithAI(leads: any[]) {
     if (leads.length === 0) return [];
 
     // Use OpenRouter to score these leads
+    // Truncate leads list for AI to avoid token limits if necessary
+    const leadsForAI = leads.slice(0, 10);
+
     const prompt = `
     You are a Lead Qualification Expert. Analyze these businesses found for the category: ${leads[0].category} in ${leads[0].city}.
     
     Leads:
-    ${JSON.stringify(leads.map((l, i) => ({ id: i, name: l.business_name, website: l.website, phone: l.phone, details: l.raw })))}
+    ${JSON.stringify(leadsForAI.map((l, i) => ({ id: i, name: l.business_name, website: l.website, phone: l.phone, details: l.raw })))}
 
     For each lead, assign a 'score' (0-100) based on:
     - Availability of Contact Info (Phone/Website)
@@ -158,7 +205,7 @@ async function enrichLeadsWithAI(leads: any[]) {
         const aiResponse = await generateAIResponse([
             { role: 'system', content: 'You are a JSON-only response bot.' },
             { role: 'user', content: prompt }
-        ], FREE_MODELS.GEMINI_FLASH); // Use Flash for speed
+        ], FREE_MODELS.GEMINI_FLASH);
 
         // Clean JSON
         const cleanJson = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -176,6 +223,6 @@ async function enrichLeadsWithAI(leads: any[]) {
     } catch (e) {
         console.error('AI Enrichment Failed:', e);
         // Fallback enrichment
-        return leads.map(l => ({ ...l, ai_score: l.phone ? 60 : 40, status: 'pending' }));
+        return leads.map(l => ({ ...l, ai_score: l.phone ? 70 : 40, status: 'pending' }));
     }
 }
