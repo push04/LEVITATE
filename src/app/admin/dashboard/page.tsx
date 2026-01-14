@@ -14,6 +14,7 @@ import {
     ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 import { supabase, type Lead, type PotentialLead } from '@/lib/supabase';
+import OutreachModal from '@/components/admin/OutreachModal';
 
 const statusConfig = {
     New: { color: 'bg-blue-500', icon: Clock3, label: 'New' },
@@ -40,6 +41,10 @@ export default function AdminDashboard() {
     const [genRequirePhone, setGenRequirePhone] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
     const [potentialLeads, setPotentialLeads] = useState<PotentialLead[]>([]);
+
+    // Outreach State
+    const [showOutreachModal, setShowOutreachModal] = useState(false);
+    const [outreachLead, setOutreachLead] = useState<PotentialLead | null>(null);
 
     useEffect(() => {
         fetchLeads();
@@ -850,7 +855,15 @@ export default function AdminDashboard() {
                                                         </span>
                                                     </div>
                                                     <p className="text-sm text-[var(--muted)] mb-1">{lead.address}</p>
-                                                    <div className="flex gap-4 text-xs">
+                                                    <div className="flex gap-2 text-xs mt-2">
+                                                        <button
+                                                            onClick={() => { setOutreachLead(lead); setShowOutreachModal(true); }}
+                                                            className="flex items-center gap-1 px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded hover:bg-[var(--primary)]/20 transition-colors font-medium border border-[var(--primary)]/20"
+                                                        >
+                                                            <Sparkles className="w-3 h-3" /> Generate Outreach
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex gap-4 text-xs mt-2">
                                                         {lead.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {lead.phone}</span>}
                                                         {lead.raw_data?.email && <span className="flex items-center gap-1 text-[var(--primary)] font-bold"><Mail className="w-3 h-3" /> {lead.raw_data.email}</span>}
                                                         {lead.raw_data?.tech_stack && <span className="flex items-center gap-1 text-[var(--muted)] border border-[var(--border)] px-1.5 rounded"><Code className="w-3 h-3" /> {lead.raw_data.tech_stack}</span>}
@@ -891,7 +904,14 @@ export default function AdminDashboard() {
                         )}
                     </div>
                 )}
-            </main >
+            </main>
+
+            {/* Outreach Modal */}
+            <OutreachModal
+                isOpen={showOutreachModal}
+                onClose={() => setShowOutreachModal(false)}
+                lead={outreachLead}
+            />
 
             {/* Add Client Modal */}
             <AnimatePresence>
