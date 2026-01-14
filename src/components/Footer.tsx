@@ -141,8 +141,9 @@ export default function Footer() {
 
 function TerminalContact() {
     const [input, setInput] = useState('');
-    const [history, setHistory] = useState<string[]>(['Type your message...']);
+    const [history, setHistory] = useState<string[]>(['Type a question about our services...']);
     const [isSending, setIsSending] = useState(false);
+    const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -150,22 +151,46 @@ function TerminalContact() {
 
         const msg = input.trim();
         setIsSending(true);
-        setHistory(prev => [...prev, `> ${msg}`, 'Transmission initialized...']);
+        setHistory(prev => [...prev, `> ${msg}`, '⏳ AI thinking...']);
         setInput('');
 
-        // Simulate network delay
-        setTimeout(() => {
-            setHistory(prev => [...prev, '✔ Message received via subspace.', 'We will contact you shortly.']);
+        const newChatHistory = [...chatHistory, { role: 'user' as const, content: msg }];
+        setChatHistory(newChatHistory);
+
+        try {
+            const res = await fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: newChatHistory })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                // Remove the "thinking" message and add AI response
+                setHistory(prev => [...prev.slice(0, -1), `🤖 ${data.message}`]);
+                setChatHistory(prev => [...prev, { role: 'assistant', content: data.message }]);
+            } else {
+                setHistory(prev => [...prev.slice(0, -1), '❌ AI unavailable. Contact us directly!']);
+            }
+        } catch (e) {
+            setHistory(prev => [...prev.slice(0, -1), '❌ Connection error. Try WhatsApp!']);
+        } finally {
             setIsSending(false);
-        }, 1500);
+        }
     };
 
     return (
         <div className="terminal font-mono text-sm p-4 rounded-lg bg-black/80 border border-[var(--primary)]/30 min-h-[160px] flex flex-col">
             <div className="flex-1 overflow-y-auto space-y-1 mb-2 max-h-[120px] scrollbar-hide">
-                <div className="text-[var(--primary)] opacity-70">root@levitate:~$ ./contact_daemon.sh</div>
+                <div className="text-[var(--primary)] opacity-70">root@levitate:~$ ./ai_assistant.sh</div>
                 {history.map((line, i) => (
-                    <div key={i} className={line.startsWith('✔') ? 'text-green-400' : line.startsWith('>') ? 'text-white' : 'text-[var(--muted)]'}>
+                    <div key={i} className={
+                        line.startsWith('🤖') ? 'text-green-400' :
+                            line.startsWith('❌') ? 'text-red-400' :
+                                line.startsWith('>') ? 'text-white' :
+                                    line.startsWith('⏳') ? 'text-yellow-400 animate-pulse' :
+                                        'text-[var(--muted)]'
+                    }>
                         {line}
                     </div>
                 ))}
@@ -177,7 +202,7 @@ function TerminalContact() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     className="flex-1 bg-transparent border-none outline-none text-[var(--foreground)] placeholder:text-[var(--muted)]/30"
-                    placeholder={isSending ? "Transmitting..." : "Say hello..."}
+                    placeholder={isSending ? "Processing..." : "Ask AI anything..."}
                     disabled={isSending}
                     autoComplete="off"
                 />
@@ -185,7 +210,7 @@ function TerminalContact() {
                     animate={{ opacity: [1, 0] }}
                     transition={{ repeat: Infinity, duration: 0.8 }}
                     className="absolute right-0 w-2 h-4 bg-[var(--primary)] pointer-events-none"
-                    style={{ left: `calc(1.5rem + ${input.length}ch)` }} // Approximation of cursor pos
+                    style={{ left: `calc(1.5rem + ${input.length}ch)` }}
                 />
             </form>
         </div>

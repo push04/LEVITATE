@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
+import AIChatWidget from "@/components/AIChatWidget";
 
 export const metadata: Metadata = {
   title: "Levitate Labs | Industrial Futurism Agency",
@@ -36,6 +37,7 @@ export default function RootLayout({
             {children}
           </main>
           <FloatingWhatsApp />
+          <AIChatWidget />
           <Footer />
         </ThemeProvider>
       </body>

@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Paperclip, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Send, Paperclip, X, CheckCircle, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 
 interface FormData {
     name: string;
@@ -37,6 +37,7 @@ export default function Contact() {
     const [file, setFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [isRefining, setIsRefining] = useState(false);
     const [terminalHistory, setTerminalHistory] = useState<string[]>([
         '> Initializing Levitate Labs terminal...',
         '> Connection established.',
@@ -276,6 +277,39 @@ export default function Contact() {
                             <div>
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="block text-sm font-medium">Project Details</label>
+                                    <motion.button
+                                        type="button"
+                                        disabled={isRefining || !formData.message.trim()}
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={async () => {
+                                            if (!formData.message.trim()) return;
+                                            setIsRefining(true);
+                                            addToTerminal('> Refining message with AI...');
+                                            try {
+                                                const res = await fetch('/api/ai/refine-message', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ message: formData.message, service: formData.service_category })
+                                                });
+                                                const data = await res.json();
+                                                if (data.success) {
+                                                    setFormData(prev => ({ ...prev, message: data.refined }));
+                                                    addToTerminal('> Message refined successfully!');
+                                                } else {
+                                                    addToTerminal('> AI refinement failed');
+                                                }
+                                            } catch (e) {
+                                                addToTerminal('> AI refinement error');
+                                            } finally {
+                                                setIsRefining(false);
+                                            }
+                                        }}
+                                        className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90 disabled:opacity-50"
+                                    >
+                                        {isRefining ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                        Refine with AI
+                                    </motion.button>
                                 </div>
                                 <textarea
                                     required
