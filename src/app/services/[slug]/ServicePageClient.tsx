@@ -41,12 +41,29 @@ export default function ServicePageClient({ slug }: { slug: string }) {
             <section className={`relative py-20 bg-gradient-to-br ${category.color} overflow-hidden`}>
                 <div className="absolute inset-0 grid-bg opacity-10" />
 
-                {/* Floating decorations */}
-                <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 20, ease: 'linear' }}
-                    className="absolute top-10 right-10 w-64 h-64 border border-white/10 rounded-full"
-                />
+                {/* Premium Animated Decoration */}
+                <div className="absolute top-10 right-10 w-64 h-64">
+                    {/* Outer Ring - Slow Rotation */}
+                    <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 30, ease: 'linear' }}
+                        className="absolute inset-0 border-2 border-white/20 rounded-full"
+                    />
+                    {/* Middle Ring - Opposite Rotation */}
+                    <motion.div
+                        animate={{ rotate: -360 }}
+                        transition={{ repeat: Infinity, duration: 20, ease: 'linear' }}
+                        className="absolute inset-4 border border-dashed border-white/30 rounded-full"
+                    />
+                    {/* Inner Pulsing Glow */}
+                    <motion.div
+                        animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+                        transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+                        className="absolute inset-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center"
+                    >
+                        <CategoryIcon className="w-16 h-16 text-white/50" />
+                    </motion.div>
+                </div>
 
                 <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <Link
