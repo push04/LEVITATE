@@ -42,3 +42,17 @@ export interface Service {
     description: string | null;
     updated_at: string;
 }
+
+export interface PotentialLead {
+    id: string;
+    business_name: string;
+    address?: string;
+    phone?: string;
+    website?: string;
+    city: string;
+    category: string;
+    ai_score: number;
+    status: 'pending' | 'approved' | 'rejected';
+    raw_data: any;
+    created_at: string;
+}
