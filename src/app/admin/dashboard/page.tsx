@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
     Zap, LogOut, Users, TrendingUp, Clock,
-    RefreshCw, Sparkles, Mail, Phone, FileText, ExternalLink,
+    RefreshCw, Mail, Phone, FileText, ExternalLink,
     CheckCircle, Clock3, XCircle, Loader2, ChevronDown, BarChart3,
     ArrowUpDown, ArrowDownUp, Trash2, IndianRupee, Pencil
 } from 'lucide-react';
@@ -27,8 +27,6 @@ export default function AdminDashboard() {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-    const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [filter, setFilter] = useState<'all' | 'New' | 'Contacted' | 'Follow Up' | 'Closed'>('all');
     const [sortBy, setSortBy] = useState<'date' | 'value'>('date');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -474,11 +472,11 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
-                    {/* AI Analysis Panel */}
+                    {/* Lead Details Panel */}
                     <div className="lg:col-span-1">
                         <div className="glass-card p-6 sticky top-24">
                             <div className="flex items-center gap-2 mb-4">
-                                <Sparkles className="w-5 h-5 text-[var(--primary)]" />
+                                <FileText className="w-5 h-5 text-[var(--primary)]" />
                                 <h2 className="font-bold">Lead Details</h2>
                             </div>
 
@@ -552,29 +550,12 @@ export default function AdminDashboard() {
                                             </button>
                                         </div>
                                     </div>
-
-                                    {isAnalyzing ? (
-                                        <div className="p-8 text-center">
-                                            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-[var(--primary)]" />
-                                            <p className="text-sm text-[var(--muted)]">Analyzing...</p>
-                                        </div>
-                                    ) : aiAnalysis ? (
-                                        <div className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
-                                            <pre className="whitespace-pre-wrap text-sm text-[var(--muted)] font-sans">
-                                                {aiAnalysis}
-                                            </pre>
-                                        </div>
-                                    ) : (
-                                        <p className="text-sm text-[var(--muted)] text-center py-4">
-                                            Click &quot;Analyze&quot; on a lead to get AI insights
-                                        </p>
-                                    )}
                                 </div>
                             ) : (
                                 <div className="text-center py-8">
-                                    <Sparkles className="w-12 h-12 mx-auto mb-4 text-[var(--muted)] opacity-50" />
+                                    <FileText className="w-12 h-12 mx-auto mb-4 text-[var(--muted)] opacity-50" />
                                     <p className="text-[var(--muted)]">
-                                        Select a lead and click Analyze to get AI-powered insights
+                                        Select a lead to view details
                                     </p>
                                 </div>
                             )}
@@ -859,17 +840,7 @@ function LeadCard({
                         </AnimatePresence>
                     </div>
 
-                    {/* Analyze Button */}
-                    <motion.button
-                        onClick={onAnalyze}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
-                     bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20"
-                    >
-                        <Sparkles className="w-3 h-3" />
-                        Analyze
-                    </motion.button>
+
                 </div>
             </div>
         </motion.div>
