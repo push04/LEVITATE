@@ -46,6 +46,29 @@ export default function AdminDashboard() {
     const [showOutreachModal, setShowOutreachModal] = useState(false);
     const [outreachLead, setOutreachLead] = useState<PotentialLead | null>(null);
 
+    // Handler to open outreach modal for inquiry leads
+    const handleInquiryOutreach = (lead: Lead) => {
+        // Convert Lead to PotentialLead-compatible format
+        const potentialLead: PotentialLead = {
+            id: lead.id,
+            business_name: lead.name,
+            phone: lead.phone || undefined,
+            website: lead.website_link || undefined,
+            category: lead.service_category,
+            city: lead.city || '',
+            ai_score: 0,
+            status: lead.status as 'pending' | 'approved' | 'rejected',
+            created_at: lead.created_at,
+            raw_data: {
+                email: lead.email,
+                tech_stack: undefined,
+                deep_scraped: false
+            }
+        };
+        setOutreachLead(potentialLead);
+        setShowOutreachModal(true);
+    };
+
     useEffect(() => {
         fetchLeads();
     }, []);
@@ -644,6 +667,7 @@ export default function AdminDashboard() {
                                                     onSelect={() => setSelectedLead(lead)}
                                                     isSelected={selectedLead?.id === lead.id}
                                                     openEditModal={openEditModal}
+                                                    onGenerateOutreach={handleInquiryOutreach}
                                                 />
                                             ))
                                         )}
@@ -1067,13 +1091,15 @@ function LeadCard({
     onStatusChange,
     onSelect,
     isSelected,
-    openEditModal
+    openEditModal,
+    onGenerateOutreach
 }: {
     lead: Lead;
     onStatusChange: (id: string, status: 'New' | 'Contacted' | 'Closed') => void;
     onSelect: () => void;
     isSelected: boolean;
     openEditModal: (lead: Lead) => void;
+    onGenerateOutreach: (lead: Lead) => void;
 }) {
     const [showDropdown, setShowDropdown] = useState(false);
     const status = statusConfig[lead.status] || statusConfig['New'];
@@ -1143,7 +1169,7 @@ function LeadCard({
                         )}
                     </div>
                     {lead.message && (
-                        <p className="text-sm text-[var(--muted)] mt-2 line-clamp-2">
+                        <p className="text-sm text-[var(--muted)] mt-2 line-clamp-4 hover:line-clamp-none cursor-pointer" title="Click to expand">
                             {lead.message}
                         </p>
                     )}
@@ -1188,6 +1214,19 @@ function LeadCard({
                             )}
                         </AnimatePresence>
                     </div>
+
+                    {/* Generate Outreach Button */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onGenerateOutreach(lead);
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90 transition-opacity"
+                        title="Generate AI Outreach"
+                    >
+                        <Sparkles className="w-3 h-3" />
+                        Outreach
+                    </button>
 
 
                 </div>
