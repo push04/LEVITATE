@@ -81,7 +81,7 @@ async function fetchOSMData(city: string, category: string, limit: number) {
             website: item.extratags?.website || item.extratags?.['contact:website'] || null,
             city: city,
             category: category,
-            raw_data: item // Changed from 'raw' to 'raw_data'
+            raw_data: item
         }));
     } catch (e) {
         console.error('OSM Fallback Failed:', e);
@@ -112,16 +112,13 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
             executablePath: executablePath || undefined,
             // @ts-ignore
             headless: isLocal ? false : chromium.headless,
-            // Slow down Puppeteer locally so user can watch
             slowMo: isLocal ? 50 : 0,
         });
 
         const page = await browser.newPage();
 
-        // Set User Agent to avoid detection
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
 
-        // Timeout: Local = Infinite, Prod = 45s
         page.setDefaultNavigationTimeout(isLocal ? 0 : 45000);
 
         const query = `${category} in ${city}`;
@@ -134,36 +131,47 @@ async function runPuppeteerScraper(city: string, category: string, limit: number
             const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
             const getItems = () => {
-                const businessElements = document.querySelectorAll('.VkpGBb');
+                // Extended selectors for better coverage
+                let elements = Array.from(document.querySelectorAll('.VkpGBb, .Nv2PK'));
+
                 const currentItems: any[] = [];
 
-                businessElements.forEach((el) => {
-                    const nameEl = el.querySelector('.dbg0pd span') || el.querySelector('.dbg0pd');
-                    const ratingEl = el.querySelector('.BTtC6e');
+                elements.forEach((el) => {
+                    const nameEl = el.querySelector('.dbg0pd span') || el.querySelector('.dbg0pd') || el.querySelector('.qBF1Pd') || el.querySelector('.hfpxzc');
+                    const ratingEl = el.querySelector('.BTtC6e') || el.querySelector('.MW4etd');
+
                     // @ts-ignore
-                    const detailsText = el.innerText || '';
+                    const detailsText = el.textContent || '';
 
                     // Regex for Indian Mobile Numbers (starts with 6-9, 10 digits) or generic (+91...)
-                    const mobileRegex = /(?:\+91[\-\s]?)?[6789]\d{9}/g;
+                    // Improved Regex to catch split numbers e.g. 98123 45678
+                    const mobileRegex = /(?:\+91[\-\s]?)?[6-9]\d{4}[\-\s]?\d{5}/g;
+                    const simpleMobile = /[6-9]\d{9}/g;
                     const genericPhoneRegex = /(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g;
 
-                    const mobileMatches = detailsText.match(mobileRegex);
-                    const phoneMatches = detailsText.match(genericPhoneRegex);
-
-                    const phone = mobileMatches ? mobileMatches[0] : (phoneMatches ? phoneMatches[0] : null);
+                    let phone = null;
+                    const mMatches = detailsText.match(mobileRegex) || detailsText.match(simpleMobile);
+                    if (mMatches) phone = mMatches[0];
+                    else {
+                        const pMatches = detailsText.match(genericPhoneRegex);
+                        if (pMatches) phone = pMatches[0];
+                    }
 
                     const links = Array.from(el.querySelectorAll('a'));
                     const websiteLink = links.find(a => a.textContent?.includes('Website'))?.getAttribute('href')
                         || links.find(a => a.href.includes('http') && !a.href.includes('google'))?.href;
 
+                    // Clean name
+                    const name = nameEl?.textContent?.split('\n')[0].trim() || 'Unknown Business';
+
                     currentItems.push({
-                        business_name: nameEl?.textContent || 'Unknown Business',
+                        business_name: name,
                         rating: ratingEl?.textContent || 'N/A',
                         phone: phone,
                         website: websiteLink,
-                        address: 'Google Search Result',
+                        address: 'Google Maps Search',
                         category: 'Scraped',
-                        raw_data: { text: detailsText } // Changed from 'raw' to 'raw_data'
+                        raw_data: { text: detailsText.substring(0, 500) } // Store less data
                     });
                 });
                 return currentItems;
@@ -224,24 +232,29 @@ async function enrichLeadsWithAI(leads: any[]) {
     // Truncate leads list for AI to avoid token limits if necessary
     const leadsForAI = leads.slice(0, 10);
 
+    // Simplify prompt input to avoid 400 Bad Request on large payloads and strange chars
+    const simplifiedLeads = leadsForAI.map((l, i) => ({
+        id: i,
+        name: l.business_name,
+        web: l.website ? 'Yes' : 'No',
+        ph: l.phone ? 'Yes' : 'No',
+        desc: (l.raw_data?.text || '').substring(0, 100).replace(/[^a-zA-Z0-9 ]/g, '') // Sanitize
+    }));
+
     const prompt = `
-    You are a Lead Qualification Expert. Analyze these businesses found for the category: ${leads[0].category} in ${leads[0].city}.
+    Role: Lead Quality Scorer.
+    Context: Finding ${leads[0].category} in ${leads[0].city}.
     
-    Leads:
-    ${JSON.stringify(leadsForAI.map((l, i) => ({ id: i, name: l.business_name, website: l.website, phone: l.phone, details: l.raw_data })))}
+    Data:
+    ${JSON.stringify(simplifiedLeads)}
 
-    For each lead, assign a 'score' (0-100) based on:
-    - Availability of Contact Info (Phone/Website)
-    - Professionalism (implied by Name/Website)
-    - Relevance
-
-    Return valid JSON ARRAY only:
-    [{ "id": 0, "ai_score": 85, "reason": "Good website and phone" }]
+    Task: Rate 0-100.
+    Return JSON Array: [{ "id": 0, "ai_score": 90 }]
     `;
 
     try {
         const aiResponse = await generateAIResponse([
-            { role: 'system', content: 'You are a JSON-only response bot.' },
+            { role: 'system', content: 'Output JSON only.' },
             { role: 'user', content: prompt }
         ], FREE_MODELS.GEMINI_FLASH);
 
