@@ -1,19 +1,23 @@
 
 import { NextResponse } from 'next/server';
 import { getServiceSupabase } from '@/lib/supabase';
-import { generateAIResponse } from '@/lib/openrouter';
+import { generateAIResponse, FREE_MODELS } from '@/lib/openrouter';
+import chromium from '@sparticuz/chromium-min';
+import puppeteer from 'puppeteer-core';
+
+// Helper to determine if we are local or in production (Netlify/Vercel)
+const isLocal = process.env.NODE_ENV === 'development';
 
 export async function POST(request: Request) {
     try {
-        const { city, category, limit = 10 } = await request.json();
+        const { city, category, limit = 5 } = await request.json();
 
         if (!city || !category) {
             return NextResponse.json({ success: false, error: 'City and Category are required' }, { status: 400 });
         }
 
-        // 1. REAL DATA FETCHING STAGE (Using Nominatim / OpenStreetMap)
-        // This replaces the dummy data with real-world business listings.
-        const scrapedLeads = await fetchRealBusinessData(city, category, limit);
+        // 1. SCRAPING STAGE (Puppeteer)
+        const scrapedLeads = await runPuppeteerScraper(city, category, limit);
 
         // 2. AI ENRICHMENT STAGE
         const enrichedLeads = await enrichLeadsWithAI(scrapedLeads);
@@ -22,7 +26,6 @@ export async function POST(request: Request) {
         const supabase = getServiceSupabase();
 
         // We only save unique ones or update existing? For now, insert all to potential_leads
-        // In produc_tion, you'd check for duplicates.
         const { data, error } = await supabase
             .from('potential_leads')
             .insert(enrichedLeads)
@@ -40,78 +43,140 @@ export async function POST(request: Request) {
 
 // --- Helper Functions ---
 
-async function fetchRealBusinessData(city: string, category: string, limit: number) {
+async function runPuppeteerScraper(city: string, category: string, limit: number) {
+    let browser = null;
     try {
-        // Query Nominatim for real places
-        // q = <category> in <city>
-        const query = `${category} in ${city}`;
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=${limit}&extratags=1`;
+        // Launch Puppeteer
+        // If local, we need a local chrome executable path. 
+        // If on cloud, we use chrome-aws-lambda or @sparticuz/chromium
 
-        const response = await fetch(url, {
-            headers: {
-                // Nominatim requires a User-Agent
-                'User-Agent': 'LevitateLabs-LeadGen/1.0 (admin@levitatelabs.com)'
-            }
-        });
+        let executablePath = await chromium.executablePath;
 
-        if (!response.ok) {
-            throw new Error(`Nominatim API Error: ${response.statusText}`);
+        if (isLocal) {
+            executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+        } else {
+            //@ts-ignore
+            executablePath = await chromium.executablePath();
         }
 
-        const results = await response.json();
-
-        return results.map((item: any) => {
-            // Extract best available data
-            const name = item.name || item.display_name.split(',')[0];
-            const address = item.display_name;
-            const phone = item.extratags?.phone || item.extratags?.['contact:phone'] || null;
-            const website = item.extratags?.website || item.extratags?.['contact:website'] || null;
-
-            return {
-                business_name: name,
-                address: address, // Truncate if too long?
-                phone: phone,
-                website: website,
-                city: city,
-                category: category,
-                raw_data: {
-                    osm_id: item.osm_id,
-                    type: item.type,
-                    importance: item.importance,
-                    source: 'OpenStreetMap/Nominatim'
-                }
-            };
+        browser = await puppeteer.launch({
+            args: isLocal ? puppeteer.defaultArgs() : chromium.args,
+            //@ts-ignore
+            defaultViewport: chromium.defaultViewport,
+            executablePath: executablePath!,
+            //@ts-ignore
+            headless: chromium.headless === 'true' || chromium.headless === true,
+            ignoreHTTPSErrors: true,
         });
 
+        const page = await browser.newPage();
+
+        // Set User Agent to avoid detection
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+
+        const query = `${category} in ${city}`;
+        // Go to Google Maps (approximate URL logic)
+        // Note: Direct Google Maps scraping is hard due to dynamic classes. 
+        // We will try a simpler query on Google Search "Maps" tab logic if possible, 
+        // OR search on a directory site if Maps fails.
+        // Let's try Google Search directly which lists businesses in "Places"
+
+        await page.goto(`https://www.google.com/search?tbm=lcl&q=${encodeURIComponent(query)}`, { waitUntil: 'networkidle2' });
+
+        // Simple selector logic for Google "Local Pack" / Maps List
+        // Note: These class names change often. This is a best-effort robust selector strategy.
+        const results = await page.evaluate((maxItems) => {
+            const items = [];
+
+            // Try different selector patterns used by Google
+            const businessElements = document.querySelectorAll('.VkpGBb'); // Common class for business card in list
+
+            for (const el of businessElements) {
+                if (items.length >= maxItems) break;
+
+                const nameEl = el.querySelector('.dbg0pd span') || el.querySelector('.dbg0pd');
+                const ratingEl = el.querySelector('.BTtC6e');
+                // Address/Phone often in sub-divs
+                const detailsText = el.textContent || '';
+
+                // Parse phone (naive regex)
+                const phoneMatch = detailsText.match(/(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/);
+                const phone = phoneMatch ? phoneMatch[0] : null;
+
+                // Website? Often inside an 'a' tag with 'Website' text
+                const links = Array.from(el.querySelectorAll('a'));
+                const websiteLink = links.find(a => a.textContent?.includes('Website'))?.getAttribute('href')
+                    || links.find(a => a.href.includes('http') && !a.href.includes('google'))?.href;
+
+                items.push({
+                    business_name: nameEl?.textContent || 'Unknown Business',
+                    rating: ratingEl?.textContent || 'N/A',
+                    phone: phone,
+                    website: websiteLink,
+                    address: 'See details', // Hard to extract clean address from list view
+                    category: 'Scraped',
+                    raw: detailsText
+                });
+            }
+            return items;
+        }, limit);
+
+        return results.map(r => ({
+            ...r,
+            city,
+            category
+        }));
+
     } catch (error) {
-        console.warn('Real data fetch failed, falling back to empty list', error);
+        console.error('Puppeteer Scraping Failed:', error);
+        // Fallback or rethrow
         return [];
+    } finally {
+        if (browser) await browser.close();
     }
 }
 
 async function enrichLeadsWithAI(leads: any[]) {
-    // If we have leads, we score them.
     if (leads.length === 0) return [];
 
-    // Simple heuristic + AI prompt for "business potential"
-    // Since we want to use OpenRouter, let's just do a quick scoring.
+    // Use OpenRouter to score these leads
+    const prompt = `
+    You are a Lead Qualification Expert. Analyze these businesses found for the category: ${leads[0].category} in ${leads[0].city}.
+    
+    Leads:
+    ${JSON.stringify(leads.map((l, i) => ({ id: i, name: l.business_name, website: l.website, phone: l.phone, details: l.raw })))}
 
-    const enriched = leads.map(lead => {
-        let score = 50;
+    For each lead, assign a 'score' (0-100) based on:
+    - Availability of Contact Info (Phone/Website)
+    - Professionalism (implied by Name/Website)
+    - Relevance
 
-        // Heuristic Scoring
-        if (!lead.website) score += 20; // Needs website
-        if (lead.phone) score += 10; // Reachable
+    Return valid JSON ARRAY only:
+    [{ "id": 0, "ai_score": 85, "reason": "Good website and phone" }]
+    `;
 
-        // Random variation to look natural if fields are identical
-        score += Math.floor(Math.random() * 10);
+    try {
+        const aiResponse = await generateAIResponse([
+            { role: 'system', content: 'You are a JSON-only response bot.' },
+            { role: 'user', content: prompt }
+        ], FREE_MODELS.GEMINI_FLASH); // Use Flash for speed
 
-        return {
-            ...lead,
-            ai_score: Math.min(score, 100),
-            status: 'pending'
-        };
-    });
+        // Clean JSON
+        const cleanJson = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+        const scores = JSON.parse(cleanJson);
 
-    return enriched;
+        return leads.map((lead, index) => {
+            const scoreData = scores.find((s: any) => s.id === index);
+            return {
+                ...lead,
+                ai_score: scoreData ? scoreData.ai_score : 50,
+                status: 'pending'
+            };
+        });
+
+    } catch (e) {
+        console.error('AI Enrichment Failed:', e);
+        // Fallback enrichment
+        return leads.map(l => ({ ...l, ai_score: l.phone ? 60 : 40, status: 'pending' }));
+    }
 }

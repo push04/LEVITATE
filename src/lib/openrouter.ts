@@ -22,11 +22,13 @@ export async function generateAIResponse(
             return 'AI Configuration Error: Missing API Key';
         }
 
+        console.log(`Using Model: ${model}`); // Debug log
+
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
-                'HTTP-Referer': 'https://levitatelabs.com', // Replace with your actual site URL
+                'HTTP-Referer': 'https://levitatelabs.com',
                 'X-Title': 'Levitate Labs',
                 'Content-Type': 'application/json',
             },
