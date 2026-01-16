@@ -102,28 +102,37 @@ export default function Navbar() {
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="md:hidden bg-[var(--surface)] border-t border-[var(--border)]"
+                        initial={{ opacity: 0, x: '100%' }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: '100%' }}
+                        transition={{ type: "tween", duration: 0.3 }}
+                        className="md:hidden fixed inset-0 top-[64px] z-40 bg-[var(--background)] border-t border-[var(--border)] overflow-y-auto"
                     >
-                        <div className="px-4 py-4 space-y-2">
+                        <div className="flex flex-col p-6 space-y-4">
                             {navLinks.map((link) => (
-                                <button
+                                <a
                                     key={link.name}
-                                    onClick={() => scrollToSection(link.href)}
-                                    className="block w-full text-left px-4 py-3 rounded-lg 
-                           hover:bg-[var(--secondary)] transition-colors"
+                                    href={link.href}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        scrollToSection(link.href);
+                                    }}
+                                    className="block w-full text-left px-4 py-4 rounded-xl text-lg font-medium
+                                             text-[var(--foreground)] hover:bg-[var(--secondary)] 
+                                             hover:text-[var(--primary)] transition-all duration-200"
                                 >
                                     {link.name}
-                                </button>
+                                </a>
                             ))}
-                            <Link
-                                href="/admin"
-                                className="block w-full text-center btn-primary mt-4"
-                            >
-                                Admin Dashboard
-                            </Link>
+                            <div className="pt-4 border-t border-[var(--border)]">
+                                <Link
+                                    href="/admin"
+                                    onClick={() => setIsOpen(false)}
+                                    className="block w-full text-center btn-primary py-4 text-lg"
+                                >
+                                    Admin Dashboard
+                                </Link>
+                            </div>
                         </div>
                     </motion.div>
                 )}

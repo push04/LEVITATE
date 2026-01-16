@@ -18,31 +18,31 @@ interface Service {
 
 const services: Service[] = [
     // Web Development
-    { name: 'Static Development', slug: 'static-development', price: '₹3k', category: 'web', description: 'Fast, optimized static websites' },
-    { name: 'Full Stack App', slug: 'full-stack-app', price: '₹9k', category: 'web', description: 'Complete web applications with backend' },
-    { name: 'CMS Integration', slug: 'cms-integration', price: '₹5k', category: 'web', description: 'Content management systems' },
-    { name: 'E-commerce', slug: 'ecommerce', price: '₹12k', category: 'web', description: 'Online stores with payment integration' },
-    { name: 'SaaS MVP', slug: 'saas-mvp', price: '₹20k', category: 'web', description: 'Minimum viable product development' },
+    { name: 'Static Development', slug: 'static-development', price: '₹3,000', category: 'web', description: 'Fast, optimized static websites' },
+    { name: 'Full Stack App', slug: 'full-stack-app', price: '₹9,000', category: 'web', description: 'Complete web applications with backend' },
+    { name: 'CMS Integration', slug: 'cms-integration', price: '₹5,000', category: 'web', description: 'Content management systems' },
+    { name: 'E-commerce', slug: 'ecommerce', price: '₹12,000', category: 'web', description: 'Online stores with payment integration' },
+    { name: 'SaaS MVP', slug: 'saas-mvp', price: '₹20,000', category: 'web', description: 'Minimum viable product development' },
 
     // Mechanical Engineering
-    { name: '2D Drafting', slug: '2d-drafting', price: '₹1k/hr', category: 'mechanical', description: 'Technical drawings and schematics' },
-    { name: '3D Modeling', slug: '3d-modeling', price: '₹2k/part', category: 'mechanical', description: 'Detailed 3D CAD models' },
-    { name: 'Rendering', slug: 'rendering', price: '₹1.5k', category: 'mechanical', description: 'Photorealistic product renders' },
-    { name: 'FEA Simulation', slug: 'fea-simulation', price: '₹4k', category: 'mechanical', description: 'Finite element analysis' },
+    { name: '2D Drafting', slug: '2d-drafting', price: '₹1,000/hr', category: 'mechanical', description: 'Technical drawings and schematics' },
+    { name: '3D Modeling', slug: '3d-modeling', price: '₹2,000/part', category: 'mechanical', description: 'Detailed 3D CAD models' },
+    { name: 'Rendering', slug: 'rendering', price: '₹1,500', category: 'mechanical', description: 'Photorealistic product renders' },
+    { name: 'FEA Simulation', slug: 'fea-simulation', price: '₹4,000', category: 'mechanical', description: 'Finite element analysis' },
     { name: 'STL Prep', slug: 'stl-prep', price: '₹800', category: 'mechanical', description: '3D printing file preparation' },
 
     // Growth Marketing
-    { name: 'Tech SEO', slug: 'tech-seo', price: '₹3k', category: 'growth', description: 'Technical search optimization' },
-    { name: 'Automation', slug: 'automation', price: '₹4k', category: 'growth', description: 'Marketing automation setup' },
-    { name: 'Ads Setup', slug: 'ads-setup', price: '₹2.5k', category: 'growth', description: 'PPC campaign configuration' },
-    { name: 'Social Mgmt', slug: 'social-management', price: '₹4.5k/mo', category: 'growth', description: 'Social media management' },
-    { name: 'Market Research', slug: 'market-research', price: '₹2.5k', category: 'growth', description: 'Competitive analysis' },
+    { name: 'Tech SEO', slug: 'tech-seo', price: '₹3,000', category: 'growth', description: 'Technical search optimization' },
+    { name: 'Automation', slug: 'automation', price: '₹4,000', category: 'growth', description: 'Marketing automation setup' },
+    { name: 'Ads Setup', slug: 'ads-setup', price: '₹2,500', category: 'growth', description: 'PPC campaign configuration' },
+    { name: 'Social Management', slug: 'social-management', price: '₹4,500/mo', category: 'growth', description: 'Social media management' },
+    { name: 'Market Research', slug: 'market-research', price: '₹2,500', category: 'growth', description: 'Competitive analysis' },
 
     // Creative Services
     { name: 'Graphic Design', slug: 'graphic-design', price: '₹400', category: 'creative', description: 'Visual graphics and assets' },
-    { name: 'Logo/Identity', slug: 'logo-identity', price: '₹1.8k', category: 'creative', description: 'Brand identity design' },
-    { name: 'Copywriting', slug: 'copywriting', price: '₹1k/pg', category: 'creative', description: 'Compelling copy and content' },
-    { name: 'Pitch Decks', slug: 'pitch-decks', price: '₹2.5k', category: 'creative', description: 'Investor presentation design' },
+    { name: 'Logo/Identity', slug: 'logo-identity', price: '₹1,800', category: 'creative', description: 'Brand identity design' },
+    { name: 'Copywriting', slug: 'copywriting', price: '₹1,000/pg', category: 'creative', description: 'Compelling copy and content' },
+    { name: 'Pitch Decks', slug: 'pitch-decks', price: '₹2,500', category: 'creative', description: 'Investor presentation design' },
     { name: 'Video Edit', slug: 'video-editing', price: '₹500', category: 'creative', description: 'Professional video editing' },
 ];
 
