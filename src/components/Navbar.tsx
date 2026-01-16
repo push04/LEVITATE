@@ -80,56 +80,9 @@ export default function Navbar() {
                     {/* Mobile Menu Button - High Z-Index & Interactive */}
                     <div className="flex md:hidden items-center gap-4">
                         <ThemeToggle />
-                        <button
-                            onClick={toggleMenu}
-                            className="p-2 rounded-lg bg-[var(--secondary)] cursor-pointer hover:bg-[var(--border)] transition-colors active:scale-95 touch-manipulation"
-                            aria-label="Toggle Menu"
-                        >
-                            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                        </button>
                     </div>
                 </div>
             </div>
-
-            {/* Mobile Menu Overlay */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, x: '100%' }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: '100%' }}
-                        transition={{ type: "tween", duration: 0.3 }}
-                        className="md:hidden fixed inset-0 top-[64px] z-40 bg-[var(--background)]/95 backdrop-blur-xl border-t border-[var(--border)] overflow-y-auto"
-                    >
-                        <div className="flex flex-col p-6 space-y-4">
-                            {navLinks.map((link) => (
-                                <a
-                                    key={link.name}
-                                    href={link.href}
-                                    onClick={(e) => {
-                                        // Allow default navigation to hash
-                                        closeMenu();
-                                    }}
-                                    className="block w-full text-left px-4 py-4 rounded-xl text-lg font-medium
-                                             text-[var(--foreground)] hover:bg-[var(--secondary)] 
-                                             hover:text-[var(--primary)] transition-all duration-200 cursor-pointer"
-                                >
-                                    {link.name}
-                                </a>
-                            ))}
-                            <div className="pt-4 border-t border-[var(--border)]">
-                                <Link
-                                    href="/admin"
-                                    onClick={closeMenu}
-                                    className="block w-full text-center btn-primary py-4 text-lg"
-                                >
-                                    Admin Dashboard
-                                </Link>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </motion.nav>
     );
 }
