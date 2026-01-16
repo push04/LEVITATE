@@ -7,11 +7,11 @@ import Link from 'next/link';
 import ThemeToggle from './ThemeToggle';
 
 const navLinks = [
-    { name: 'Home', href: '#home' },
-    { name: 'Services', href: '#services' },
-    { name: 'Case Studies', href: '#case-studies' },
-    { name: 'Team', href: '#team' },
-    { name: 'Contact', href: '#contact' },
+    { name: 'Home', href: '/#home' },
+    { name: 'Services', href: '/#services' },
+    { name: 'Case Studies', href: '/#case-studies' },
+    { name: 'Team', href: '/#team' },
+    { name: 'Contact', href: '/#contact' },
 ];
 
 export default function Navbar() {
@@ -25,14 +25,6 @@ export default function Navbar() {
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
-
-    const scrollToSection = (href: string) => {
-        setIsOpen(false);
-        const element = document.querySelector(href);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
-        }
-    };
 
     return (
         <motion.nav
@@ -63,18 +55,14 @@ export default function Navbar() {
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center gap-8">
                         {navLinks.map((link) => (
-                            <a
+                            <Link
                                 key={link.name}
                                 href={link.href}
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    scrollToSection(link.href);
-                                }}
                                 className="text-[var(--foreground)]/70 hover:text-[var(--primary)] 
                          transition-colors duration-300 font-medium cursor-pointer"
                             >
                                 {link.name}
-                            </a>
+                            </Link>
                         ))}
                         <ThemeToggle />
                         <Link
@@ -110,19 +98,16 @@ export default function Navbar() {
                     >
                         <div className="flex flex-col p-6 space-y-4">
                             {navLinks.map((link) => (
-                                <a
+                                <Link
                                     key={link.name}
                                     href={link.href}
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        scrollToSection(link.href);
-                                    }}
+                                    onClick={() => setIsOpen(false)}
                                     className="block w-full text-left px-4 py-4 rounded-xl text-lg font-medium
                                              text-[var(--foreground)] hover:bg-[var(--secondary)] 
                                              hover:text-[var(--primary)] transition-all duration-200"
                                 >
                                     {link.name}
-                                </a>
+                                </Link>
                             ))}
                             <div className="pt-4 border-t border-[var(--border)]">
                                 <Link

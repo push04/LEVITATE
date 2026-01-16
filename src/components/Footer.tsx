@@ -7,16 +7,16 @@ import Link from 'next/link';
 
 const footerLinks = {
     services: [
-        { name: 'Web Development', href: '#services' },
-        { name: 'Mechanical Engineering', href: '#services' },
-        { name: 'Growth Marketing', href: '#services' },
-        { name: 'Creative Services', href: '#services' },
+        { name: 'Web Development', href: '/#services' },
+        { name: 'Mechanical Engineering', href: '/#services' },
+        { name: 'Growth Marketing', href: '/#services' },
+        { name: 'Creative Services', href: '/#services' },
     ],
     company: [
-        { name: 'About Us', href: '#team' },
-        { name: 'Case Studies', href: '#case-studies' },
-        { name: 'Careers', href: '#contact' },
-        { name: 'Contact', href: '#contact' },
+        { name: 'About Us', href: '/#team' },
+        { name: 'Case Studies', href: '/#case-studies' },
+        { name: 'Careers', href: '/#contact' },
+        { name: 'Contact', href: '/#contact' },
     ],
 };
 
