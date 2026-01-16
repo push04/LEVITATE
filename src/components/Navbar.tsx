@@ -26,6 +26,10 @@ export default function Navbar() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
+    const toggleMenu = () => setIsOpen(!isOpen);
+
+    const closeMenu = () => setIsOpen(false);
+
     return (
         <motion.nav
             initial={{ y: -100 }}
@@ -36,9 +40,9 @@ export default function Navbar() {
                 }`}
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16">
+                <div className="flex items-center justify-between h-16 relative z-50">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2 group">
+                    <Link href="/" className="flex items-center gap-2 group" onClick={closeMenu}>
                         <motion.div
                             whileHover={{ rotate: 180 }}
                             transition={{ duration: 0.5 }}
@@ -73,20 +77,21 @@ export default function Navbar() {
                         </Link>
                     </div>
 
-                    {/* Mobile Menu Button */}
+                    {/* Mobile Menu Button - High Z-Index & Interactive */}
                     <div className="flex md:hidden items-center gap-4">
                         <ThemeToggle />
                         <button
-                            onClick={() => setIsOpen(!isOpen)}
-                            className="p-2 rounded-lg bg-[var(--secondary)]"
+                            onClick={toggleMenu}
+                            className="p-2 rounded-lg bg-[var(--secondary)] cursor-pointer hover:bg-[var(--border)] transition-colors active:scale-95 touch-manipulation"
+                            aria-label="Toggle Menu"
                         >
-                            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* Mobile Menu */}
+            {/* Mobile Menu Overlay */}
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
@@ -94,25 +99,28 @@ export default function Navbar() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: '100%' }}
                         transition={{ type: "tween", duration: 0.3 }}
-                        className="md:hidden fixed inset-0 top-[64px] z-40 bg-[var(--background)] border-t border-[var(--border)] overflow-y-auto"
+                        className="md:hidden fixed inset-0 top-[64px] z-40 bg-[var(--background)]/95 backdrop-blur-xl border-t border-[var(--border)] overflow-y-auto"
                     >
                         <div className="flex flex-col p-6 space-y-4">
                             {navLinks.map((link) => (
-                                <Link
+                                <a
                                     key={link.name}
                                     href={link.href}
-                                    onClick={() => setIsOpen(false)}
+                                    onClick={(e) => {
+                                        // Allow default navigation to hash
+                                        closeMenu();
+                                    }}
                                     className="block w-full text-left px-4 py-4 rounded-xl text-lg font-medium
                                              text-[var(--foreground)] hover:bg-[var(--secondary)] 
-                                             hover:text-[var(--primary)] transition-all duration-200"
+                                             hover:text-[var(--primary)] transition-all duration-200 cursor-pointer"
                                 >
                                     {link.name}
-                                </Link>
+                                </a>
                             ))}
                             <div className="pt-4 border-t border-[var(--border)]">
                                 <Link
                                     href="/admin"
-                                    onClick={() => setIsOpen(false)}
+                                    onClick={closeMenu}
                                     className="block w-full text-center btn-primary py-4 text-lg"
                                 >
                                     Admin Dashboard
