@@ -1,12 +1,12 @@
 /**
  * Reporter Agent — Daily 8 AM IST
- * Sends Pushpal a WhatsApp morning digest of everything that happened.
+ * Emails Pushpal a morning digest of everything that happened.
  * Schedule: 2:30 AM UTC = 8:00 AM IST
  */
 
 import type { Config } from '@netlify/functions'
 import { callAI } from '../../src/lib/ai/router'
-import { sendWhatsAppToOwner } from '../../src/lib/whatsapp/client'
+import { notifyFounder } from '../../src/lib/email/client'
 import { getServiceSupabase } from '../../src/lib/supabase'
 
 export default async () => {
@@ -28,11 +28,15 @@ export default async () => {
     const failures = logsRes.data?.length ?? 0
     const topAgent = agentRes.data?.[0]
 
-    const summary = await callAI(
+    const today = new Date().toLocaleDateString('en-IN', {
+      timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long'
+    })
+
+    const body = await callAI(
       `You are the daily reporter for Levitate Labs, a web agency run by Pushpal.
-Write a concise WhatsApp morning briefing (max 250 words).
-Use emojis. Format for WhatsApp (NO markdown, NO asterisks for bold).
-Today's date: ${new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long' })}`,
+Write a concise morning briefing email (max 250 words).
+Use plain text with line breaks. Format as an email body.
+Today: ${today}`,
       JSON.stringify({
         new_leads_yesterday: newLeads,
         active_projects: activeProjects,
@@ -46,13 +50,13 @@ Today's date: ${new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata
       'reporter'
     )
 
-    await sendWhatsAppToOwner(summary)
+    await notifyFounder(`☀️ Levitate Labs Daily Report — ${today}`, body)
 
     await supabase.from('agent_logs').insert({
       agent_name: 'reporter',
       action: 'daily_report',
       input: {},
-      output: { summary, metrics: { newLeads, activeProjects, totalRevenue, failures } },
+      output: { metrics: { newLeads, activeProjects, totalRevenue, failures } },
       status: 'success',
       credits_earned: 2
     })
@@ -61,7 +65,7 @@ Today's date: ${new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata
 
   } catch (err) {
     console.error('[Reporter] Failed:', err)
-    await sendWhatsAppToOwner(`⚠️ Reporter agent failed: ${err instanceof Error ? err.message : String(err)}`)
+    await notifyFounder('⚠️ Reporter Agent Failed', `Error: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
 

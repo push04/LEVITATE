@@ -1,11 +1,11 @@
 /**
  * Proposal Agent — Background Function
  * Triggered after a lead is qualified.
- * Generates PDF proposal + Razorpay payment link → sends via WhatsApp.
+ * Generates PDF proposal + Razorpay payment link → sends via email.
  */
 
 import { callAI } from '../../src/lib/ai/router'
-import { sendWhatsApp } from '../../src/lib/whatsapp/client'
+import { sendLeadEmail, notifyFounder } from '../../src/lib/email/client'
 import { createPaymentLink } from '../../src/lib/payments/razorpay'
 import { generateProposalPDF } from '../../src/lib/pdf/proposal'
 import { getServiceSupabase } from '../../src/lib/supabase'
@@ -92,7 +92,7 @@ Rules:
         amount: proposal.advance_amount,
         description: `Advance for ${proposal.title}`,
         name: lead.owner_name ?? lead.business_name,
-        contact: lead.whatsapp ?? lead.phone ?? '',
+        contact: lead.phone ?? '',
         referenceId: `lead_${leadId}`
       })
     } catch (err) {
@@ -139,24 +139,36 @@ Rules:
       expiry_date: expiryDate
     }).select().single()
 
-    // Send via WhatsApp
+    // Send via Email
     const ownerName = lead.owner_name ?? 'there'
-    const whatsappMessage = `Hi ${ownerName}! 🎉
+    const emailSubject = `Your Website Proposal — ${lead.business_name}`
+    const emailBody = `Hi ${ownerName},
 
 Here's your custom proposal for ${lead.business_name}:
 
-📋 *${proposal.title}*
-🗓️ Timeline: ${proposal.timeline_days} working days
-💰 Total: ₹${proposal.total_price.toLocaleString('en-IN')}
+Project: ${proposal.title}
+Timeline: ${proposal.timeline_days} working days
+Total: Rs.${proposal.total_price.toLocaleString('en-IN')}
 
-${pdfUrl ? `📄 Full proposal: ${pdfUrl}\n\n` : ''}To get started, pay ₹${proposal.advance_amount.toLocaleString('en-IN')} advance:
-${paymentLink?.short_url ? `💳 ${paymentLink.short_url}` : 'Payment link will be shared shortly.'}
+${pdfUrl ? `Full proposal PDF: ${pdfUrl}\n\n` : ''}To get started, pay Rs.${proposal.advance_amount.toLocaleString('en-IN')} advance:
+${paymentLink?.short_url ? `Payment link: ${paymentLink.short_url}` : 'Payment link will be shared shortly.'}
 
-Questions? Just reply here! 🙏`
+Reply to this email if you have any questions!
 
-    if (lead.whatsapp) {
-      await sendWhatsApp(lead.whatsapp, whatsappMessage)
+Best,
+Pushpal
+Levitate Labs
+levitatelabs.online`
+
+    if (lead.email) {
+      await sendLeadEmail(lead.email, emailSubject, emailBody)
     }
+
+    // Also notify founder
+    await notifyFounder(
+      `📤 Proposal sent — ${lead.business_name} (Rs.${proposal.total_price.toLocaleString('en-IN')})`,
+      `Proposal sent to ${lead.email}\n\nProject: ${proposal.title}\nAmount: Rs.${proposal.total_price.toLocaleString('en-IN')}\nAdvance: Rs.${proposal.advance_amount.toLocaleString('en-IN')}\n${paymentLink?.short_url ? `\nPayment link: ${paymentLink.short_url}` : ''}`
+    )
 
     // Update statuses
     await Promise.all([

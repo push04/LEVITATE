@@ -1,12 +1,12 @@
 /**
  * Outreach Agent — Daily 9 AM IST
- * Sends hyper-personalized WhatsApp messages to hot leads.
+ * Sends personalized cold emails to hot leads.
  * Schedule: 3:30 AM UTC = 9:00 AM IST
  */
 
 import type { Config } from '@netlify/functions'
 import { callAI } from '../../src/lib/ai/router'
-import { sendWhatsApp } from '../../src/lib/whatsapp/client'
+import { sendLeadEmail, notifyFounder } from '../../src/lib/email/client'
 import { getServiceSupabase } from '../../src/lib/supabase'
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
@@ -21,7 +21,7 @@ export default async () => {
       .eq('status', 'new')
       .gte('score', 6)
       .is('last_outreach_at', null)
-      .not('whatsapp', 'is', null)
+      .not('email', 'is', null)
       .order('score', { ascending: false })
       .limit(10)
 
@@ -34,19 +34,21 @@ export default async () => {
 
     for (const lead of hotLeads) {
       try {
-        const message = await callAI(
+        const body = await callAI(
           `You are Pushpal from Levitate Labs, a web developer from Vadodara, Gujarat.
-Write a WhatsApp message to a local business owner.
+Write a cold email to a local business owner.
 
 RULES:
+- Subject line should be natural, NOT spammy
 - Reference ONE specific thing about their type of business
-- Point out ONE problem (no website = missing Google, JustDial, customers can't find them online)
+- Point out ONE problem (no website = missing Google, customers can't find them online)
 - Offer to build a professional website in 5-7 days
 - Sound like a real local person, NOT a corporate template
-- Use Hinglish naturally (Hindi + English mix)
-- Under 120 words TOTAL
-- End with ONE easy yes/no question like "Interested?"
-- Sign: "- Pushpal, Levitate Labs"
+- Mix English with some Hinglish naturally
+- Under 150 words TOTAL for body
+- End with ONE easy yes/no question like "Would you like a free mockup?"
+- Sign: "Pushpal\nLevitate Labs\nlevitatelabs.online\n+91-XXXXXXXXXX"
+- Return JSON: {"subject": "...", "body": "..."}
 - NEVER mention AI, automation, or bot`,
           JSON.stringify({
             business_name: lead.business_name,
@@ -56,13 +58,24 @@ RULES:
             has_website: lead.has_website,
             source: lead.source
           }),
-          300,
+          400,
           'outreach'
         )
 
-        if (!lead.whatsapp) continue
+        let subject = `Website for ${lead.business_name}?`
+        let emailBody = body
 
-        const success = await sendWhatsApp(lead.whatsapp, message)
+        try {
+          const parsed = JSON.parse(body)
+          subject = parsed.subject ?? subject
+          emailBody = parsed.body ?? body
+        } catch {
+          // use raw body if not JSON
+        }
+
+        if (!lead.email) continue
+
+        const success = await sendLeadEmail(lead.email, subject, emailBody)
 
         if (success) {
           await supabase.from('leads').update({
@@ -74,16 +87,16 @@ RULES:
           await supabase.from('messages').insert({
             lead_id: lead.id,
             direction: 'outbound',
-            channel: 'whatsapp',
-            content: message,
+            channel: 'email',
+            content: `Subject: ${subject}\n\n${emailBody}`,
             sent_by_agent: 'outreach'
           })
 
           await supabase.rpc('update_agent_credits', { p_agent_name: 'outreach', p_amount: 5, p_reason: `Outreach to ${lead.business_name}` })
           sent++
 
-          // Human-like delay 1-3 minutes between messages
-          await sleep(Math.random() * 120000 + 60000)
+          // Polite delay between emails (30-90 seconds)
+          await sleep(Math.random() * 60000 + 30000)
         }
       } catch (err) {
         console.error(`[Outreach] Failed for ${lead.business_name}:`, err)
@@ -99,7 +112,7 @@ RULES:
       credits_earned: sent * 5
     })
 
-    console.log(`[Outreach] Sent ${sent} messages`)
+    console.log(`[Outreach] Sent ${sent} emails`)
   } catch (err) {
     console.error('[Outreach] Failed:', err)
     await supabase.from('agent_logs').insert({

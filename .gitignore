@@ -40,8 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Setup/test scripts (contain sensitive tokens — do not commit)
+# Setup/test scripts and Kaggle run logs (contain sensitive tokens — do not commit)
 test-ai.js
+kaggle_out_latest/
+kaggle_out_latest_phi/
 automated_test.py
 find_site.py
 netlify_set_env.py

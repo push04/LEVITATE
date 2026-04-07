@@ -21,52 +21,27 @@ async function checkSupabase() {
 async function checkGemmaAPI() {
   const url = process.env.GEMMA_API_URL
   if (!url) return { service: 'gemma_kaggle', healthy: false, error: 'GEMMA_API_URL not set' }
-
   try {
     const start = Date.now()
     const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(5000) })
     return { service: 'gemma_kaggle', healthy: res.ok, latency_ms: Date.now() - start }
   } catch {
-    return { service: 'gemma_kaggle', healthy: false, error: 'Kaggle notebook offline' }
+    return { service: 'gemma_kaggle', healthy: false, error: 'Kaggle notebook offline — restart it on kaggle.com' }
   }
 }
 
-async function checkGroq() {
-  if (!process.env.GROQ_API_KEY) return { service: 'groq', healthy: false, error: 'GROQ_API_KEY not set' }
-  try {
-    const start = Date.now()
-    const res = await fetch('https://api.groq.com/openai/v1/models', {
-      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
-      signal: AbortSignal.timeout(5000)
-    })
-    return { service: 'groq', healthy: res.ok, latency_ms: Date.now() - start }
-  } catch {
-    return { service: 'groq', healthy: false, error: 'Groq unreachable' }
-  }
-}
-
-async function checkWhatsApp() {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID
-  if (!token || !phoneId) return { service: 'whatsapp', healthy: false, error: 'Credentials not set' }
-
-  try {
-    const start = Date.now()
-    const res = await fetch(
-      `https://graph.facebook.com/v18.0/${phoneId}`,
-      { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) }
-    )
-    return { service: 'whatsapp', healthy: res.ok, latency_ms: Date.now() - start }
-  } catch {
-    return { service: 'whatsapp', healthy: false, error: 'WhatsApp API unreachable' }
-  }
+async function checkSMTP() {
+  const host = process.env.SMTP_HOST
+  const user = process.env.SMTP_USER
+  if (!host || !user) return { service: 'smtp_email', healthy: false, error: 'SMTP_HOST or SMTP_USER not set' }
+  // Just verify credentials are present — avoid actually connecting on health check
+  return { service: 'smtp_email', healthy: true, info: `${user} via ${host}` }
 }
 
 async function checkRazorpay() {
   const keyId = process.env.RAZORPAY_KEY_ID
   const keySecret = process.env.RAZORPAY_KEY_SECRET
   if (!keyId || !keySecret) return { service: 'razorpay', healthy: false, error: 'Credentials not set' }
-
   try {
     const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64')
     const start = Date.now()
@@ -85,24 +60,23 @@ export async function GET() {
   const checks = await Promise.allSettled([
     checkSupabase(),
     checkGemmaAPI(),
-    checkGroq(),
-    checkWhatsApp(),
+    checkSMTP(),
     checkRazorpay()
   ])
 
   const results = checks.map(c => c.status === 'fulfilled' ? c.value : { service: 'unknown', healthy: false })
-  const allHealthy = results.every(r => r.healthy)
-  const criticalHealthy = results.filter(r => ['supabase', 'whatsapp'].includes(r.service)).every(r => r.healthy)
+  const criticalServices = ['supabase', 'razorpay']
+  const criticalOk = results.filter(r => criticalServices.includes(r.service)).every(r => r.healthy)
+  const allOk = results.every(r => r.healthy)
 
   return NextResponse.json({
-    status: allHealthy ? 'ok' : criticalHealthy ? 'degraded' : 'critical',
+    status: allOk ? 'ok' : criticalOk ? 'degraded' : 'critical',
     timestamp: new Date().toISOString(),
     response_ms: Date.now() - start,
     checks: results,
     ai_strategy: {
-      primary: process.env.GEMMA_API_URL ? 'Gemma 4 (Kaggle GPU)' : 'Not configured',
-      fallback: process.env.GROQ_API_KEY ? 'Groq (free tier)' : 'Not configured',
+      primary: process.env.GEMMA_API_URL ? 'Qwen2.5-3B (Kaggle GPU — free)' : 'Kaggle not running',
       cost: '₹0/month'
     }
-  }, { status: allHealthy ? 200 : 503 })
+  }, { status: criticalOk ? 200 : 503 })
 }
