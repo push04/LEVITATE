@@ -1,9 +1,10 @@
 /**
  * AI Router — Levitate Labs
- * Primary: Gemma 4 running FREE on Kaggle GPU (GEMMA_API_URL env var)
- * Fallback 1: Groq (free tier, 14400 req/day)
- * Fallback 2: OpenRouter free models
- * ZERO paid API usage unless all free tiers exhausted.
+ * Priority 1: Groq (FREE, 14,400 req/day, no GPU, instant) — PRIMARY
+ * Priority 2: Google Gemini Flash (FREE, 1,500 req/day, no GPU) — FALLBACK
+ * Priority 3: HuggingFace Inference API (FREE, ~1000 req/day) — FALLBACK
+ * Priority 4: Kaggle GPU (FREE, needs notebook running) — OPTIONAL
+ * ZERO paid API. ZERO GPU required. Runs fully serverless.
  */
 
 interface AICallOptions {
@@ -20,45 +21,12 @@ interface Provider {
   available: () => boolean
 }
 
-// ── Kaggle Gemma 4 provider ────────────────────────────────────────────
-// Deploy a Kaggle notebook with Gemma 4 + FastAPI + ngrok to get a free endpoint.
-// Set GEMMA_API_URL = https://YOUR_NGROK_URL (updated daily by kaggle-watchdog)
-function makeKaggleGemmaProvider(): Provider {
-  return {
-    name: 'kaggle-gemma4',
-    available: () => !!process.env.GEMMA_API_URL,
-    call: async (opts) => {
-      const url = process.env.GEMMA_API_URL!
-      const res = await fetch(`${url}/v1/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(process.env.GEMMA_API_KEY ? { Authorization: `Bearer ${process.env.GEMMA_API_KEY}` } : {})
-        },
-        body: JSON.stringify({
-          model: 'gemma-4',
-          messages: [
-            { role: 'system', content: opts.system },
-            { role: 'user', content: opts.user }
-          ],
-          max_tokens: opts.maxTokens ?? 2000,
-          temperature: opts.temperature ?? 0.7,
-          stream: false
-        }),
-        signal: AbortSignal.timeout(60000)
-      })
-
-      if (!res.ok) throw new Error(`Kaggle Gemma error: ${res.status}`)
-      const data = await res.json()
-      return data.choices?.[0]?.message?.content ?? ''
-    }
-  }
-}
-
-// ── Groq provider (free, 14400 req/day) ───────────────────────────────
+// ── Groq (FREE, 14,400 req/day, no GPU, llama-3.3-70b) ───────────────
+// Sign up free at console.groq.com → API Keys → Create key
+// Add as Netlify env var: GROQ_API_KEY
 function makeGroqProvider(): Provider {
   return {
-    name: 'groq',
+    name: 'groq-llama70b',
     available: () => !!process.env.GROQ_API_KEY,
     call: async (opts) => {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -78,7 +46,6 @@ function makeGroqProvider(): Provider {
         }),
         signal: AbortSignal.timeout(30000)
       })
-
       if (!res.ok) throw new Error(`Groq error: ${res.status}`)
       const data = await res.json()
       return data.choices?.[0]?.message?.content ?? ''
@@ -86,33 +53,99 @@ function makeGroqProvider(): Provider {
   }
 }
 
-// ── OpenRouter free tier (meta-llama/llama-3.1-8b-instruct:free) ──────
-function makeOpenRouterProvider(): Provider {
+// ── Google Gemini Flash (FREE, 1,500 req/day, no GPU) ─────────────────
+// Sign up free at aistudio.google.com → Get API key
+// Add as Netlify env var: GEMINI_API_KEY
+function makeGeminiProvider(): Provider {
   return {
-    name: 'openrouter-free',
-    available: () => !!process.env.OPENROUTER_API_KEY,
+    name: 'gemini-flash',
+    available: () => !!process.env.GEMINI_API_KEY,
     call: async (opts) => {
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const key = process.env.GEMINI_API_KEY!
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              { role: 'user', parts: [{ text: `${opts.system}\n\n${opts.user}` }] }
+            ],
+            generationConfig: {
+              maxOutputTokens: opts.maxTokens ?? 2000,
+              temperature: opts.temperature ?? 0.7
+            }
+          }),
+          signal: AbortSignal.timeout(30000)
+        }
+      )
+      if (!res.ok) throw new Error(`Gemini error: ${res.status}`)
+      const data = await res.json()
+      return data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+    }
+  }
+}
+
+// ── HuggingFace Inference API (FREE, ~1000 req/day, no GPU) ───────────
+// Sign up free at huggingface.co → Settings → Tokens → New token (read)
+// Add as Netlify env var: HF_TOKEN
+function makeHuggingFaceProvider(): Provider {
+  return {
+    name: 'huggingface-qwen',
+    available: () => !!process.env.HF_TOKEN,
+    call: async (opts) => {
+      const model = 'Qwen/Qwen2.5-3B-Instruct'
+      const res = await fetch(
+        `https://api-inference.huggingface.co/models/${model}/v1/chat/completions`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.HF_TOKEN}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: opts.system },
+              { role: 'user', content: opts.user }
+            ],
+            max_tokens: Math.min(opts.maxTokens ?? 2000, 2048),
+            temperature: opts.temperature ?? 0.7,
+            stream: false
+          }),
+          signal: AbortSignal.timeout(45000)
+        }
+      )
+      if (!res.ok) throw new Error(`HuggingFace error: ${res.status}`)
+      const data = await res.json()
+      return data.choices?.[0]?.message?.content ?? ''
+    }
+  }
+}
+
+// ── Kaggle GPU (optional, needs notebook running manually) ────────────
+// Only used if GEMMA_API_URL is set (Kaggle watchdog updates this)
+function makeKaggleProvider(): Provider {
+  return {
+    name: 'kaggle-gpu',
+    available: () => !!process.env.GEMMA_API_URL,
+    call: async (opts) => {
+      const url = process.env.GEMMA_API_URL!
+      const res = await fetch(`${url}/v1/chat/completions`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://levitatelabs.online',
-          'X-Title': 'Levitate Labs'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'meta-llama/llama-3.1-8b-instruct:free',
           messages: [
             { role: 'system', content: opts.system },
             { role: 'user', content: opts.user }
           ],
           max_tokens: opts.maxTokens ?? 2000,
-          temperature: opts.temperature ?? 0.7
+          temperature: opts.temperature ?? 0.7,
+          stream: false
         }),
-        signal: AbortSignal.timeout(30000)
+        signal: AbortSignal.timeout(60000)
       })
-
-      if (!res.ok) throw new Error(`OpenRouter error: ${res.status}`)
+      if (!res.ok) throw new Error(`Kaggle error: ${res.status}`)
       const data = await res.json()
       return data.choices?.[0]?.message?.content ?? ''
     }
@@ -124,11 +157,11 @@ class AIRouter {
   private providers: Provider[]
 
   constructor() {
-    // Priority: Gemma4 on Kaggle → Groq → OpenRouter free
     this.providers = [
-      makeKaggleGemmaProvider(),
-      makeGroqProvider(),
-      makeOpenRouterProvider()
+      makeGroqProvider(),       // PRIMARY — free, fast, no GPU, 14400/day
+      makeGeminiProvider(),     // FALLBACK — free, no GPU, 1500/day
+      makeHuggingFaceProvider(), // FALLBACK — free, no GPU, 1000/day
+      makeKaggleProvider()      // OPTIONAL — free GPU, only when notebook running
     ]
   }
 
@@ -144,7 +177,6 @@ class AIRouter {
       try {
         const result = await provider.call(opts)
         if (result) {
-          // Log which provider was used (non-blocking)
           this.logProviderUsage(provider.name, opts.agentName).catch(() => {})
           return result
         }
@@ -159,7 +191,6 @@ class AIRouter {
   }
 
   private async logProviderUsage(provider: string, agentName?: string) {
-    // Fire-and-forget logging — doesn't block the AI call
     try {
       const { getServiceSupabase } = await import('@/lib/supabase')
       const supabase = getServiceSupabase()
@@ -170,18 +201,13 @@ class AIRouter {
         status: 'success',
         output: { provider }
       })
-    } catch {
-      // Ignore logging errors
-    }
+    } catch { /* ignore */ }
   }
 
-  // Simple JSON extraction helper used by agents
   extractJSON(text: string): unknown {
     try {
-      // Try direct parse first
       return JSON.parse(text)
     } catch {
-      // Try to find JSON block in markdown
       const match = text.match(/```(?:json)?\s*([\s\S]*?)```/) ?? text.match(/\{[\s\S]*\}/)
       if (match) {
         try { return JSON.parse(match[1] ?? match[0]) } catch { /* fall through */ }
@@ -191,10 +217,8 @@ class AIRouter {
   }
 }
 
-// Singleton
 export const aiRouter = new AIRouter()
 
-// Convenience export
 export async function callAI(system: string, user: string, maxTokens = 2000, agentName?: string): Promise<string> {
   return aiRouter.call({ system, user, maxTokens, agentName })
 }

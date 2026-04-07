@@ -18,16 +18,23 @@ async function checkSupabase() {
   }
 }
 
-async function checkGemmaAPI() {
-  const url = process.env.GEMMA_API_URL
-  if (!url) return { service: 'gemma_kaggle', healthy: false, error: 'GEMMA_API_URL not set' }
+async function checkGroq() {
+  if (!process.env.GROQ_API_KEY) return { service: 'groq_ai', healthy: false, error: 'GROQ_API_KEY not set — get free key at console.groq.com' }
   try {
     const start = Date.now()
-    const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(5000) })
-    return { service: 'gemma_kaggle', healthy: res.ok, latency_ms: Date.now() - start }
+    const res = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
+      signal: AbortSignal.timeout(5000)
+    })
+    return { service: 'groq_ai', healthy: res.ok, latency_ms: Date.now() - start, info: 'llama-3.3-70b — 14,400 req/day free' }
   } catch {
-    return { service: 'gemma_kaggle', healthy: false, error: 'Kaggle notebook offline — restart it on kaggle.com' }
+    return { service: 'groq_ai', healthy: false, error: 'Groq unreachable' }
   }
+}
+
+async function checkGemini() {
+  if (!process.env.GEMINI_API_KEY) return { service: 'gemini_ai', healthy: false, error: 'GEMINI_API_KEY not set — get free key at aistudio.google.com' }
+  return { service: 'gemini_ai', healthy: true, info: 'gemini-1.5-flash — 1,500 req/day free' }
 }
 
 async function checkSMTP() {
@@ -59,7 +66,8 @@ export async function GET() {
   const start = Date.now()
   const checks = await Promise.allSettled([
     checkSupabase(),
-    checkGemmaAPI(),
+    checkGroq(),
+    checkGemini(),
     checkSMTP(),
     checkRazorpay()
   ])
@@ -75,8 +83,9 @@ export async function GET() {
     response_ms: Date.now() - start,
     checks: results,
     ai_strategy: {
-      primary: process.env.GEMMA_API_URL ? 'Qwen2.5-3B (Kaggle GPU — free)' : 'Kaggle not running',
-      cost: '₹0/month'
+      primary: process.env.GROQ_API_KEY ? 'Groq llama-3.3-70b (free, no GPU)' : 'Not configured',
+      fallback: process.env.GEMINI_API_KEY ? 'Gemini Flash (free, no GPU)' : 'Not configured',
+      cost: 'Rs.0/month'
     }
   }, { status: criticalOk ? 200 : 503 })
 }
