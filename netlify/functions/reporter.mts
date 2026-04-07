@@ -1,7 +1,8 @@
 /**
- * Reporter Agent — Daily 8 AM IST
- * Emails Pushpal a morning digest of everything that happened.
- * Schedule: 2:30 AM UTC = 8:00 AM IST
+ * Reporter Agent — Every 30 minutes
+ * Emails founder@levitatelabs.online with a status update.
+ * Only sends if there are new events in the last 30 minutes (no spam).
+ * Full hourly digest sent once per hour regardless.
  */
 
 import type { Config } from '@netlify/functions'
@@ -11,64 +12,88 @@ import { getServiceSupabase } from '../../src/lib/supabase'
 
 export default async () => {
   const supabase = getServiceSupabase()
-  const yesterday = new Date(Date.now() - 86400000).toISOString()
+  const since = new Date(Date.now() - 31 * 60 * 1000).toISOString() // last 31 min
+  const sinceDay = new Date(Date.now() - 86400000).toISOString()
+  const now = new Date()
+  const isFullHour = now.getUTCMinutes() < 5 // send full digest at top of each hour
 
   try {
-    const [leadsRes, projectsRes, revenueRes, agentRes, logsRes] = await Promise.all([
-      supabase.from('leads').select('status, score, business_name').gte('created_at', yesterday),
-      supabase.from('projects').select('status, name').neq('status', 'closed'),
-      supabase.from('revenue').select('amount, type').gte('received_at', yesterday),
-      supabase.from('agent_rewards').select('agent_name, current_balance, success_rate, is_suspended').order('current_balance', { ascending: false }).limit(5),
-      supabase.from('agent_logs').select('agent_name, action, status').gte('created_at', yesterday).eq('status', 'failure')
+    const [newLogsRes, newLeadsRes, revenueRes, failuresRes] = await Promise.all([
+      supabase.from('agent_logs').select('agent_name, action, status, credits_earned').gte('created_at', since),
+      supabase.from('leads').select('business_name, score, status').gte('created_at', since),
+      supabase.from('revenue').select('amount, type').gte('received_at', since),
+      supabase.from('agent_logs').select('agent_name, action').gte('created_at', since).eq('status', 'failure')
     ])
 
-    const totalRevenue = (revenueRes.data ?? []).reduce((sum, r) => sum + Number(r.amount), 0)
-    const newLeads = leadsRes.data?.length ?? 0
-    const activeProjects = projectsRes.data?.length ?? 0
-    const failures = logsRes.data?.length ?? 0
-    const topAgent = agentRes.data?.[0]
+    const recentActivity = newLogsRes.data?.length ?? 0
+    const newLeads = newLeadsRes.data?.length ?? 0
+    const newRevenue = (revenueRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0)
+    const failures = failuresRes.data?.length ?? 0
 
-    const today = new Date().toLocaleDateString('en-IN', {
-      timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long'
-    })
+    // Skip email if nothing happened and it's not a full hour
+    if (!isFullHour && recentActivity === 0 && newLeads === 0 && newRevenue === 0) {
+      console.log('[Reporter] Nothing new in last 30 min, skipping email')
+      return
+    }
+
+    // For full hourly digest, pull 24h stats
+    const [allLeadsRes, projectsRes, allRevenueRes, topAgentRes] = await Promise.all([
+      supabase.from('leads').select('status, score, business_name').gte('created_at', sinceDay),
+      supabase.from('projects').select('status, name').neq('status', 'closed'),
+      supabase.from('revenue').select('amount').gte('received_at', sinceDay),
+      supabase.from('agent_rewards').select('agent_name, current_balance').order('current_balance', { ascending: false }).limit(1)
+    ])
+
+    const totalDayRevenue = (allRevenueRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0)
+
+    const timeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
+    const dateStr = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' })
+
+    const subject = newRevenue > 0
+      ? `[PAYMENT] Rs.${newRevenue.toLocaleString('en-IN')} received — Levitate Labs ${timeStr}`
+      : newLeads > 0
+      ? `[NEW LEADS] ${newLeads} leads found — Levitate Labs ${timeStr}`
+      : failures > 0
+      ? `[ALERT] ${failures} agent failures — Levitate Labs ${timeStr}`
+      : `[Status] Levitate Labs update — ${dateStr} ${timeStr}`
 
     const body = await callAI(
-      `You are the daily reporter for Levitate Labs, a web agency run by Pushpal.
-Write a concise morning briefing email (max 250 words).
-Use plain text with line breaks. Format as an email body.
-Today: ${today}`,
+      `You are the automated reporter for Levitate Labs web agency.
+Write a brief status update email (max 150 words). Plain text only, no markdown.
+Be direct and factual. If there is revenue, make it prominent.
+Sign off: "— Levitate Labs Automation"`,
       JSON.stringify({
-        new_leads_yesterday: newLeads,
-        active_projects: activeProjects,
-        revenue_yesterday_inr: totalRevenue,
-        agent_failures_yesterday: failures,
-        top_performing_agent: topAgent?.agent_name,
-        top_agent_balance: topAgent?.current_balance,
-        recent_leads: leadsRes.data?.slice(0, 3)?.map(l => l.business_name)
+        period: isFullHour ? 'last 1 hour' : 'last 30 minutes',
+        new_leads: newLeads,
+        new_revenue_inr: newRevenue,
+        agent_failures: failures,
+        agents_active: recentActivity,
+        day_total_leads: allLeadsRes.data?.length ?? 0,
+        day_total_revenue: totalDayRevenue,
+        active_projects: projectsRes.data?.length ?? 0,
+        top_agent: topAgentRes.data?.[0]?.agent_name ?? 'none',
+        recent_leads: newLeadsRes.data?.slice(0, 3).map(l => l.business_name)
       }),
-      500,
+      300,
       'reporter'
     )
 
-    await notifyFounder(`☀️ Levitate Labs Daily Report — ${today}`, body)
+    await notifyFounder(subject, body)
 
     await supabase.from('agent_logs').insert({
       agent_name: 'reporter',
-      action: 'daily_report',
-      input: {},
-      output: { metrics: { newLeads, activeProjects, totalRevenue, failures } },
+      action: 'status_email',
+      input: { period: '30min', had_events: recentActivity > 0 },
+      output: { subject, new_leads: newLeads, new_revenue: newRevenue },
       status: 'success',
-      credits_earned: 2
+      credits_earned: 1
     })
-
-    await supabase.rpc('update_agent_credits', { p_agent_name: 'reporter', p_amount: 2, p_reason: 'daily_report_sent' })
 
   } catch (err) {
     console.error('[Reporter] Failed:', err)
-    await notifyFounder('⚠️ Reporter Agent Failed', `Error: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
 
 export const config: Config = {
-  schedule: '30 2 * * *' // 8:00 AM IST
+  schedule: '*/30 * * * *' // Every 30 minutes
 }

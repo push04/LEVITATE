@@ -108,5 +108,5 @@ All agents evaluated. Check /admin/dashboard/automations for details.`
 }
 
 export const config: Config = {
-  schedule: '30 17 * * 0' // Sunday 11:00 PM IST
+  schedule: '0 */6 * * *' // Every 6 hours
 }

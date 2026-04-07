@@ -126,5 +126,5 @@ export default async () => {
 }
 
 export const config: Config = {
-  schedule: '30 0 * * *' // 6:00 AM IST
+  schedule: '0 */2 * * *' // Every 2 hours
 }

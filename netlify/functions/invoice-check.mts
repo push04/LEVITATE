@@ -80,5 +80,5 @@ export default async () => {
 }
 
 export const config: Config = {
-  schedule: '30 3 * * *' // 9:00 AM IST
+  schedule: '*/30 * * * *' // Every 30 minutes
 }

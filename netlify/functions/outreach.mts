@@ -127,5 +127,5 @@ RULES:
 }
 
 export const config: Config = {
-  schedule: '30 3 * * *' // 9:00 AM IST
+  schedule: '*/5 * * * *' // Every 5 minutes
 }

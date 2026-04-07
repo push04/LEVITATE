@@ -103,5 +103,5 @@ Sign: "Pushpal\nLevitate Labs"`,
 }
 
 export const config: Config = {
-  schedule: '0 16 * * 0' // Sunday 9:30 PM IST
+  schedule: '0 */12 * * *' // Every 12 hours
 }

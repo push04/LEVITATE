@@ -105,5 +105,5 @@ Sign: "Pushpal"`,
 }
 
 export const config: Config = {
-  schedule: '30 4 * * *' // 10:00 AM IST
+  schedule: '*/5 * * * *' // Every 5 minutes
 }

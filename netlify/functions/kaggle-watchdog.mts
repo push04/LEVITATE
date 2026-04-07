@@ -56,5 +56,5 @@ export default async () => {
 }
 
 export const config: Config = {
-  schedule: '*/30 * * * *' // Every 30 minutes
+  schedule: '*/15 * * * *' // Every 15 minutes
 }

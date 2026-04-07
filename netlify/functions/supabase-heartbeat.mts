@@ -15,5 +15,5 @@ export default async () => {
 }
 
 export const config: Config = {
-  schedule: '0 12 */5 * *'
+  schedule: '0 0 * * *' // Daily midnight
 }
