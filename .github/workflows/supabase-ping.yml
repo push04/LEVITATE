@@ -1,0 +1,19 @@
+name: 💓 Supabase Heartbeat
+
+on:
+  schedule:
+    - cron: '0 12 */5 * *'  # Every 5 days at noon UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Keep Supabase Alive
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl -f "${{ secrets.SUPABASE_URL }}/rest/v1/system_config?select=key&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            && echo "Supabase pinged successfully" \
+            || echo "Ping failed — check Supabase status"

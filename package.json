@@ -1,0 +1,47 @@
+{
+  "name": "levitate-labs",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@sparticuz/chromium-min": "^143.0.4",
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.90.1",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/nodemailer": "^7.0.5",
+    "canvas-confetti": "^1.9.4",
+    "cheerio": "^1.2.0",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.2.3",
+    "duck-duck-scrape": "^2.2.7",
+    "framer-motion": "^12.34.0",
+    "imap-simple": "^5.1.0",
+    "lucide-react": "^0.562.0",
+    "mailparser": "^3.9.3",
+    "next": "16.1.1",
+    "node-fetch": "^2.7.0",
+    "nodemailer": "^7.0.12",
+    "puppeteer-core": "^24.35.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "recharts": "^3.6.0"
+  },
+  "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.15.5",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,201 @@
+name: 🤖 Levitate Labs — Coding Agent Pipeline
+
+on:
+  repository_dispatch:
+    types: [new-coding-task]
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'Supabase project UUID'
+        required: true
+      project_name:
+        description: 'Project name'
+        required: true
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+  GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+  GEMMA_API_URL: ${{ secrets.GEMMA_API_URL }}
+  NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+  NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+  WHATSAPP_ACCESS_TOKEN: ${{ secrets.WHATSAPP_ACCESS_TOKEN }}
+  WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
+  YOUR_WHATSAPP_NUMBER: ${{ secrets.YOUR_WHATSAPP_NUMBER }}
+
+jobs:
+  architect:
+    name: 🏗️ Architect Agent
+    runs-on: ubuntu-latest
+    outputs:
+      project_id: ${{ steps.arch.outputs.project_id }}
+      project_name: ${{ steps.arch.outputs.project_name }}
+      tech_stack: ${{ steps.arch.outputs.tech_stack }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - id: arch
+        name: Run Architect Agent
+        env:
+          PROJECT_ID: ${{ github.event.client_payload.project_id || inputs.project_id }}
+          PROJECT_NAME: ${{ github.event.client_payload.project_name || inputs.project_name }}
+        run: node scripts/agents/architect.js
+
+  code:
+    name: 💻 Coder Agent
+    needs: architect
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python (for Aider)
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Aider (uses Groq/Gemma free)
+        run: |
+          pip install aider-chat
+          echo "Aider installed for AI-assisted coding"
+
+      - name: Create client repository
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          PROJECT_ID: ${{ needs.architect.outputs.project_id }}
+        run: node scripts/agents/create-repo.js
+
+      - name: Run Coder Agent
+        env:
+          # Aider uses OpenAI-compatible API — pointed at Groq (free)
+          OPENAI_API_BASE: https://api.groq.com/openai/v1
+          OPENAI_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PROJECT_ID: ${{ needs.architect.outputs.project_id }}
+        run: node scripts/agents/coder.js
+
+      - name: Commit and push generated code
+        working-directory: ./client-repo
+        run: |
+          git config user.email "agents@levitatelabs.online"
+          git config user.name "Levitate Labs Agent 🤖"
+          git add .
+          git commit -m "feat: automated website implementation by Levitate Labs agent"
+          git push
+
+  review:
+    name: 🔍 Reviewer Agent
+    needs: [architect, code]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run Reviewer Agent
+        env:
+          PROJECT_ID: ${{ needs.architect.outputs.project_id }}
+        run: node scripts/agents/reviewer.js
+
+  test:
+    name: 🧪 Tester Agent
+    needs: [architect, review]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies + Playwright
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run Tester Agent
+        env:
+          PROJECT_ID: ${{ needs.architect.outputs.project_id }}
+        run: node scripts/agents/tester.js
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results-${{ needs.architect.outputs.project_id }}
+          path: test-results/
+          retention-days: 7
+
+  debug:
+    name: 🐛 Debugger Agent
+    needs: [architect, test]
+    if: failure()
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run Debugger Agent
+        env:
+          PROJECT_ID: ${{ needs.architect.outputs.project_id }}
+        run: node scripts/agents/debugger.js
+      - name: Re-run tests after fix
+        run: node scripts/agents/tester.js
+
+  deploy:
+    name: 🚀 Deployer Agent
+    needs: [architect, test]
+    if: success()
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Netlify CLI
+        run: npm install -g netlify-cli
+
+      - name: Deploy to staging subdomain
+        env:
+          PROJECT_ID: ${{ needs.architect.outputs.project_id }}
+          PROJECT_NAME: ${{ needs.architect.outputs.project_name }}
+        run: node scripts/agents/deployer.js staging
+
+      - name: Notify client via WhatsApp
+        env:
+          PROJECT_ID: ${{ needs.architect.outputs.project_id }}
+        run: node scripts/agents/notify-client.js staging
+
+      - name: Report success to Levitate Labs
+        if: always()
+        env:
+          PROJECT_ID: ${{ needs.architect.outputs.project_id }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          curl -X POST https://levitatelabs.online/api/webhook/github \
+            -H "Content-Type: application/json" \
+            -d "{\"event\":\"coding_complete\",\"project_id\":\"$PROJECT_ID\",\"agent\":\"deployer\",\"status\":\"$JOB_STATUS\"}"
