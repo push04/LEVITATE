@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Eye, EyeOff, ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
+import { Check, Eye, EyeOff, ArrowRight, ArrowLeft, Sparkles, Building2, MapPin, User, Mail, Lock } from 'lucide-react';
+import s from '@/styles/home.module.css';
 
 const CATEGORIES = [
   'Restaurant', 'Clinic', 'Coaching Centre', 'Real Estate',
@@ -109,9 +110,9 @@ export default function Onboard() {
             email: account.email,
             password: account.password,
           });
-          if (signInError) throw new Error('Incorrect password. Please try again or reset your password.');
+          if (signInError) throw new Error('Incorrect password for this email. Please try again.');
         } else {
-          throw signUpError;
+          throw new Error(signUpError.message);
         }
       }
 
@@ -123,7 +124,7 @@ export default function Onboard() {
     }
   }
 
-  // ── Step 2: Save business details (just local state, applied at launch) ───
+  // ── Step 2: Save business details ──────────────────────────────────────────
   function handleBusinessStep(e: React.FormEvent) {
     e.preventDefault();
     if (!business.businessName.trim() || !business.city.trim() || !business.category) {
@@ -134,7 +135,7 @@ export default function Onboard() {
     setStep(3);
   }
 
-  // ── Step 3: Plan selected, move to launch ─────────────────────────────────
+  // ── Step 3: Plan selected ──────────────────────────────────────────────────
   function handlePlanStep() {
     setStep(4);
   }
@@ -145,7 +146,6 @@ export default function Onboard() {
     setError('');
     try {
       if (selectedPlan === 'trial') {
-        // Start trial via server API
         const res = await fetch('/api/trial/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -157,10 +157,8 @@ export default function Onboard() {
         }
         router.push('/business/dashboard');
       } else if (selectedPlan === 'scale') {
-        // Contact sales
         router.push('/#contact');
       } else {
-        // Paid plans — go to subscribe flow
         router.push(`/business/subscribe?plan=${selectedPlan}`);
       }
     } catch (err: unknown) {
@@ -171,19 +169,19 @@ export default function Onboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] py-12 px-4">
+    <div className="min-h-screen bg-[#FAFAF8] text-[#1A1916] py-12 px-4 selection:bg-[#B08D57]/30">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm text-[var(--muted)] hover:text-[#C8A96E] transition-colors mb-6">
+        <div className="mb-10 text-center sm:text-left">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm text-[#6B6860] hover:text-[#B08D57] transition-colors mb-6 font-medium">
             <ArrowLeft className="w-4 h-4" /> Back to home
           </Link>
-          <h1 className="text-4xl md:text-5xl font-bold mb-3">
-            <span className="text-[#C8A96E] italic">Start</span> your automation journey
+          <h1 className={`${s.sectionHeadline} text-4xl md:text-5xl font-normal mb-4`}>
+            <span className="text-[#B08D57] italic">Start</span> your automation journey
           </h1>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {['Review your plan before any payment', 'Your workspace is saved — come back anytime', 'Your business gets its own branded URL'].map((pill) => (
-              <span key={pill} className="px-3 py-1 bg-[var(--surface)] rounded-full text-xs text-[var(--muted)]">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
+            {['Review your plan before any payment', 'Your workspace is saved', 'Your business gets its own URL'].map((pill) => (
+              <span key={pill} className="px-3 py-1 bg-[#F4F2EE] border border-[#E5E0D8] rounded-full text-[11px] font-semibold text-[#6B6860] uppercase tracking-wider">
                 {pill}
               </span>
             ))}
@@ -195,16 +193,16 @@ export default function Onboard() {
           {STEPS.map((label, i) => (
             <div key={label} className="flex-1">
               <div
-                className={`h-1 rounded-full transition-all duration-500 ${
-                  i + 1 <= step ? 'bg-[#C8A96E]' : 'bg-[var(--border-strong)]'
+                className={`h-1.5 rounded-full transition-all duration-500 ${
+                  i + 1 <= step ? 'bg-[#B08D57]' : 'bg-[#E5E0D8]'
                 }`}
               />
               <div
-                className={`text-xs mt-1.5 transition-colors ${
-                  i + 1 === step ? 'text-[#C8A96E] font-medium' : i + 1 < step ? 'text-[var(--muted)]' : 'text-[var(--muted)]/50'
+                className={`text-xs mt-2 transition-colors uppercase tracking-wider font-semibold ${
+                  i + 1 === step ? 'text-[#B08D57]' : i + 1 < step ? 'text-[#1A1916]' : 'text-[#6B6860]/50'
                 }`}
               >
-                {i + 1 < step && <Check className="w-3 h-3 inline mr-1" />}
+                {i + 1 < step && <Check className="w-3.5 h-3.5 inline mr-1" />}
                 {label}
               </div>
             </div>
@@ -213,7 +211,8 @@ export default function Onboard() {
 
         {/* Error banner */}
         {error && (
-          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <div className="mb-6 rounded-xl border border-red-500/20 bg-red-50 px-4 py-3 text-sm text-red-600 flex items-center gap-3">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
             {error}
           </div>
         )}
@@ -223,47 +222,54 @@ export default function Onboard() {
           {step === 1 && (
             <motion.div
               key="step-1"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
             >
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 space-y-5">
+              <div className="bg-white rounded-2xl border border-[#E5E0D8] p-8 space-y-6 shadow-[0_8px_32px_rgba(26,25,22,0.04)]">
                 <div>
-                  <h2 className="text-xl font-semibold mb-1">Create your account</h2>
-                  <p className="text-sm text-[var(--muted)]">
+                  <h2 className={`${s.sectionHeadline} text-3xl mb-2`}>Create your account</h2>
+                  <p className="text-sm text-[#6B6860]">
                     Already have an account?{' '}
-                    <Link href="/business/login?next=/onboard" className="text-[#C8A96E] underline underline-offset-2">
+                    <Link href="/business/login?next=/onboard" className="text-[#B08D57] font-semibold hover:underline underline-offset-4 transition-all">
                       Sign in
                     </Link>
                   </p>
                 </div>
-                <form onSubmit={handleAccountStep} className="space-y-4">
+                <form onSubmit={handleAccountStep} className="space-y-5">
                   <div>
-                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">Full Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={account.fullName}
-                      onChange={(e) => updateAccount('fullName', e.target.value)}
-                      placeholder="Your full name"
-                      className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">Email</label>
-                    <input
-                      type="email"
-                      required
-                      value={account.email}
-                      onChange={(e) => updateAccount('email', e.target.value)}
-                      placeholder="you@yourbusiness.com"
-                      className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">Password</label>
+                    <label className="block text-xs font-semibold text-[#6B6860] mb-2 uppercase tracking-wider">Full Name</label>
                     <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6B6860]/60"><User className="w-4 h-4" /></div>
+                      <input
+                        type="text"
+                        required
+                        value={account.fullName}
+                        onChange={(e) => updateAccount('fullName', e.target.value)}
+                        placeholder="Your full name"
+                        className="w-full pl-11 pr-4 py-3.5 bg-[#FAFAF8] border border-[#E5E0D8] rounded-xl text-[#1A1916] placeholder:text-[#6B6860]/60 focus:outline-none focus:border-[#B08D57] focus:ring-1 focus:ring-[#B08D57]/30 transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#6B6860] mb-2 uppercase tracking-wider">Email Address</label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6B6860]/60"><Mail className="w-4 h-4" /></div>
+                      <input
+                        type="email"
+                        required
+                        value={account.email}
+                        onChange={(e) => updateAccount('email', e.target.value)}
+                        placeholder="you@yourbusiness.com"
+                        className="w-full pl-11 pr-4 py-3.5 bg-[#FAFAF8] border border-[#E5E0D8] rounded-xl text-[#1A1916] placeholder:text-[#6B6860]/60 focus:outline-none focus:border-[#B08D57] focus:ring-1 focus:ring-[#B08D57]/30 transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#6B6860] mb-2 uppercase tracking-wider">Password</label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6B6860]/60"><Lock className="w-4 h-4" /></div>
                       <input
                         type={showPassword ? 'text' : 'password'}
                         required
@@ -271,12 +277,12 @@ export default function Onboard() {
                         value={account.password}
                         onChange={(e) => updateAccount('password', e.target.value)}
                         placeholder="Min. 8 characters"
-                        className="w-full px-4 py-3 pr-12 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors"
+                        className="w-full pl-11 pr-12 py-3.5 bg-[#FAFAF8] border border-[#E5E0D8] rounded-xl text-[#1A1916] placeholder:text-[#6B6860]/60 focus:outline-none focus:border-[#B08D57] focus:ring-1 focus:ring-[#B08D57]/30 transition-all font-medium"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword((p) => !p)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--muted)]"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6B6860] hover:text-[#1A1916] transition-colors"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -285,7 +291,7 @@ export default function Onboard() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[#C8A96E] text-[var(--foreground)] font-semibold rounded-xl hover:brightness-110 transition-all disabled:opacity-50"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[#B08D57] text-[#FAFAF8] font-semibold rounded-xl hover:bg-[#8C6D3F] transition-all disabled:opacity-50 hover:shadow-[0_4px_20px_rgba(176,141,87,0.3)] shadow-sm active:scale-[0.98]"
                   >
                     {loading ? 'Creating account…' : <>Continue <ArrowRight className="w-4 h-4" /></>}
                   </button>
@@ -298,64 +304,70 @@ export default function Onboard() {
           {step === 2 && (
             <motion.div
               key="step-2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
             >
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 space-y-5">
+              <div className="bg-white rounded-2xl border border-[#E5E0D8] p-8 space-y-6 shadow-[0_8px_32px_rgba(26,25,22,0.04)]">
                 <div>
-                  <h2 className="text-xl font-semibold mb-1">Tell us about your business</h2>
-                  <p className="text-sm text-[var(--muted)]">This helps us personalise your workspace.</p>
+                  <h2 className={`${s.sectionHeadline} text-3xl mb-2`}>Tell us about your business</h2>
+                  <p className="text-sm text-[#6B6860]">This helps us personalise your workspace and AI agents.</p>
                 </div>
-                <form onSubmit={handleBusinessStep} className="space-y-4">
+                <form onSubmit={handleBusinessStep} className="space-y-5">
                   <div>
-                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">Business Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={business.businessName}
-                      onChange={(e) => updateBusiness('businessName', e.target.value)}
-                      placeholder="e.g. Sharma Dental Clinic"
-                      className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors"
-                    />
+                    <label className="block text-xs font-semibold text-[#6B6860] mb-2 uppercase tracking-wider">Business Name</label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6B6860]/60"><Building2 className="w-4 h-4" /></div>
+                      <input
+                        type="text"
+                        required
+                        value={business.businessName}
+                        onChange={(e) => updateBusiness('businessName', e.target.value)}
+                        placeholder="e.g. Sharma Dental Clinic"
+                        className="w-full pl-11 pr-4 py-3.5 bg-[#FAFAF8] border border-[#E5E0D8] rounded-xl text-[#1A1916] placeholder:text-[#6B6860]/60 focus:outline-none focus:border-[#B08D57] focus:ring-1 focus:ring-[#B08D57]/30 transition-all font-medium"
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">City</label>
-                    <input
-                      type="text"
-                      required
-                      value={business.city}
-                      onChange={(e) => updateBusiness('city', e.target.value)}
-                      placeholder="e.g. Ahmedabad"
-                      className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors"
-                    />
+                    <label className="block text-xs font-semibold text-[#6B6860] mb-2 uppercase tracking-wider">City</label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6B6860]/60"><MapPin className="w-4 h-4" /></div>
+                      <input
+                        type="text"
+                        required
+                        value={business.city}
+                        onChange={(e) => updateBusiness('city', e.target.value)}
+                        placeholder="e.g. Ahmedabad"
+                        className="w-full pl-11 pr-4 py-3.5 bg-[#FAFAF8] border border-[#E5E0D8] rounded-xl text-[#1A1916] placeholder:text-[#6B6860]/60 focus:outline-none focus:border-[#B08D57] focus:ring-1 focus:ring-[#B08D57]/30 transition-all font-medium"
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">Business Category</label>
+                    <label className="block text-xs font-semibold text-[#6B6860] mb-2 uppercase tracking-wider">Business Category</label>
                     <select
                       required
                       value={business.category}
                       onChange={(e) => updateBusiness('category', e.target.value)}
-                      className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors appearance-none cursor-pointer"
+                      className="w-full px-4 py-3.5 bg-[#FAFAF8] border border-[#E5E0D8] rounded-xl text-[#1A1916] focus:outline-none focus:border-[#B08D57] focus:ring-1 focus:ring-[#B08D57]/30 transition-all appearance-none cursor-pointer font-medium"
                     >
-                      <option value="" className="bg-[#1a1a1a]">Select your category</option>
+                      <option value="" disabled>Select your category</option>
                       {CATEGORIES.map((c) => (
-                        <option key={c} value={c} className="bg-[#1a1a1a]">{c}</option>
+                        <option key={c} value={c}>{c}</option>
                       ))}
                     </select>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 pt-2">
                     <button
                       type="button"
                       onClick={() => setStep(1)}
-                      className="px-5 py-3 border border-[var(--border)] rounded-xl text-sm text-[var(--muted)] hover:border-[var(--border-focus)] hover:text-[var(--foreground)] transition-all"
+                      className="px-6 py-4 bg-white border border-[#E5E0D8] rounded-xl text-sm font-semibold text-[#6B6860] hover:border-[#B08D57] hover:text-[#1A1916] transition-all shadow-sm active:scale-[0.98]"
                     >
                       <ArrowLeft className="w-4 h-4 inline mr-1" /> Back
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#C8A96E] text-[var(--foreground)] font-semibold rounded-xl hover:brightness-110 transition-all"
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-[#B08D57] text-[#FAFAF8] font-semibold rounded-xl hover:bg-[#8C6D3F] transition-all hover:shadow-[0_4px_20px_rgba(176,141,87,0.3)] shadow-sm active:scale-[0.98]"
                     >
                       Continue <ArrowRight className="w-4 h-4" />
                     </button>
@@ -369,61 +381,61 @@ export default function Onboard() {
           {step === 3 && (
             <motion.div
               key="step-3"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
             >
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-xl font-semibold mb-1">Choose your plan</h2>
-                  <p className="text-sm text-[var(--muted)]">You can change or upgrade anytime.</p>
+              <div className="space-y-5">
+                <div className="text-center sm:text-left mb-6">
+                  <h2 className={`${s.sectionHeadline} text-3xl mb-2`}>Choose your plan</h2>
+                  <p className="text-sm text-[#6B6860]">You can change or upgrade anytime. No lock-ins.</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {PLANS.map((plan) => (
                     <button
                       key={plan.id}
                       onClick={() => setSelectedPlan(plan.id)}
-                      className={`relative text-left p-5 rounded-2xl border transition-all ${
+                      className={`relative text-left p-6 rounded-2xl border transition-all ${
                         selectedPlan === plan.id
-                          ? 'border-[#C8A96E] bg-[#C8A96E]/10'
-                          : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-focus)]'
+                          ? 'border-[#B08D57] bg-white shadow-[0_8px_32px_rgba(176,141,87,0.15)] ring-1 ring-[#B08D57]'
+                          : 'border-[#E5E0D8] bg-[#F4F2EE] hover:border-[#B08D57]/50 hover:bg-white hover:shadow-sm hover:-translate-y-1'
                       }`}
                     >
                       {plan.popular && (
-                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-[#C8A96E] text-[var(--foreground)] text-xs font-bold rounded-full">
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#1A1916] text-[#FAFAF8] text-[10px] font-bold uppercase tracking-widest rounded-full shadow-md">
                           MOST POPULAR
                         </div>
                       )}
                       {selectedPlan === plan.id && (
-                        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#C8A96E] flex items-center justify-center">
-                          <Check className="w-3 h-3 text-[var(--foreground)]" />
+                        <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-[#B08D57] flex items-center justify-center shadow-md">
+                          <Check className="w-3.5 h-3.5 text-white" />
                         </div>
                       )}
-                      <div className="font-semibold text-base mb-1">{plan.name}</div>
-                      <div className="text-2xl font-bold text-[#C8A96E] mb-3">
-                        {plan.price}<span className="text-sm font-normal text-[var(--muted)]">{plan.period}</span>
+                      <div className="font-semibold text-lg mb-1 text-[#1A1916]">{plan.name}</div>
+                      <div className="text-2xl font-bold text-[#B08D57] mb-4 font-serif">
+                        {plan.price}<span className="text-sm font-medium text-[#6B6860] font-sans ml-1">{plan.period}</span>
                       </div>
-                      <ul className="space-y-1.5">
+                      <ul className="space-y-2.5">
                         {plan.features.map((f) => (
-                          <li key={f} className="text-xs text-[var(--muted)] flex items-start gap-1.5">
-                            <Check className="w-3 h-3 text-[#C8A96E] mt-0.5 shrink-0" /> {f}
+                          <li key={f} className="text-sm text-[#6B6860] flex items-start gap-2 font-medium">
+                            <Check className="w-4 h-4 text-[#B08D57] mt-0.5 shrink-0" /> {f}
                           </li>
                         ))}
                       </ul>
                     </button>
                   ))}
                 </div>
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-3 pt-6">
                   <button
                     onClick={() => setStep(2)}
-                    className="px-5 py-3 border border-[var(--border)] rounded-xl text-sm text-[var(--muted)] hover:border-[var(--border-focus)] hover:text-[var(--foreground)] transition-all"
+                    className="px-6 py-4 bg-white border border-[#E5E0D8] rounded-xl text-sm font-semibold text-[#6B6860] hover:border-[#B08D57] hover:text-[#1A1916] transition-all shadow-sm active:scale-[0.98]"
                   >
                     <ArrowLeft className="w-4 h-4 inline mr-1" /> Back
                   </button>
                   <button
                     onClick={handlePlanStep}
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#C8A96E] text-[var(--foreground)] font-semibold rounded-xl hover:brightness-110 transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-[#1A1916] text-[#FAFAF8] font-semibold rounded-xl hover:bg-black transition-all hover:shadow-lg shadow-sm active:scale-[0.98]"
                   >
                     Continue with {PLANS.find((p) => p.id === selectedPlan)?.name} <ArrowRight className="w-4 h-4" />
                   </button>
@@ -436,22 +448,22 @@ export default function Onboard() {
           {step === 4 && (
             <motion.div
               key="step-4"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
             >
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 space-y-5">
+              <div className="bg-white rounded-2xl border border-[#E5E0D8] p-8 space-y-6 shadow-[0_8px_32px_rgba(26,25,22,0.04)]">
                 <div className="text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-[#C8A96E]/20 border border-[#C8A96E]/30 flex items-center justify-center mx-auto mb-4">
-                    <Sparkles className="w-8 h-8 text-[#C8A96E]" />
+                  <div className="w-20 h-20 rounded-full bg-[#F4F2EE] border border-[#E5E0D8] flex items-center justify-center mx-auto mb-5 shadow-inner">
+                    <Sparkles className="w-10 h-10 text-[#B08D57]" />
                   </div>
-                  <h2 className="text-2xl font-bold mb-2">You&apos;re ready to launch!</h2>
-                  <p className="text-sm text-[var(--muted)]">Here&apos;s what you&apos;ve set up:</p>
+                  <h2 className={`${s.sectionHeadline} text-3xl mb-2`}>You&apos;re ready to launch!</h2>
+                  <p className="text-sm text-[#6B6860] font-medium">Here&apos;s a summary of your workspace:</p>
                 </div>
 
                 {/* Summary */}
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   {[
                     { label: 'Account', value: account.email },
                     { label: 'Business', value: business.businessName || 'Not specified' },
@@ -459,24 +471,24 @@ export default function Onboard() {
                     { label: 'Category', value: business.category || 'Not specified' },
                     { label: 'Plan', value: PLANS.find((p) => p.id === selectedPlan)?.name || selectedPlan },
                   ].map(({ label, value }) => (
-                    <div key={label} className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-white/5">
-                      <span className="text-xs text-[var(--muted)] uppercase tracking-wider">{label}</span>
-                      <span className="text-sm font-medium text-[var(--foreground)]">{value}</span>
+                    <div key={label} className="flex items-center justify-between px-5 py-3.5 rounded-xl bg-[#FAFAF8] border border-[#E5E0D8]">
+                      <span className="text-xs font-semibold text-[#6B6860] uppercase tracking-wider">{label}</span>
+                      <span className="text-sm font-bold text-[#1A1916]">{value}</span>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 pt-4">
                   <button
                     onClick={() => setStep(3)}
-                    className="px-5 py-3 border border-[var(--border)] rounded-xl text-sm text-[var(--muted)] hover:border-[var(--border-focus)] hover:text-[var(--foreground)] transition-all"
+                    className="px-6 py-4 bg-white border border-[#E5E0D8] rounded-xl text-sm font-semibold text-[#6B6860] hover:border-[#B08D57] hover:text-[#1A1916] transition-all shadow-sm active:scale-[0.98]"
                   >
                     <ArrowLeft className="w-4 h-4 inline mr-1" /> Back
                   </button>
                   <button
                     onClick={handleLaunch}
                     disabled={loading}
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-[linear-gradient(135deg,#c9a55a,#a88540)] text-[var(--foreground)] font-semibold rounded-xl hover:brightness-110 transition-all disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-[#B08D57] text-[#FAFAF8] font-semibold rounded-xl hover:bg-[#8C6D3F] transition-all disabled:opacity-50 hover:shadow-[0_4px_20px_rgba(176,141,87,0.3)] shadow-sm active:scale-[0.98]"
                   >
                     {loading ? (
                       <>
@@ -484,7 +496,7 @@ export default function Onboard() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                         </svg>
-                        Launching…
+                        Launching Workspace…
                       </>
                     ) : (
                       <>
@@ -500,20 +512,21 @@ export default function Onboard() {
         </AnimatePresence>
 
         {/* Social proof */}
-        <div className="mt-8 flex items-center gap-4">
-          {[
-            { initials: 'RS', name: 'Rahul S.' },
-            { initials: 'PP', name: 'Priya P.' },
-            { initials: 'AS', name: 'Amit S.' },
-          ].map(({ initials, name }) => (
-            <div key={initials} className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-[#C8A96E] flex items-center justify-center text-[var(--foreground)] text-xs font-bold shrink-0">
+        <div className="mt-12 pt-8 border-t border-[#E5E0D8] flex flex-col sm:flex-row items-center justify-center gap-6">
+          <div className="flex items-center">
+            {[
+              { initials: 'RS', name: 'Rahul S.' },
+              { initials: 'PP', name: 'Priya P.' },
+              { initials: 'AS', name: 'Amit S.' },
+            ].map(({ initials }, idx) => (
+              <div key={initials} className={`w-10 h-10 rounded-full border-2 border-[#FAFAF8] bg-[#B08D57] flex items-center justify-center text-[#FAFAF8] text-xs font-bold shrink-0 shadow-sm ${idx > 0 ? '-ml-3' : ''}`}>
                 {initials}
               </div>
-              <span className="text-xs text-[var(--muted)]">{name}</span>
-            </div>
-          ))}
-          <span className="text-xs text-[var(--muted)]">& 500+ businesses</span>
+            ))}
+          </div>
+          <div className="text-center sm:text-left text-sm font-medium text-[#6B6860]">
+            Join <strong className="text-[#1A1916]">500+ businesses</strong> already scaling<br className="hidden sm:block"/> with LevitateOS automation.
+          </div>
         </div>
       </div>
     </div>

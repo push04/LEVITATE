@@ -1,57 +1,55 @@
 export default function OnboardLoading() {
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(196,164,102,0.18),_transparent_28%),linear-gradient(180deg,_#0c0c0b_0%,_#141414_100%)] px-4 py-10 text-[#f5f1ea] sm:px-6 lg:px-8">
-      <section className="mx-auto flex max-w-[1600px] flex-col gap-10 lg:gap-14">
-        <div className="grid gap-10 xl:grid-cols-[1.08fr_0.92fr]">
+    <main className="min-h-screen overflow-x-hidden bg-[#FAFAF8] px-4 py-12 sm:px-6 lg:px-8 flex justify-center">
+      <div className="w-full max-w-2xl">
+        {/* Header skeleton */}
+        <div className="mb-10 text-center sm:text-left">
+          <div className="h-4 w-28 bg-[#E5E0D8] rounded-full animate-pulse mb-6" />
+          <div className="h-12 w-3/4 max-w-md bg-[#E5E0D8] rounded-xl animate-pulse mb-4 mx-auto sm:mx-0" />
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
+            <div className="h-6 w-32 bg-[#E5E0D8] rounded-full animate-pulse" />
+            <div className="h-6 w-40 bg-[#E5E0D8] rounded-full animate-pulse" />
+          </div>
+        </div>
+
+        {/* Progress bar skeleton */}
+        <div className="flex gap-2 mb-8">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex-1">
+              <div className="h-1.5 rounded-full bg-[#E5E0D8] animate-pulse" />
+              <div className="h-3 w-16 bg-[#E5E0D8] rounded-full animate-pulse mt-2" />
+            </div>
+          ))}
+        </div>
+
+        {/* Card skeleton */}
+        <div className="bg-white rounded-2xl border border-[#E5E0D8] p-8 shadow-[0_8px_32px_rgba(26,25,22,0.04)] space-y-6">
+          <div>
+            <div className="h-8 w-48 bg-[#E5E0D8] rounded-lg animate-pulse mb-2" />
+            <div className="h-4 w-64 bg-[#E5E0D8] rounded-full animate-pulse" />
+          </div>
+          
           <div className="space-y-5">
-            <div className="h-10 w-56 rounded-full bg-white/10 animate-pulse" />
-            <div className="space-y-3">
-              <div className="h-16 w-full rounded-3xl bg-white/10 animate-pulse" />
-              <div className="h-16 w-[90%] rounded-3xl bg-white/10 animate-pulse" />
-              <div className="h-16 w-[72%] rounded-3xl bg-white/10 animate-pulse" />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="h-24 rounded-2xl bg-white/10 animate-pulse" />
-              <div className="h-24 rounded-2xl bg-white/10 animate-pulse" />
-              <div className="h-24 rounded-2xl bg-white/10 animate-pulse" />
-              <div className="h-24 rounded-2xl bg-white/10 animate-pulse" />
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="h-28 rounded-[24px] bg-white/10 animate-pulse" />
-              <div className="h-28 rounded-[24px] bg-white/10 animate-pulse" />
-              <div className="h-28 rounded-[24px] bg-white/10 animate-pulse" />
-            </div>
-          </div>
-
-          <div className="rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/10 backdrop-blur-sm">
-            <div className="h-6 w-40 rounded-full bg-white/10 animate-pulse" />
-            <div className="mt-4 h-9 w-72 rounded-2xl bg-white/10 animate-pulse" />
-            <div className="mt-3 h-5 w-full rounded-full bg-white/10 animate-pulse" />
-            <div className="mt-2 h-5 w-[82%] rounded-full bg-white/10 animate-pulse" />
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="h-12 rounded-2xl bg-white/10 animate-pulse" />
-              <div className="h-12 rounded-2xl bg-white/10 animate-pulse" />
-              <div className="h-12 rounded-2xl bg-white/10 animate-pulse sm:col-span-2" />
-              <div className="h-12 rounded-2xl bg-white/10 animate-pulse sm:col-span-2" />
-            </div>
-
-            <div className="mt-6 h-36 rounded-[24px] bg-white/10 animate-pulse" />
-            <div className="mt-4 h-28 rounded-[24px] bg-white/10 animate-pulse" />
-            <div className="mt-6 h-12 rounded-2xl bg-[#d9c59b]/30 animate-levitate-shimmer" />
+            {[1, 2, 3].map((i) => (
+              <div key={i}>
+                <div className="h-3 w-20 bg-[#E5E0D8] rounded-full animate-pulse mb-2" />
+                <div className="h-[52px] w-full bg-[#FAFAF8] border border-[#E5E0D8] rounded-xl animate-pulse" />
+              </div>
+            ))}
+            <div className="h-[56px] w-full bg-[#B08D57]/20 rounded-xl animate-pulse mt-6" />
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="h-[360px] rounded-[28px] bg-white/10 animate-pulse" />
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div className="h-[160px] rounded-[24px] bg-white/10 animate-pulse" />
-            <div className="h-[160px] rounded-[24px] bg-white/10 animate-pulse" />
-            <div className="h-[160px] rounded-[24px] bg-white/10 animate-pulse" />
-            <div className="h-[160px] rounded-[24px] bg-white/10 animate-pulse" />
+        {/* Social proof skeleton */}
+        <div className="mt-12 pt-8 border-t border-[#E5E0D8] flex flex-col sm:flex-row items-center justify-center gap-6">
+          <div className="flex items-center">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className={`w-10 h-10 rounded-full bg-[#E5E0D8] border-2 border-[#FAFAF8] animate-pulse ${i > 1 ? '-ml-3' : ''}`} />
+            ))}
           </div>
+          <div className="h-8 w-48 bg-[#E5E0D8] rounded-lg animate-pulse" />
         </div>
-      </section>
+      </div>
     </main>
-  )
+  );
 }
