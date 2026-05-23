@@ -1,0 +1,18 @@
+export const AGENT_MODEL_MAP: Record<string, string> = {
+  'Reporter Agent': 'llama-3.1-8b-instant',
+  'Invoice Agent': 'llama-3.1-8b-instant',
+  'Retention Agent': 'llama-3.1-8b-instant',
+  'Follow-Up Agent': 'llama-3.1-8b-instant',
+  'Discovery Agent': 'llama-3.1-8b-instant',
+  'BizDev Agent': 'llama-3.3-70b',
+  'Outreach Agent': 'llama-3.3-70b',
+  'Proposal Agent': 'llama-3.3-70b',
+  'Coder Agent': 'llama-3.3-70b',
+  'Reviewer Agent': 'llama-3.3-70b',
+  'Debugger Agent': 'llama-3.3-70b',
+  'Tester Agent': 'llama-3.3-70b',
+  'Deployer Agent': 'llama-3.3-70b',
+  'Scheduler Agent': 'llama-3.3-70b',
+  'Analytics Agent': 'llama-3.3-70b',
+  'Escalation Agent': 'llama-3.3-70b',
+};

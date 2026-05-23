@@ -1,0 +1,29 @@
+User-agent: *
+Allow: /
+Allow: /demo
+Allow: /pricing
+Allow: /metrics
+Allow: /status
+Allow: /blog
+Allow: /blog/*
+Allow: /for/*
+Allow: /compare/*
+Allow: /alternatives/*
+Allow: /tools/*
+Allow: /website-in-24-hours
+Allow: /48-hour-challenge
+Allow: /partners/*
+Allow: /sitemap.xml
+
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /business
+Disallow: /business/*
+Disallow: /api
+Disallow: /api/*
+Disallow: /dashboard
+Disallow: /dashboard/*
+Disallow: /site
+Disallow: /site/*
+
+Sitemap: https://levitatelabs.online/sitemap.xml

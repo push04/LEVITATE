@@ -1,0 +1,97 @@
+{
+  "audit_date": "2026-04-26",
+  "commit": "fa6f0178",
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "Hardcoded Supabase service_role key committed",
+      "category": "Secrets",
+      "severity": "CRITICAL",
+      "cvss": 9.8,
+      "locations": [
+        "check_bizdev_leads.mjs:5",
+        "check_conversations.mjs:5",
+        "check_emails.mjs:5",
+        "check_old.mjs:5",
+        "migrate_emails.mjs:5",
+        "test_agents.mjs:8",
+        "test_extensive.mjs:7",
+        "test_trigger.mjs:5",
+        "test_trigger2.mjs:5"
+      ]
+    },
+    {
+      "id": "F-002",
+      "title": "Unauthenticated Netlify Functions with service role access",
+      "category": "API Security",
+      "severity": "CRITICAL",
+      "cvss": 9.1,
+      "locations": [
+        "netlify/functions/agent-evaluator.mts:10",
+        "netlify/functions/bizdev.mts:20",
+        "netlify/functions/discovery-bg.mts:10",
+        "netlify/functions/email-reader.mts:4",
+        "netlify/functions/followup.mts:4",
+        "netlify/functions/invoice-check.mts:10",
+        "netlify/functions/market-tracker.mts:10",
+        "netlify/functions/onboarding-bg.mts:8",
+        "netlify/functions/outreach.mts:4",
+        "netlify/functions/proposal-bg.mts:11",
+        "netlify/functions/reporter.mts:10",
+        "netlify/functions/research.mts:10",
+        "netlify/functions/retention.mts:10",
+        "netlify/functions/supabase-heartbeat.mts:8"
+      ]
+    },
+    {
+      "id": "F-003",
+      "title": "Public contact endpoint: service-role usage + unsafe upload + PII leak",
+      "category": "File Upload / PII",
+      "severity": "CRITICAL",
+      "cvss": 9.4,
+      "locations": [
+        "src/app/api/contact/route.ts:53",
+        "src/app/api/contact/route.ts:57",
+        "src/app/api/contact/route.ts:159"
+      ]
+    },
+    {
+      "id": "F-004",
+      "title": "Public scraper endpoint: DoS + potential SSRF",
+      "category": "SSRF",
+      "severity": "HIGH",
+      "cvss": 8.2,
+      "locations": [
+        "src/app/api/sales/generate-leads/route.ts:49",
+        "src/app/api/sales/generate-leads/route.ts:225"
+      ]
+    },
+    {
+      "id": "F-005",
+      "title": "Stored XSS via dangerouslySetInnerHTML without sanitization",
+      "category": "XSS",
+      "severity": "HIGH",
+      "cvss": 8.0,
+      "locations": [
+        "src/components/MarkdownRenderer.tsx:53",
+        "src/app/services/[slug]/ServicePageClient.tsx:165",
+        "src/app/services/[slug]/ServicePageClient.tsx:176",
+        "src/app/admin/dashboard/careers/page.tsx:228",
+        "src/app/admin/dashboard/growth/scout/page.tsx:206"
+      ]
+    },
+    {
+      "id": "F-011",
+      "title": "npm audit: 35 vulnerable packages (2 critical, 27 high)",
+      "category": "Dependencies",
+      "severity": "CRITICAL",
+      "cvss": null,
+      "locations": [
+        "package.json:1",
+        "package-lock.json:1",
+        "security-audit/npm-audit.json:1"
+      ]
+    }
+  ]
+}
+

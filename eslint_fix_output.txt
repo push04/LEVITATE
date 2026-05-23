@@ -1,0 +1,1077 @@
+﻿
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\analytics\page.tsx
+   4:10  warning  'LineChart' is defined but never used      @typescript-eslint/no-unused-vars
+   4:21  warning  'Line' is defined but never used           @typescript-eslint/no-unused-vars
+   4:41  warning  'CartesianGrid' is defined but never used  @typescript-eslint/no-unused-vars
+   7:40  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   8:46  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   9:34  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  13:87  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  14:76  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\automations\page.tsx
+     7:37  warning  'AlertTriangle' is defined but never used  @typescript-eslint/no-unused-vars
+    10:22  warning  'MapPin' is defined but never used         @typescript-eslint/no-unused-vars
+    10:30  warning  'Star' is defined but never used           @typescript-eslint/no-unused-vars
+    47:12  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+    48:11  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   928:46  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   952:47  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   952:55  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   957:62  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   957:70  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+   996:44  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  1016:33  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  1084:37  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\careers\page.tsx
+    5:44   warning  'User' is defined but never used          @typescript-eslint/no-unused-vars
+   16:27   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  213:67   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  240:136  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\chat\page.tsx
+    6:19  warning  'User' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+    7:29  warning  'Check' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+    8:14  warning  'ImageIcon' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+    8:38  warning  'Download' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+   12:8   warning  'confetti' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+   44:52  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   50:12  warning  'isLoading' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   52:12  warning  'isUploading' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   52:25  warning  'setIsUploading' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+  100:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\chat\page.tsx:100:13
+   98 |     useEffect(() => {
+   99 |         if (isMobile && activeChat) {
+> 100 |             setShowSidebar(false);
+      |             ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  101 |         }
+  102 |     }, [activeChat, isMobile]);
+  103 |  react-hooks/set-state-in-effect
+  240:24  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  495:73  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @next/next/no-img-element
+  545:41  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @next/next/no-img-element
+  545:41  warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                jsx-a11y/alt-text
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\files\page.tsx
+    6:5   warning  'Folder' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+    7:5   warning  'MoreVertical' is defined but never used                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+   27:12  warning  'isLoading' is assigned a value but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   29:27  warning  'setCurrentFolder' is assigned a value but never used                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+  215:37  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\growth\campaigns\[id]\page.tsx
+    6:35  warning  'BarChart3' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+    7:26  warning  'CheckCircle2' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+    7:40  warning  'AlertCircle' is defined but never used                                                                           @typescript-eslint/no-unused-vars
+   70:8   warning  React Hook useEffect has a missing dependency: 'fetchCampaign'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  200:51  warning  'index' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\growth\campaigns\page.tsx
+  7:5   warning  'MoreHorizontal' is defined but never used  @typescript-eslint/no-unused-vars
+  7:21  warning  'Calendar' is defined but never used        @typescript-eslint/no-unused-vars
+  7:31  warning  'Clock' is defined but never used           @typescript-eslint/no-unused-vars
+  7:38  warning  'Send' is defined but never used            @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\growth\hackathons\page.tsx
+  117:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\growth\leads\page.tsx
+   5:18  warning  'Filter' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+   5:58  warning  'Phone' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+   5:95  warning  'AlertCircle' is defined but never used                                                                        @typescript-eslint/no-unused-vars
+  49:8   warning  React Hook useEffect has a missing dependency: 'fetchLeads'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\growth\scout\page.tsx
+  67:25  error    Unexpected any. Specify a different type                                                                      @typescript-eslint/no-explicit-any
+  77:8   warning  React Hook useEffect has a missing dependency: 'fetchJobs'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\growth\social\page.tsx
+   72:25  error    Unexpected any. Specify a different type                                                                       @typescript-eslint/no-explicit-any
+  154:8   warning  React Hook useEffect has a missing dependency: 'fetchPosts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  408:21  error    Unexpected any. Specify a different type                                                                       @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\layout.tsx
+  19:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\layout.tsx:19:9
+  17 |     // Close sidebar on route change (mobile)
+  18 |     useEffect(() => {
+> 19 |         setIsSidebarOpen(false);
+     |         ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  20 |     }, [pathname]);
+  21 |
+  22 |     return (  react-hooks/set-state-in-effect
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\leads\page.tsx
+    6:13  warning  'Filter' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+    7:33  warning  'XCircle' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+   47:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\leads\page.tsx:47:9
+  45 |
+  46 |     useEffect(() => {
+> 47 |         fetchLeads();
+     |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  48 |     }, [fetchLeads]);
+  49 |
+  50 |     const updateStatus = async (id: string, newStatus: string) => {  react-hooks/set-state-in-effect
+  150:37  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       react/no-unescaped-entities
+  150:52  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       react/no-unescaped-entities
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\logs\page.tsx
+   6:31  warning  'Filter' is defined but never used               @typescript-eslint/no-unused-vars
+  65:9   warning  'channelRef' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\mailbox\page.tsx
+  52:94  warning  'payload' is defined but never used         @typescript-eslint/no-unused-vars
+  62:23  warning  'error' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  68:40  error    Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\page.tsx
+     7:10  warning  'LogOut' is defined but never used                                                                                                                                       @typescript-eslint/no-unused-vars
+     8:5   warning  'RefreshCw' is defined but never used                                                                                                                                    @typescript-eslint/no-unused-vars
+     8:39  warning  'ExternalLink' is defined but never used                                                                                                                                 @typescript-eslint/no-unused-vars
+    42:23  warning  'setActiveTab' is assigned a value but never used                                                                                                                        @typescript-eslint/no-unused-vars
+    44:12  warning  'linkedinConnected' is assigned a value but never used                                                                                                                   @typescript-eslint/no-unused-vars
+    46:56  error    Unexpected any. Specify a different type                                                                                                                                 @typescript-eslint/no-explicit-any
+    95:18  warning  'e' is defined but never used                                                                                                                                            @typescript-eslint/no-unused-vars
+   115:21  error    Unexpected any. Specify a different type                                                                                                                                 @typescript-eslint/no-explicit-any
+   209:11  warning  'handleLogout' is assigned a value but never used                                                                                                                        @typescript-eslint/no-unused-vars
+   273:19  warning  'res' is assigned a value but never used                                                                                                                                 @typescript-eslint/no-unused-vars
+   323:23  error    Unexpected any. Specify a different type                                                                                                                                 @typescript-eslint/no-explicit-any
+   354:25  error    Unexpected any. Specify a different type                                                                                                                                 @typescript-eslint/no-explicit-any
+   997:66  error    Unexpected any. Specify a different type                                                                                                                                 @typescript-eslint/no-explicit-any
+  1031:41  error    Do not use an `<a>` element to navigate to `/api/auth/linkedin/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+  1031:41  error    Do not use an `<a>` element to navigate to `/api/auth/linkedin/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+  1031:41  error    Do not use an `<a>` element to navigate to `/api/auth/linkedin/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+  1038:45  error    Do not use an `<a>` element to navigate to `/api/auth/linkedin/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+  1038:45  error    Do not use an `<a>` element to navigate to `/api/auth/linkedin/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+  1038:45  error    Do not use an `<a>` element to navigate to `/api/auth/linkedin/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+  1045:58  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                          react/no-unescaped-entities
+  1045:87  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                          react/no-unescaped-entities
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\projects\[id]\page.tsx
+    6:5    warning  'Calendar' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+    6:15   warning  'CheckCircle2' is defined but never used                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+    6:36   warning  'MoreVertical' is defined but never used                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+    8:5    warning  'AlertCircle' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+    8:18   warning  'GripVertical' is defined but never used                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+   46:11   warning  'router' is assigned a value but never used                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+   57:40   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   59:12   warning  'filePreview' is assigned a value but never used                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   59:25   warning  'setFilePreview' is assigned a value but never used                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+   59:52   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   69:31   warning  'error' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+   81:23   warning  'error' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  135:56   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  136:54   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  140:8    warning  React Hook useEffect has a missing dependency: 'fetchProjectData'. Either include it or remove the dependency array                                                                                                                                                                      react-hooks/exhaustive-deps
+  166:24   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  169:45   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  214:23   warning  'error' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  319:27   warning  'uploadData' is assigned a value but never used                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  357:47   warning  'filePath' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+  414:123  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  481:58   warning  'i' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+  489:49   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  501:61   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  657:74   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  695:65   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  695:65   warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+  722:122  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  774:51   warning  'i' is defined but never used                                                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\projects\page.tsx
+    5:40  warning  'ArrowRight' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+   32:12  warning  'isLoading' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   52:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\projects\page.tsx:52:9
+  50 |
+  51 |     useEffect(() => {
+> 52 |         fetchProjects();
+     |         ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  53 |     }, [fetchProjects]);
+  54 |
+  55 |     const filteredProjects = projects.filter(p =>  react-hooks/set-state-in-effect
+  188:49  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @next/next/no-img-element
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\sales\campaigns\page.tsx
+  81:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\sales\leads\generate\page.tsx
+   80:34  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+   85:33  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   89:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\sales\page.tsx
+   6:35  warning  'Search' is defined but never used        @typescript-eslint/no-unused-vars
+  19:58  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\team\page.tsx
+   5:35  warning  'MoreVertical' is defined but never used        @typescript-eslint/no-unused-vars
+  44:12  warning  'isLoading' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\whatsapp\page.tsx
+    5:32  warning  'WifiOff' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+   11:38  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-explicit-any
+   72:5   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\dashboard\whatsapp\page.tsx:72:5
+  70 |
+  71 |     checkServer()
+> 72 |     fetchQueue()
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  73 |     const interval = setInterval(() => { checkServer(); fetchQueue() }, 6000)
+  74 |     return () => clearInterval(interval)
+  75 |   }, [])  react-hooks/set-state-in-effect
+   75:6   warning  React Hook useEffect has a missing dependency: 'fetchQueue'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react-hooks/exhaustive-deps
+  218:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @next/next/no-img-element
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\admin\newsletter\page.tsx
+   7:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  18:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\alternatives\best-whatsapp-crm-india\page.tsx
+  4:8  warning  'ComparisonTable' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\agents\route.ts
+  208:11  warning  'wait' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\blog\autopilot\route.ts
+   45:15  warning  'force' is assigned a value but never used                                                                           @typescript-eslint/no-unused-vars
+  120:9   error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  127:18  warning  'e' is defined but never used                                                                                        @typescript-eslint/no-unused-vars
+  152:21  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\blog\delete\route.ts
+  22:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\blog\generate\route.ts
+  39:9   error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  48:18  warning  'e' is defined but never used                                                                                        @typescript-eslint/no-unused-vars
+  58:21  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\blog\list\route.ts
+  23:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\blog\publish\route.ts
+  38:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\blog\update\route.ts
+  39:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\files\delete\route.ts
+  64:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\growth\campaigns\[id]\route.ts
+  43:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  71:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\growth\campaigns\[id]\steps\[stepId]\route.ts
+  25:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\growth\campaigns\[id]\steps\route.ts
+  39:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\growth\campaigns\process\route.ts
+    6:42  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   13:28  warning  'request' is defined but never used       @typescript-eslint/no-unused-vars
+   52:60  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   52:68  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   71:35  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   93:67  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:35  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  124:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:44  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:62  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:73  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:84  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\growth\campaigns\route.ts
+   4:27  warning  'request' is defined but never used       @typescript-eslint/no-unused-vars
+  34:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  64:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\growth\hackathons\route.ts
+    1:10  warning  'NextResponse' is defined but never used            @typescript-eslint/no-unused-vars
+   23:27  warning  'request' is defined but never used                 @typescript-eslint/no-unused-vars
+   30:23  warning  'rawHackathons' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   66:78  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+   69:49  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+   94:30  warning  'e' is defined but never used                       @typescript-eslint/no-unused-vars
+  142:83  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  174:80  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  237:31  warning  'html' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  295:75  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  322:80  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  381:29  error    Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\growth\leads\add\route.ts
+  14:43  warning  'source' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  14:51  warning  'source_id' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  50:21  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\growth\leads\bulk-add\route.ts
+  20:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  56:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\growth\leads\route.ts
+  46:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\growth\scout\route.ts
+    1:10  warning  'NextResponse' is defined but never used  @typescript-eslint/no-unused-vars
+  144:29  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  262:14  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\growth\social\draft\route.ts
+  67:18  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  78:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\lead-gen\route.ts
+   76:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   98:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  123:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:62  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\leads\route.ts
+  25:14  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\linkedin\autopilot\route.ts
+  65:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\linkedin\organizations\route.ts
+  22:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\mailbox\delete\route.ts
+  36:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\mailbox\send\route.ts
+   11:21  error  'to' is never reassigned. Use 'const' instead                prefer-const
+   11:25  error  'subject' is never reassigned. Use 'const' instead           prefer-const
+   11:34  error  'body' is never reassigned. Use 'const' instead              prefer-const
+   11:40  error  'replyToMessageId' is never reassigned. Use 'const' instead  prefer-const
+   11:58  error  'fromEmail' is never reassigned. Use 'const' instead         prefer-const
+   11:69  error  'fromName' is never reassigned. Use 'const' instead          prefer-const
+  130:19  error  Unexpected any. Specify a different type                     @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\mailbox\sync\route.ts
+  144:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\onboarding\subscriptions\route.ts
+  18:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\outreach\generate\route.ts
+  69:18  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  79:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\team\delete\route.ts
+  51:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\admin\team\invite\route.ts
+  38:17  warning  'data' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\ai\chat\route.ts
+  32:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  42:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\ai\generate-email\route.ts
+  77:21  warning  'usedModel' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  80:22  warning  'err' is defined but never used                 @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\ai\interview\route.ts
+  76:21  warning  'usedModel' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\ai\recommend-service\route.ts
+  52:18  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  62:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\ai\refine-message\route.ts
+  32:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\ai\summary\route.ts
+   69:21  warning  'usedModel' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  105:18  warning  'e' is defined but never used                   @typescript-eslint/no-unused-vars
+  111:21  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\auth\linkedin\callback\route.ts
+   8:11  warning  'errorDescription' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  37:21  error    Unexpected any. Specify a different type               @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\careers\approve\route.ts
+  47:24  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\invite\accept\route.ts
+  85:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\notifications\email\route.ts
+  35:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\og\route.tsx
+  9:9  warning  'type' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\onboard\plans\route.ts
+  22:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\outreach\trigger\route.ts
+  6:10  warning  'sleep' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\sales\generate-leads\route.ts
+   77:95  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  152:66  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  165:34  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  189:31  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  280:38  warning  'err' is defined but never used           @typescript-eslint/no-unused-vars
+  280:43  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  308:27  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\status\route.ts
+  130:9  warning  'allInfraHealthy' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\api\track\route.ts
+  6:29  warning  'page_url' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  6:39  warning  'referrer' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  6:49  warning  'utm_source' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  6:61  warning  'utm_medium' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  6:73  warning  'utm_campaign' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\blog\[slug]\page.tsx
+   3:23  warning  'Calendar' is defined but never used      @typescript-eslint/no-unused-vars
+   3:40  warning  'Share2' is defined but never used        @typescript-eslint/no-unused-vars
+  64:15  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  65:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  78:43  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\blog\page.tsx
+  15:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\careers\apply\page.tsx
+    4:18  warning  'AnimatePresence' is defined but never used                      @typescript-eslint/no-unused-vars
+    5:16  warning  'Zap' is defined but never used                                  @typescript-eslint/no-unused-vars
+   37:11  warning  'scrollToBottom' is assigned a value but never used              @typescript-eslint/no-unused-vars
+  224:25  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  282:76  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\demo\page.tsx
+  7:18  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                react/no-unescaped-entities
+  8:9   error  Do not use an `<a>` element to navigate to `/onboard/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+  8:9   error  Do not use an `<a>` element to navigate to `/onboard/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+  8:9   error  Do not use an `<a>` element to navigate to `/onboard/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\invite\page.tsx
+   17:50  error    Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+   33:8   warning  React Hook useEffect has a missing dependency: 'verifyToken'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   48:18  warning  'err' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+   92:18  warning  'err' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  165:28  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                 react/no-unescaped-entities
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\layout.tsx
+  42:9  warning  Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font  @next/next/no-page-custom-font
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\onboard\page.tsx
+  449:62  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  450:66  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  450:77  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\r\[code]\page.tsx
+   2:10  warning  'redirect' is defined but never used                                                                                                                         @typescript-eslint/no-unused-vars
+  37:17  error    Do not use an `<a>` element to navigate to `/trial/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+  37:17  error    Do not use an `<a>` element to navigate to `/trial/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+  37:17  error    Do not use an `<a>` element to navigate to `/trial/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\reset-password\page.tsx
+   6:58  warning  'ArrowRight' is defined but never used  @typescript-eslint/no-unused-vars
+  52:18  warning  'err' is defined but never used         @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\app\tools\business-finder\page.tsx
+  4:8  warning  'Link' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\AIChatWidget.tsx
+  47:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\ComparisonTable.tsx
+   1:8   warning  'JsonLd' is defined but never used    @typescript-eslint/no-unused-vars
+  67:80  warning  'features' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\ReferralCard.tsx
+  3:10  warning  'createClient' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\ServiceRecommender.tsx
+  4:18  warning  'AnimatePresence' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\ShareButton.tsx
+  3:25  warning  'Copy' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\ShareButtons.tsx
+  2:10  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\TeamMember.tsx
+  36:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\ThemeProvider.tsx
+  34:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\ThemeProvider.tsx:34:9
+  32 |
+  33 |     useEffect(() => {
+> 34 |         setMounted(true);
+     |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  35 |         // Check localStorage for saved theme preference
+  36 |         const savedTheme = localStorage.getItem('levitate-theme') as Theme | null;
+  37 |         if (savedTheme) {  react-hooks/set-state-in-effect
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\TrialBanner.tsx
+  12:17  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\TrialBanner.tsx:12:17
+  10 |   useEffect(() => {
+  11 |     const stored = localStorage.getItem('trial-banner-dismissed');
+> 12 |     if (stored) setDismissed(true);
+     |                 ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  13 |
+  14 |     async function checkTrial() {
+  15 |       const supabase = createClient();  react-hooks/set-state-in-effect
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\WhatsAppChannelCTA.tsx
+  10:17  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\WhatsAppChannelCTA.tsx:10:17
+   8 |   useEffect(() => {
+   9 |     const stored = process.env.NEXT_PUBLIC_WHATSAPP_CHANNEL_COUNT;
+> 10 |     if (stored) setCount(stored);
+     |                 ^^^^^^^^ Avoid calling setState() directly within an effect
+  11 |   }, []);
+  12 |
+  13 |   const handleClick = async () => {  react-hooks/set-state-in-effect
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\AdminSidebar.tsx
+  128:5   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  163:18  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  166:22  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  172:16  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  175:20  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  176:44  error  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\AssignProjectModal.tsx
+   19:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  105:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\BlogManager.tsx
+    2:35  warning  'ImageIcon' is defined but never used     @typescript-eslint/no-unused-vars
+   35:25  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   59:28  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   94:25  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  103:40  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  133:18  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  136:31  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\CreateProjectModal.tsx
+   5:33  warning  'User' is defined but never used          @typescript-eslint/no-unused-vars
+   5:39  warning  'Calendar' is defined but never used      @typescript-eslint/no-unused-vars
+  16:52  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  17:48  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  75:25  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\EditMemberModal.tsx
+  12:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  19:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  49:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\EmailUserModal.tsx
+    5:28  warning  'AlertCircle' is defined but never used  @typescript-eslint/no-unused-vars
+  143:62  warning  'err' is defined but never used          @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\FilePreviewModal.tsx
+  70:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\InviteCompanyModal.tsx
+  162:62  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\InviteMemberModal.tsx
+  20:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\ManageTeamModal.tsx
+    5:39  warning  'Shield' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   17:44  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   23:8   warning  React Hook useEffect has a missing dependency: 'fetchMembers'. Either include it or remove the dependency array                                                                                                                                                                          react-hooks/exhaustive-deps
+   28:36  warning  'error' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  124:61  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  124:61  warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\OutreachModal.tsx
+    9:11   error  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  107:130  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\admin\growth\AddToCampaignModal.tsx
+  20:12  warning  'isLoading' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\business\TrialCountdownBanner.tsx
+  30:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\business\TrialCountdownBanner.tsx:30:7
+  28 |   useEffect(() => {
+  29 |     try {
+> 30 |       setDismissed(window.localStorage.getItem(STORAGE_KEY) === 'true');
+     |       ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  31 |     } catch {
+  32 |       setDismissed(false);
+  33 |     }  react-hooks/set-state-in-effect
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\business\ui\DonutChart.tsx
+  42:13  error  Error: Cannot reassign variable after render completes
+
+Reassigning `currentAngle` after render has completed can cause inconsistent behavior on subsequent renders. Consider using state instead.
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\business\ui\DonutChart.tsx:42:13
+  40 |             const nextAngle = currentAngle + angle;
+  41 |             const path = describeDonutArc(60, 60, 34, currentAngle, nextAngle);
+> 42 |             currentAngle = nextAngle;
+     |             ^^^^^^^^^^^^ Cannot reassign `currentAngle` after render completes
+  43 |
+  44 |             return (
+  45 |               <path  react-hooks/immutability
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\company\EditProjectModal.tsx
+  70:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  93:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\company\NewProjectModal.tsx
+  67:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\company\UploadFileModal.tsx
+  16:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  97:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\CaseStudies.tsx
+  80:42  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\Hero.tsx
+  12:11  warning  'isServicesInView' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeHero.tsx
+  182:14  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeHero.tsx:182:14
+  180 |
+  181 |             {/* Progress bar for auto-rotate */}
+> 182 |             {!userInteracted.current && (
+      |              ^^^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  183 |               <div className={s.dashProgress}>
+  184 |                 <div className={s.dashProgressFill} style={{ width: `${progress}%` }} />
+  185 |               </div>                                                                                                                                                                                                                                                                                                                     react-hooks/refs
+  182:14  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeHero.tsx:182:14
+  180 |
+  181 |             {/* Progress bar for auto-rotate */}
+> 182 |             {!userInteracted.current && (
+      |              ^^^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  183 |               <div className={s.dashProgress}>
+  184 |                 <div className={s.dashProgressFill} style={{ width: `${progress}%` }} />
+  185 |               </div>                                                                                                                                                                                                                                                                                                                     react-hooks/refs
+  182:14  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeHero.tsx:182:14
+  180 |
+  181 |             {/* Progress bar for auto-rotate */}
+> 182 |             {!userInteracted.current && (
+      |              ^^^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  183 |               <div className={s.dashProgress}>
+  184 |                 <div className={s.dashProgressFill} style={{ width: `${progress}%` }} />
+  185 |               </div>                                                                                                                                                                                                                                                                                                                     react-hooks/refs
+  182:14  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeHero.tsx:182:14
+  180 |
+  181 |             {/* Progress bar for auto-rotate */}
+> 182 |             {!userInteracted.current && (
+      |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 183 |               <div className={s.dashProgress}>
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 184 |                 <div className={s.dashProgressFill} style={{ width: `${progress}%` }} />
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 185 |               </div>
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 186 |             )}
+      | ^^^^^^^^^^^^^^ Cannot access ref value during render
+  187 |
+  188 |             {/* Content ΓÇö fades on tab switch */}
+  189 |             <div  react-hooks/refs
+  182:15  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeHero.tsx:182:15
+  180 |
+  181 |             {/* Progress bar for auto-rotate */}
+> 182 |             {!userInteracted.current && (
+      |               ^^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  183 |               <div className={s.dashProgress}>
+  184 |                 <div className={s.dashProgressFill} style={{ width: `${progress}%` }} />
+  185 |               </div>
+
+To initialize a ref only once, check that the ref is null with the pattern `if (ref.current == null) { ref.current = ... }`                                                                                                                                                                                        react-hooks/refs
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeProblem.tsx
+  49:16  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeProblem.tsx:49:16
+  47 |       <div className={s.container}>
+  48 |         <div
+> 49 |           ref={head.ref}
+     |                ^^^^^^^^ Cannot access ref value during render
+  50 |           className={`${s.sectionHead} ${s.reveal} ${head.visible ? s.revealed : ''}`}
+  51 |         >
+  52 |           <span className={s.sectionLabel}>The Problem</span>                                                                                                                                                   react-hooks/refs
+  50:54  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeProblem.tsx:50:54
+  48 |         <div
+  49 |           ref={head.ref}
+> 50 |           className={`${s.sectionHead} ${s.reveal} ${head.visible ? s.revealed : ''}`}
+     |                                                      ^^^^^^^^^^^^ Cannot access ref value during render
+  51 |         >
+  52 |           <span className={s.sectionLabel}>The Problem</span>
+  53 |           <h2 className={s.sectionHeadline}>                                                                                                react-hooks/refs
+  58:22  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeProblem.tsx:58:22
+  56 |         </div>
+  57 |         <div className={s.problemGrid} ref={grid.ref}>
+> 58 |           {CARDS.map((c, i) => (
+     |                      ^^^^^^^^^^^
+> 59 |             <article
+     | ^^^^^^^^^^^^^^^^^^^^
+> 60 |               key={c.num}
+     ΓÇª
+     | ^^^^^^^^^^^^^^^^^^^^
+> 68 |             </article>
+     | ^^^^^^^^^^^^^^^^^^^^
+> 69 |           ))}
+     | ^^^^^^^^^^^^ Cannot access ref value during render
+  70 |         </div>
+  71 |       </div>
+  72 |     </section>  react-hooks/refs
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeProcess.tsx
+  67:19  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeProcess.tsx:67:19
+  65 |     <section className={s.processSection}>
+  66 |       <div className={s.container}>
+> 67 |         <div ref={head.ref} className={`${s.reveal} ${head.visible ? s.revealed : ''}`}>
+     |                   ^^^^^^^^ Cannot access ref value during render
+  68 |           <span className={s.sectionLabel}>How We Work</span>
+  69 |           <h2 className={s.processHeadline}>Up and running in 7 days.</h2>
+  70 |         </div>                                                             react-hooks/refs
+  67:55  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeProcess.tsx:67:55
+  65 |     <section className={s.processSection}>
+  66 |       <div className={s.container}>
+> 67 |         <div ref={head.ref} className={`${s.reveal} ${head.visible ? s.revealed : ''}`}>
+     |                                                       ^^^^^^^^^^^^ Cannot access ref value during render
+  68 |           <span className={s.sectionLabel}>How We Work</span>
+  69 |           <h2 className={s.processHeadline}>Up and running in 7 days.</h2>
+  70 |         </div>                     react-hooks/refs
+  75:22  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeProcess.tsx:75:22
+  73 |             <div className={s.processTimelineFill} ref={lineRef} />
+  74 |           </div>
+> 75 |           {STEPS.map((step, i) => (
+     |                      ^^^^^^^^^^^^^^
+> 76 |             <div
+     | ^^^^^^^^^^^^^^^^
+> 77 |               key={step.num}
+     ΓÇª
+     | ^^^^^^^^^^^^^^^^
+> 86 |             </div>
+     | ^^^^^^^^^^^^^^^^
+> 87 |           ))}
+     | ^^^^^^^^^^^^ Cannot access ref value during render
+  88 |         </div>
+  89 |       </div>
+  90 |     </section>  react-hooks/refs
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeServices.tsx
+  37:19  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeServices.tsx:37:19
+  35 |     <section className={s.servicesSection} id="services">
+  36 |       <div className={s.container}>
+> 37 |         <div ref={head.ref} className={`${s.reveal} ${head.visible ? s.revealed : ''}`}>
+     |                   ^^^^^^^^ Cannot access ref value during render
+  38 |           <span className={s.sectionLabel}>Our Craft</span>
+  39 |           <h2 className={s.sectionHeadline}>Beyond the OS.</h2>
+  40 |           <p className={s.servicesSubhead}>Custom work for businesses that need more.</p>                                          react-hooks/refs
+  37:55  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeServices.tsx:37:55
+  35 |     <section className={s.servicesSection} id="services">
+  36 |       <div className={s.container}>
+> 37 |         <div ref={head.ref} className={`${s.reveal} ${head.visible ? s.revealed : ''}`}>
+     |                                                       ^^^^^^^^^^^^ Cannot access ref value during render
+  38 |           <span className={s.sectionLabel}>Our Craft</span>
+  39 |           <h2 className={s.sectionHeadline}>Beyond the OS.</h2>
+  40 |           <p className={s.servicesSubhead}>Custom work for businesses that need more.</p>  react-hooks/refs
+  43:16  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeServices.tsx:43:16
+  41 |         </div>
+  42 |         <div
+> 43 |           ref={table.ref}
+     |                ^^^^^^^^^ Cannot access ref value during render
+  44 |           className={`${s.servicesTable} ${s.reveal} ${table.visible ? s.revealed : ''}`}
+  45 |         >
+  46 |           <div className={s.servicesCategory}>                                                                                                                                                                                                                                                react-hooks/refs
+  44:56  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeServices.tsx:44:56
+  42 |         <div
+  43 |           ref={table.ref}
+> 44 |           className={`${s.servicesTable} ${s.reveal} ${table.visible ? s.revealed : ''}`}
+     |                                                        ^^^^^^^^^^^^^ Cannot access ref value during render
+  45 |         >
+  46 |           <div className={s.servicesCategory}>
+  47 |             <span className={s.servicesCategoryLabel}>Web</span>                                                                                                                                                  react-hooks/refs
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeSolution.tsx
+  125:51  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react/no-unescaped-entities
+  125:70  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react/no-unescaped-entities
+  170:16  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeSolution.tsx:170:16
+  168 |       <div className={s.container}>
+  169 |         <div
+> 170 |           ref={head.ref}
+      |                ^^^^^^^^ Cannot access ref value during render
+  171 |           className={`${s.reveal} ${head.visible ? s.revealed : ''}`}
+  172 |         >
+  173 |           <span className={s.sectionLabel}>The Solution</span>                                     react-hooks/refs
+  171:37  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeSolution.tsx:171:37
+  169 |         <div
+  170 |           ref={head.ref}
+> 171 |           className={`${s.reveal} ${head.visible ? s.revealed : ''}`}
+      |                                     ^^^^^^^^^^^^ Cannot access ref value during render
+  172 |         >
+  173 |           <span className={s.sectionLabel}>The Solution</span>
+  174 |           <h2 className={s.solutionHeadline}>  react-hooks/refs
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeWork.tsx
+  22:19  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeWork.tsx:22:19
+  20 |     <section className={s.workSection} id="work">
+  21 |       <div className={s.container}>
+> 22 |         <div ref={head.ref} className={`${s.reveal} ${head.visible ? s.revealed : ''}`}>
+     |                   ^^^^^^^^ Cannot access ref value during render
+  23 |           <span className={s.sectionLabel}>Our Work</span>
+  24 |           <h2 className={s.workSubhead}>Built for builders.</h2>
+  25 |         </div>                                                                                                                                                                         react-hooks/refs
+  22:55  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeWork.tsx:22:55
+  20 |     <section className={s.workSection} id="work">
+  21 |       <div className={s.container}>
+> 22 |         <div ref={head.ref} className={`${s.reveal} ${head.visible ? s.revealed : ''}`}>
+     |                                                       ^^^^^^^^^^^^ Cannot access ref value during render
+  23 |           <span className={s.sectionLabel}>Our Work</span>
+  24 |           <h2 className={s.workSubhead}>Built for builders.</h2>
+  25 |         </div>                                                                                                                                 react-hooks/refs
+  27:25  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\components\sections\HomeWork.tsx:27:25
+  25 |         </div>
+  26 |         <div className={s.workGrid} ref={grid.ref}>
+> 27 |           {PROJECTS.map((p, i) => {
+     |                         ^^^^^^^^^^^
+> 28 |             const parts = p.metric.split(p.bold);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 29 |             return (
+     ΓÇª
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 43 |             );
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 44 |           })}
+     | ^^^^^^^^^^^^ Cannot access ref value during render
+  45 |         </div>
+  46 |       </div>
+  47 |     </section>  react-hooks/refs
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\hooks\useReveal.ts
+  25:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\hooks\useReveal.ts:25:7
+  23 |     if (!el) return;
+  24 |     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+> 25 |       setVisible(true);
+     |       ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  26 |       return;
+  27 |     }
+  28 |     const obs = new IntersectionObserver(  react-hooks/set-state-in-effect
+  53:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\hooks\useReveal.ts:53:7
+  51 |     if (!el) return;
+  52 |     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+> 53 |       setVisible(true);
+     |       ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  54 |       return;
+  55 |     }
+  56 |     const obs = new IntersectionObserver(  react-hooks/set-state-in-effect
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\lib\ai-filter.ts
+  30:52  warning  'type' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\lib\email-template.ts
+   4:5  warning  'subtitle' is defined but never used          @typescript-eslint/no-unused-vars
+  10:5  warning  'warning' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\lib\imap-client.ts
+  41:15  warning  'searchCriteria' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  71:48  error    Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  82:89  error    Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\lib\linkedin.ts
+  56:14  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  91:17  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\lib\mdx.ts
+   1:8   warning  'matter' is defined but never used     @typescript-eslint/no-unused-vars
+   2:10  warning  'serialize' is defined but never used  @typescript-eslint/no-unused-vars
+  13:37  warning  'slug' is defined but never used       @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\lib\openrouter.ts
+  92:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\lib\payments\razorpay.ts
+  73:20  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\lib\scrapers\free-sources.ts
+  258:10  warning  'sleep' is defined but never used          @typescript-eslint/no-unused-vars
+  268:10  warning  'extractPhone' is defined but never used   @typescript-eslint/no-unused-vars
+  443:16  warning  'scrapeLocanto' is defined but never used  @typescript-eslint/no-unused-vars
+  649:36  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+  649:58  error    Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\lib\scrapers\multi-source.ts
+  216:15  warning  'url' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pushp\Downloads\LEVITATE-main (2)\LEVITATE-main\src\lib\whatsapp\client.ts
+  35:40  warning  'body' is defined but never used  @typescript-eslint/no-unused-vars
+
+Γ£û 387 problems (218 errors, 169 warnings)
+

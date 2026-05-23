@@ -1,0 +1,20 @@
+@media (max-width: 768px) {
+    .admin-header {
+        flex-direction: column;
+        height: auto;
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .admin-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .lead-details-mobile {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        background: var(--surface);
+        overflow-y: auto;
+    }
+}

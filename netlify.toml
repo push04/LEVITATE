@@ -1,0 +1,24 @@
+[build]
+  command = "next build"
+  publish = ".next"
+  functions = "netlify/functions"
+
+[dev]
+  command = "next dev"
+  port = 3000
+  targetPort = 3000
+  functionsPort = 9999
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["netlify/functions/**"]
+
+# Wildcard subdomain routing for client sites
+[[redirects]]
+  from = "https://*.levitatelabs.online/*"
+  to = "https://levitatelabs.online/:splat"
+  status = 200
+  conditions = {Cookie = ["workspace_subdomain"]}

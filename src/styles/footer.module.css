@@ -1,0 +1,110 @@
+.footer {
+  background: #F4F2EE;
+  border-top: 1px solid #E5E0D8;
+}
+
+.inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 clamp(20px, 5vw, 60px);
+}
+
+.top {
+  padding: 48px 0 40px;
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.logoMark {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 9px !important;
+}
+
+.wordmark {
+  font-size: 1.0625rem !important;
+  color: #1A1916 !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.03em !important;
+}
+
+.wordmarkAccent { color: #B08D57 !important; }
+
+.nav {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.navLink {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: #6B6860;
+  text-decoration: none;
+  transition: color 200ms ease;
+}
+.navLink:hover { color: #B08D57; }
+
+.social {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.socialLink {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #9B9890;
+  border: 1px solid #E5E0D8;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: color 200ms ease, border-color 200ms ease;
+}
+.socialLink:hover { color: #B08D57; border-color: #B08D57; }
+
+.bottom {
+  padding: 16px 0;
+  border-top: 1px solid #E5E0D8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.copy {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  color: #9B9890;
+}
+
+.domain {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  color: #9B9890;
+  text-decoration: none;
+  transition: color 200ms ease;
+}
+.domain:hover { color: #B08D57; }
+
+@media (max-width: 768px) {
+  .top { flex-direction: column; align-items: flex-start; gap: 24px; }
+  .social { margin-left: 0; }
+  .nav { gap: 16px; }
+}

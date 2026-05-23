@@ -1,0 +1,521 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Check, Eye, EyeOff, ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
+
+const CATEGORIES = [
+  'Restaurant', 'Clinic', 'Coaching Centre', 'Real Estate',
+  'Salon', 'Gym', 'Retailer', 'E-commerce', 'Consultancy', 'Other',
+];
+
+const PLANS = [
+  {
+    id: 'trial',
+    name: 'Trial',
+    price: 'FREE',
+    period: '14 days',
+    features: ['All 16 AI agents', 'Lead finder', 'Pipeline view', 'Agent activity feed', 'No credit card'],
+    popular: false,
+    cta: 'Start Free Trial',
+  },
+  {
+    id: 'starter',
+    name: 'Starter',
+    price: '₹12,999',
+    period: '/month',
+    features: ['Everything in Trial', 'Send outreach messages', 'Generate proposals', 'Deploy websites', 'Email support'],
+    popular: false,
+    cta: 'Choose Starter',
+  },
+  {
+    id: 'growth',
+    name: 'Growth',
+    price: '₹24,999',
+    period: '/month',
+    features: ['Everything in Starter', 'Custom workflows', 'Priority support', 'Advanced analytics', '5 client seats'],
+    popular: true,
+    cta: 'Choose Growth',
+  },
+  {
+    id: 'scale',
+    name: 'Scale',
+    price: '₹49,999',
+    period: '/month',
+    features: ['Everything in Growth', 'White-label', 'Reseller program', 'Dedicated support', 'Unlimited seats'],
+    popular: false,
+    cta: 'Contact Sales',
+  },
+];
+
+const STEPS = ['Account', 'Business Details', 'Plan Selection', 'Launch'];
+
+interface AccountData {
+  email: string;
+  password: string;
+  fullName: string;
+}
+
+interface BusinessData {
+  businessName: string;
+  city: string;
+  category: string;
+}
+
+export default function Onboard() {
+  const router = useRouter();
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Step 1 data
+  const [account, setAccount] = useState<AccountData>({ email: '', password: '', fullName: '' });
+
+  // Step 2 data
+  const [business, setBusiness] = useState<BusinessData>({ businessName: '', city: '', category: '' });
+
+  // Step 3 data
+  const [selectedPlan, setSelectedPlan] = useState('trial');
+
+  const updateAccount = (field: keyof AccountData, value: string) =>
+    setAccount((prev) => ({ ...prev, [field]: value }));
+  const updateBusiness = (field: keyof BusinessData, value: string) =>
+    setBusiness((prev) => ({ ...prev, [field]: value }));
+
+  // ── Step 1: Create / sign-in account ─────────────────────────────────────
+  async function handleAccountStep(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const supabase = createClient();
+
+      // Try sign-up first; if user exists, sign in
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: account.email,
+        password: account.password,
+        options: { data: { full_name: account.fullName } },
+      });
+
+      if (signUpError) {
+        if (signUpError.message.toLowerCase().includes('already registered') ||
+            signUpError.message.toLowerCase().includes('user already exists')) {
+          // User exists — sign in instead
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: account.email,
+            password: account.password,
+          });
+          if (signInError) throw new Error('Incorrect password. Please try again or reset your password.');
+        } else {
+          throw signUpError;
+        }
+      }
+
+      setStep(2);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Account setup failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Step 2: Save business details (just local state, applied at launch) ───
+  function handleBusinessStep(e: React.FormEvent) {
+    e.preventDefault();
+    if (!business.businessName.trim() || !business.city.trim() || !business.category) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    setError('');
+    setStep(3);
+  }
+
+  // ── Step 3: Plan selected, move to launch ─────────────────────────────────
+  function handlePlanStep() {
+    setStep(4);
+  }
+
+  // ── Step 4: Launch ────────────────────────────────────────────────────────
+  async function handleLaunch() {
+    setLoading(true);
+    setError('');
+    try {
+      if (selectedPlan === 'trial') {
+        // Start trial via server API
+        const res = await fetch('/api/trial/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyName: business.businessName || undefined }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Failed to start trial');
+        }
+        router.push('/business/dashboard');
+      } else if (selectedPlan === 'scale') {
+        // Contact sales
+        router.push('/#contact');
+      } else {
+        // Paid plans — go to subscribe flow
+        router.push(`/business/subscribe?plan=${selectedPlan}`);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Launch failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] py-12 px-4">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm text-[var(--muted)] hover:text-[#C8A96E] transition-colors mb-6">
+            <ArrowLeft className="w-4 h-4" /> Back to home
+          </Link>
+          <h1 className="text-4xl md:text-5xl font-bold mb-3">
+            <span className="text-[#C8A96E] italic">Start</span> your automation journey
+          </h1>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {['Review your plan before any payment', 'Your workspace is saved — come back anytime', 'Your business gets its own branded URL'].map((pill) => (
+              <span key={pill} className="px-3 py-1 bg-[var(--surface)] rounded-full text-xs text-[var(--muted)]">
+                {pill}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="flex gap-2 mb-8">
+          {STEPS.map((label, i) => (
+            <div key={label} className="flex-1">
+              <div
+                className={`h-1 rounded-full transition-all duration-500 ${
+                  i + 1 <= step ? 'bg-[#C8A96E]' : 'bg-[var(--border-strong)]'
+                }`}
+              />
+              <div
+                className={`text-xs mt-1.5 transition-colors ${
+                  i + 1 === step ? 'text-[#C8A96E] font-medium' : i + 1 < step ? 'text-[var(--muted)]' : 'text-[var(--muted)]/50'
+                }`}
+              >
+                {i + 1 < step && <Check className="w-3 h-3 inline mr-1" />}
+                {label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Error banner */}
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+            {error}
+          </div>
+        )}
+
+        <AnimatePresence mode="wait">
+          {/* ── STEP 1: Account ──────────────────────────────────────────── */}
+          {step === 1 && (
+            <motion.div
+              key="step-1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.25 }}
+            >
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 space-y-5">
+                <div>
+                  <h2 className="text-xl font-semibold mb-1">Create your account</h2>
+                  <p className="text-sm text-[var(--muted)]">
+                    Already have an account?{' '}
+                    <Link href="/business/login?next=/onboard" className="text-[#C8A96E] underline underline-offset-2">
+                      Sign in
+                    </Link>
+                  </p>
+                </div>
+                <form onSubmit={handleAccountStep} className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={account.fullName}
+                      onChange={(e) => updateAccount('fullName', e.target.value)}
+                      placeholder="Your full name"
+                      className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={account.email}
+                      onChange={(e) => updateAccount('email', e.target.value)}
+                      placeholder="you@yourbusiness.com"
+                      className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        minLength={8}
+                        value={account.password}
+                        onChange={(e) => updateAccount('password', e.target.value)}
+                        placeholder="Min. 8 characters"
+                        className="w-full px-4 py-3 pr-12 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((p) => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--muted)]"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[#C8A96E] text-[var(--foreground)] font-semibold rounded-xl hover:brightness-110 transition-all disabled:opacity-50"
+                  >
+                    {loading ? 'Creating account…' : <>Continue <ArrowRight className="w-4 h-4" /></>}
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── STEP 2: Business Details ──────────────────────────────────── */}
+          {step === 2 && (
+            <motion.div
+              key="step-2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.25 }}
+            >
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 space-y-5">
+                <div>
+                  <h2 className="text-xl font-semibold mb-1">Tell us about your business</h2>
+                  <p className="text-sm text-[var(--muted)]">This helps us personalise your workspace.</p>
+                </div>
+                <form onSubmit={handleBusinessStep} className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">Business Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={business.businessName}
+                      onChange={(e) => updateBusiness('businessName', e.target.value)}
+                      placeholder="e.g. Sharma Dental Clinic"
+                      className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">City</label>
+                    <input
+                      type="text"
+                      required
+                      value={business.city}
+                      onChange={(e) => updateBusiness('city', e.target.value)}
+                      placeholder="e.g. Ahmedabad"
+                      className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--muted)] mb-1.5 uppercase tracking-wider">Business Category</label>
+                    <select
+                      required
+                      value={business.category}
+                      onChange={(e) => updateBusiness('category', e.target.value)}
+                      className="w-full px-4 py-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-[var(--foreground)] focus:outline-none focus:border-[#C8A96E]/50 transition-colors appearance-none cursor-pointer"
+                    >
+                      <option value="" className="bg-[#1a1a1a]">Select your category</option>
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c} className="bg-[#1a1a1a]">{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="px-5 py-3 border border-[var(--border)] rounded-xl text-sm text-[var(--muted)] hover:border-[var(--border-focus)] hover:text-[var(--foreground)] transition-all"
+                    >
+                      <ArrowLeft className="w-4 h-4 inline mr-1" /> Back
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#C8A96E] text-[var(--foreground)] font-semibold rounded-xl hover:brightness-110 transition-all"
+                    >
+                      Continue <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── STEP 3: Plan Selection ────────────────────────────────────── */}
+          {step === 3 && (
+            <motion.div
+              key="step-3"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.25 }}
+            >
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-xl font-semibold mb-1">Choose your plan</h2>
+                  <p className="text-sm text-[var(--muted)]">You can change or upgrade anytime.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {PLANS.map((plan) => (
+                    <button
+                      key={plan.id}
+                      onClick={() => setSelectedPlan(plan.id)}
+                      className={`relative text-left p-5 rounded-2xl border transition-all ${
+                        selectedPlan === plan.id
+                          ? 'border-[#C8A96E] bg-[#C8A96E]/10'
+                          : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-focus)]'
+                      }`}
+                    >
+                      {plan.popular && (
+                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-[#C8A96E] text-[var(--foreground)] text-xs font-bold rounded-full">
+                          MOST POPULAR
+                        </div>
+                      )}
+                      {selectedPlan === plan.id && (
+                        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#C8A96E] flex items-center justify-center">
+                          <Check className="w-3 h-3 text-[var(--foreground)]" />
+                        </div>
+                      )}
+                      <div className="font-semibold text-base mb-1">{plan.name}</div>
+                      <div className="text-2xl font-bold text-[#C8A96E] mb-3">
+                        {plan.price}<span className="text-sm font-normal text-[var(--muted)]">{plan.period}</span>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {plan.features.map((f) => (
+                          <li key={f} className="text-xs text-[var(--muted)] flex items-start gap-1.5">
+                            <Check className="w-3 h-3 text-[#C8A96E] mt-0.5 shrink-0" /> {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setStep(2)}
+                    className="px-5 py-3 border border-[var(--border)] rounded-xl text-sm text-[var(--muted)] hover:border-[var(--border-focus)] hover:text-[var(--foreground)] transition-all"
+                  >
+                    <ArrowLeft className="w-4 h-4 inline mr-1" /> Back
+                  </button>
+                  <button
+                    onClick={handlePlanStep}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#C8A96E] text-[var(--foreground)] font-semibold rounded-xl hover:brightness-110 transition-all"
+                  >
+                    Continue with {PLANS.find((p) => p.id === selectedPlan)?.name} <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── STEP 4: Launch ───────────────────────────────────────────── */}
+          {step === 4 && (
+            <motion.div
+              key="step-4"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.25 }}
+            >
+              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 space-y-5">
+                <div className="text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-[#C8A96E]/20 border border-[#C8A96E]/30 flex items-center justify-center mx-auto mb-4">
+                    <Sparkles className="w-8 h-8 text-[#C8A96E]" />
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">You&apos;re ready to launch!</h2>
+                  <p className="text-sm text-[var(--muted)]">Here&apos;s what you&apos;ve set up:</p>
+                </div>
+
+                {/* Summary */}
+                <div className="grid gap-2">
+                  {[
+                    { label: 'Account', value: account.email },
+                    { label: 'Business', value: business.businessName || 'Not specified' },
+                    { label: 'City', value: business.city || 'Not specified' },
+                    { label: 'Category', value: business.category || 'Not specified' },
+                    { label: 'Plan', value: PLANS.find((p) => p.id === selectedPlan)?.name || selectedPlan },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-white/5">
+                      <span className="text-xs text-[var(--muted)] uppercase tracking-wider">{label}</span>
+                      <span className="text-sm font-medium text-[var(--foreground)]">{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep(3)}
+                    className="px-5 py-3 border border-[var(--border)] rounded-xl text-sm text-[var(--muted)] hover:border-[var(--border-focus)] hover:text-[var(--foreground)] transition-all"
+                  >
+                    <ArrowLeft className="w-4 h-4 inline mr-1" /> Back
+                  </button>
+                  <button
+                    onClick={handleLaunch}
+                    disabled={loading}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-[linear-gradient(135deg,#c9a55a,#a88540)] text-[var(--foreground)] font-semibold rounded-xl hover:brightness-110 transition-all disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <>
+                        <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                        Launching…
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        {selectedPlan === 'trial' ? 'Launch Free Trial' : selectedPlan === 'scale' ? 'Contact Sales' : 'Proceed to Payment'}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Social proof */}
+        <div className="mt-8 flex items-center gap-4">
+          {[
+            { initials: 'RS', name: 'Rahul S.' },
+            { initials: 'PP', name: 'Priya P.' },
+            { initials: 'AS', name: 'Amit S.' },
+          ].map(({ initials, name }) => (
+            <div key={initials} className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-[#C8A96E] flex items-center justify-center text-[var(--foreground)] text-xs font-bold shrink-0">
+                {initials}
+              </div>
+              <span className="text-xs text-[var(--muted)]">{name}</span>
+            </div>
+          ))}
+          <span className="text-xs text-[var(--muted)]">& 500+ businesses</span>
+        </div>
+      </div>
+    </div>
+  );
+}

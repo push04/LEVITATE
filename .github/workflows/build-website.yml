@@ -1,0 +1,89 @@
+name: AI Website Builder
+on:
+  workflow_dispatch:
+    inputs:
+      workspace_id: {description: 'Supabase workspace ID', required: true}
+      order_id: {description: 'Website order ID', required: true}
+      vertical: {description: 'Business vertical', required: true}
+      business_name: {description: 'Client business name', required: true}
+      city: {description: 'Client city', required: true}
+      color_scheme: {description: 'JSON color scheme', default: '{"primary":"#2563eb","accent":"#f59e0b"}'}
+      pages_requested: {description: 'Pages comma-separated', default: 'home,about,services,contact'}
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Update order status
+        run: |
+          curl -X PATCH "${{ secrets.SUPABASE_URL }}/rest/v1/website_orders?id=eq.${{ inputs.order_id }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"building","build_started_at":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}'
+      
+      - name: Install Python and Aider
+        run: |
+          python -m pip install aider-install
+          aider-install
+      
+      - name: Fetch template
+        run: |
+          mkdir -p client-site && cd client-site && git init
+          git config user.email "builder@platform.com" && git config user.name "AI Builder"
+      
+      - name: Run Aider
+        working-directory: client-site
+        env: { GROQ_API_KEY: "${{ secrets.GROQ_API_KEY }}" }
+        run: |
+          BRIEF="Build website for ${{ inputs.business_name }} in ${{ inputs.city }}. Vertical: ${{ inputs.vertical }}. Pages: ${{ inputs.pages_requested }}. Mobile-first. WhatsApp button. SEO meta tags."
+          aider --model groq/llama-3.3-70b-versatile --message "$BRIEF" --yes --no-git index.html style.css script.js
+      
+      - name: Security scan - trufflehog
+        working-directory: client-site
+        run: |
+          pip install trufflesecurity || true
+          trufflehog filesystem . --no-update 2>&1 | tee security-report.txt
+          if grep -q "Found verified result" security-report.txt; then
+            echo "SECURITY_VIOLATION=true" >> $GITHUB_ENV
+          fi
+      
+      - name: Block if secrets found
+        if: env.SECURITY_VIOLATION == 'true'
+        run: |
+          curl -X PATCH "${{ secrets.SUPABASE_URL }}/rest/v1/website_orders?id=eq.${{ inputs.order_id }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -d '{"status":"blocked_security"}'
+          exit 1
+      
+      - name: npm audit
+        working-directory: client-site
+        run: |
+          if [ -f package.json ]; then
+            npm audit --audit-level=high || echo "NPM_AUDIT_FAILED=true" >> $GITHUB_ENV
+          fi
+      
+      - name: Accessibility check - pa11y
+        run: |
+          npm install -g pa11y
+          python3 -m http.server 8080 &
+          sleep 2
+          pa11y http://localhost:8080 || true
+      
+      - name: Lighthouse CI
+        run: |
+          npm install -g @lhci/cli
+          lhci collect --url=http://localhost:8080 --numberOfRuns=1 || true
+      
+      - name: Deploy to Netlify
+        run: |
+          npm install -g netlify-cli
+          DEPLOY=$(netlify deploy --prod --dir=./client-site --auth=${{ secrets.NETLIFY_TOKEN }} --json)
+          echo "$DEPLOY" > deploy-output.json
+      
+      - name: Callback to platform
+        run: |
+          LIVE_URL=$(cat deploy-output.json | python3 -c "import json,sys; print(json.load(sys.stdin)['deploy_url'])")
+          curl -X POST "${{ secrets.PLATFORM_URL }}/.netlify/functions/website-build-complete" \
+            -H "Content-Type: application/json" \
+            -H "X-Build-Secret: ${{ secrets.BUILD_CALLBACK_SECRET }}" \
+            -d "{\"order_id\":\"${{ inputs.order_id }}\",\"workspace_id\":\"${{ inputs.workspace_id }}\",\"status\":\"deployed\",\"live_url\":\"$LIVE_URL\"}"

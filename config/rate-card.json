@@ -1,0 +1,54 @@
+{
+  "landing_page": {
+    "name": "Landing Page",
+    "description": "Single page, perfect for campaigns or new businesses",
+    "min": 3000,
+    "max": 6000,
+    "days": 3,
+    "pages": ["home"],
+    "features": ["contact_form", "whatsapp_button", "mobile_responsive", "seo_basic"]
+  },
+  "business_website": {
+    "name": "Business Website",
+    "description": "Full website with all pages, perfect for established businesses",
+    "min": 6000,
+    "max": 15000,
+    "days": 7,
+    "pages": ["home", "about", "services", "contact"],
+    "features": ["contact_form", "whatsapp_button", "mobile_responsive", "seo_basic", "google_maps"]
+  },
+  "ecommerce": {
+    "name": "E-commerce Store",
+    "description": "Online store with product catalog and payment integration",
+    "min": 15000,
+    "max": 40000,
+    "days": 14,
+    "pages": ["home", "products", "cart", "checkout", "about", "contact"],
+    "features": ["payment_gateway", "product_catalog", "cart", "order_management", "mobile_responsive"]
+  },
+  "webapp": {
+    "name": "Custom Web App",
+    "description": "Custom application with database and user accounts",
+    "min": 20000,
+    "max": 80000,
+    "days": 21,
+    "pages": ["dynamic"],
+    "features": ["user_auth", "database", "api", "dashboard", "mobile_responsive"]
+  },
+  "retainer_monthly": {
+    "name": "Monthly Maintenance",
+    "description": "Monthly maintenance, updates, hosting support",
+    "min": 1500,
+    "max": 3000,
+    "days": 30,
+    "features": ["updates", "security", "hosting_support", "content_updates"]
+  },
+  "seo_package": {
+    "name": "SEO Optimization",
+    "description": "Get found on Google — one-time optimization",
+    "min": 3000,
+    "max": 5000,
+    "days": 5,
+    "features": ["keyword_research", "on_page_seo", "google_my_business", "schema_markup"]
+  }
+}
