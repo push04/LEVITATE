@@ -1,30 +1,21 @@
-import { cn } from './utils';
-
-export default function SkeletonBlock({
-  className,
-  width,
-  height,
-  borderRadius,
-  rounded = 'rounded-xl',
-}: {
+interface Props {
   className?: string;
-  width?: string | number;
-  height?: string | number;
-  borderRadius?: string | number;
   rounded?: string;
-}) {
+  height?: number | string;
+  width?: number | string;
+  borderRadius?: number;
+}
+
+export default function SkeletonBlock({ className = '', rounded = 'rounded-lg', height, width, borderRadius }: Props) {
+  const style: React.CSSProperties = {};
+  if (height !== undefined) style.height = typeof height === 'number' ? `${height}px` : height;
+  if (width !== undefined) style.width = typeof width === 'number' ? `${width}px` : width;
+  if (borderRadius !== undefined) style.borderRadius = `${borderRadius}px`;
+
   return (
     <div
-      style={{
-        width,
-        height,
-        borderRadius,
-      }}
-      className={cn(
-        'animate-levitate-shimmer bg-[linear-gradient(90deg,var(--bg-elevated),rgba(201,165,90,0.12),var(--bg-elevated))]',
-        rounded,
-        className
-      )}
+      className={`animate-pulse bg-[var(--border-default,rgba(255,255,255,0.08))] ${height === undefined && width === undefined ? rounded : ''} ${className}`}
+      style={style}
     />
   );
 }

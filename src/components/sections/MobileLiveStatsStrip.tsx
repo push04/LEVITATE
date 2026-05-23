@@ -1,100 +1,41 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { createClient } from '@/lib/supabase';
+import { useEffect, useState } from 'react';
+import { TrendingUp, Users, Zap } from 'lucide-react';
 
-type StatValue = number | null;
-
-type LiveStats = {
-  totalLeads: StatValue;
-  totalWebsitesDeployed: StatValue;
-  totalActiveClients: StatValue;
-};
-
-async function fetchTableCount(table: string): Promise<StatValue> {
-  const supabase = createClient();
-  const { count } = await supabase.from(table).select('*', { count: 'exact', head: true });
-  return typeof count === 'number' ? count : null;
-}
+const STATS = [
+  { icon: Users, label: 'Leads scraped', value: 2400 },
+  { icon: Zap, label: 'AI actions', value: 890 },
+  { icon: TrendingUp, label: 'Revenue tracked', value: 145000 },
+];
 
 export default function MobileLiveStatsStrip() {
-  const [stats, setStats] = useState<LiveStats>({
-    totalLeads: null,
-    totalWebsitesDeployed: null,
-    totalActiveClients: null,
-  });
-
-  const refreshTimer = useRef<number | null>(null);
+  const [counts, setCounts] = useState(STATS.map(() => 0));
 
   useEffect(() => {
-    let isCancelled = false;
-
-    const refresh = async () => {
-      const [leadsRes, websitesRes, clientsRes] = await Promise.allSettled([
-        fetchTableCount('leads'),
-        fetchTableCount('website_deployments'),
-        fetchTableCount('workspaces'),
-      ]);
-
-      if (isCancelled) return;
-
-      setStats({
-        totalLeads: leadsRes.status === 'fulfilled' ? leadsRes.value : null,
-        totalWebsitesDeployed: websitesRes.status === 'fulfilled' ? websitesRes.value : null,
-        totalActiveClients: clientsRes.status === 'fulfilled' ? clientsRes.value : null,
-      });
-    };
-
-    refresh();
-
-    const supabase = createClient();
-    const channel = supabase
-      .channel('homepage-mobile-stats')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => scheduleRefresh())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'website_deployments' }, () => scheduleRefresh())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'workspaces' }, () => scheduleRefresh())
-      .subscribe();
-
-    function scheduleRefresh() {
-      if (refreshTimer.current) {
-        window.clearTimeout(refreshTimer.current);
-      }
-      refreshTimer.current = window.setTimeout(() => {
-        refreshTimer.current = null;
-        refresh();
-      }, 250);
-    }
-
-    return () => {
-      isCancelled = true;
-      if (refreshTimer.current) {
-        window.clearTimeout(refreshTimer.current);
-        refreshTimer.current = null;
-      }
-      supabase.removeChannel(channel);
-    };
+    const timers = STATS.map((s, i) =>
+      setInterval(() => {
+        setCounts(prev => {
+          const next = [...prev];
+          next[i] = Math.min(s.value, next[i] + Math.ceil(s.value / 40));
+          return next;
+        });
+      }, 30 + i * 10)
+    );
+    return () => timers.forEach(clearInterval);
   }, []);
 
   return (
-    <div className="md:hidden">
-      <div className="mt-6 md:mt-10 -mx-6 px-6">
-        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <StatCard label="Leads found" value={stats.totalLeads} />
-          <StatCard label="Websites deployed" value={stats.totalWebsitesDeployed} />
-          <StatCard label="Active clients" value={stats.totalActiveClients} />
+    <div className="md:hidden mt-4 flex items-center justify-between gap-2 rounded-2xl border border-[rgba(176,141,87,0.15)] bg-[rgba(176,141,87,0.05)] px-4 py-3">
+      {STATS.map((s, i) => (
+        <div key={s.label} className="flex flex-col items-center gap-0.5">
+          <s.icon className="h-3.5 w-3.5 text-[#B08D57]" strokeWidth={1.5} />
+          <span className="font-data text-base font-bold text-[#1A1916]">
+            {s.value === 145000 ? `₹${(counts[i] / 1000).toFixed(0)}k` : counts[i].toLocaleString()}
+          </span>
+          <span className="text-[10px] text-[#9B9890]">{s.label}</span>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: StatValue }) {
-  const display = typeof value === 'number' ? value.toLocaleString('en-IN') : '—';
-
-  return (
-    <div className="snap-start min-w-[220px] rounded-[14px] border border-white/10 bg-white/5 px-4 py-4">
-      <div className="type-subheading text-[var(--gold-bright)]">{label}</div>
-      <div className="mt-2 type-stat-sm text-[var(--text-primary)]">{display}</div>
+      ))}
     </div>
   );
 }

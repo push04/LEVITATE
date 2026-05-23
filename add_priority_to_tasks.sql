@@ -1,1 +1,0 @@
-ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority text CHECK (priority IN ('low', 'medium', 'high')) DEFAULT 'medium';

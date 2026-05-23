@@ -9,7 +9,7 @@ export default function NewsletterAdmin() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.from('newsletter_subscribers').select('*').then(({ data }) => {
+    supabase.from('newsletter_subscribers').select('*').then(({ data }: { data: any[] | null }) => {
       setSubscribers(data || []);
       setLoading(false);
     });

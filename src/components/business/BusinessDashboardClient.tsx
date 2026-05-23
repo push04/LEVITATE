@@ -123,8 +123,8 @@ export default function BusinessDashboardClient({ onboardingSuccess }: BusinessD
 
         setReferralStats({
           sent: referrals?.length || 0,
-          converted: referrals?.filter((r) => r.status === 'completed').length || 0,
-          rewards: rewards?.filter((r) => r.status === 'paid').length || 0,
+          converted: referrals?.filter((r: any) => r.status === 'completed').length || 0,
+          rewards: rewards?.filter((r: any) => r.status === 'paid').length || 0,
         });
       } catch (error) {
         console.error('Failed to load referral data:', error);

@@ -1,42 +1,31 @@
-import AnimatedNumber from './AnimatedNumber';
+type BarColor = 'new' | 'progress' | 'closed' | 'gold';
 
-const COLOR_MAP = {
-  new: 'var(--status-new)',
-  progress: 'var(--status-progress)',
-  closed: 'var(--status-closed)',
-  gold: 'var(--gold-base)',
-} as const;
+const colorMap: Record<BarColor, string> = {
+  gold: 'bg-[var(--gold-base)]',
+  new: 'bg-slate-400',
+  progress: 'bg-blue-400',
+  closed: 'bg-emerald-400',
+};
 
-export default function PipelineBar({
-  label,
-  value,
-  max,
-  color,
-}: {
+interface Props {
   label: string;
   value: number;
   max: number;
-  color: keyof typeof COLOR_MAP;
-}) {
-  const width = max > 0 ? Math.max((value / max) * 100, value > 0 ? 7 : 0) : 0;
-  const colorValue = COLOR_MAP[color];
+  color?: BarColor;
+}
 
+export default function PipelineBar({ label, value, max, color = 'gold' }: Props) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-4">
-        <span className="type-label text-[var(--text-secondary)]">{label}</span>
-        <span className="type-stat-sm text-[var(--text-primary)]">
-          <AnimatedNumber value={value} />
-        </span>
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-[var(--text-secondary)]">{label}</span>
+        <span className="font-semibold tabular-nums text-[var(--text-primary)]">{value}</span>
       </div>
-      <div className="h-[6px] overflow-hidden rounded-full bg-[var(--bg-overlay)]">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border-default)]">
         <div
-          className="animate-levitate-line-shimmer h-full rounded-full bg-[linear-gradient(90deg,rgba(255,255,255,0.12),rgba(255,255,255,0.34),rgba(255,255,255,0.12))]"
-          style={{
-            width: `${width}%`,
-            backgroundColor: colorValue,
-            boxShadow: `0 0 18px ${colorValue}33`,
-          }}
+          className={`h-full rounded-full transition-all duration-700 ${colorMap[color]}`}
+          style={{ width: `${pct}%` }}
         />
       </div>
     </div>

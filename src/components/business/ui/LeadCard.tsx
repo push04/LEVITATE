@@ -1,201 +1,195 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { Copy, ExternalLink, Globe, Mail, MapPinned, Phone } from 'lucide-react';
+import { useState } from 'react';
+import { Building2, ChevronDown, ChevronUp, Copy, ExternalLink, Globe, MapPin, Phone, Star } from 'lucide-react';
 import type { BusinessLeadRecord } from '@/hooks/useBusinessLeadRecords';
-import ScoreArc from './ScoreArc';
-import StatusBadge from './StatusBadge';
-import styles from './DashboardPrimitives.module.css';
-import { cn } from './utils';
 
-function getBadgeVariant(status: string | null) {
-  const normalized = String(status || '').toLowerCase();
-  if (normalized === 'closed') return 'closed' as const;
-  if (normalized === 'contacted') return 'contacted' as const;
-  if (normalized === 'follow up' || normalized === 'follow_up' || normalized === 'in progress' || normalized === 'in_progress') return 'progress' as const;
-  return 'new' as const;
-}
+type CrmState = 'idle' | 'copying' | 'copied';
 
-function normalizeStatusForSelect(status: string | null) {
-  const normalized = String(status || '').toLowerCase();
-  if (['closed', 'won', 'lost'].includes(normalized)) return 'closed';
-  if (['contacted', 'follow up', 'follow_up', 'in progress', 'in_progress'].includes(normalized)) return 'in progress';
-  return 'new';
-}
+const STATUS_OPTIONS = ['new', 'engaged', 'proposal', 'closed', 'lost'] as const;
 
-function formatMoney(value: number | null) {
-  if (typeof value !== 'number') return 'Not set';
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-export default function LeadCard({
-  lead,
-  onCopy,
-  onCopyField,
-  onAddToCrm,
-  onUpdateStatus,
-  statusUpdating,
-  crmState = 'idle',
-  copied,
-}: {
+interface Props {
   lead: BusinessLeadRecord;
   onCopy: () => void;
-  onCopyField?: (label: string, value: string) => void;
-  onAddToCrm?: () => void;
-  onUpdateStatus?: (nextStatus: string) => void;
-  statusUpdating?: boolean;
-  crmState?: 'idle' | 'copying' | 'copied';
-  copied?: boolean;
-}) {
-  const score = Math.max(0, Math.min(Math.round((lead.ai_score ?? 0) / 10), 10));
-  const qualitySignals = [lead.email, lead.phone, lead.website_link, lead.google_map_link, lead.city, lead.service_category].filter(Boolean).length;
-  const dataQuality = qualitySignals >= 5 ? 'High data quality' : qualitySignals >= 3 ? 'Medium data quality' : 'Low data quality';
+  onCopyField: (label: string, value: string) => void;
+  onAddToCrm: () => void;
+  onUpdateStatus: (status: string) => void;
+  statusUpdating: boolean;
+  crmState: CrmState;
+  copied: boolean;
+}
+
+function ScoreDot({ score }: { score: number | null }) {
+  if (score === null) return null;
+  const pct = Math.min(100, Math.max(0, score));
+  const color = pct >= 70 ? 'bg-emerald-400' : pct >= 40 ? 'bg-amber-400' : 'bg-slate-500';
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+      <span className={`h-2 w-2 rounded-full ${color}`} />
+      Score {pct}
+    </span>
+  );
+}
+
+function CopyChip({ label, value, onCopy }: { label: string; value: string | null; onCopy: (l: string, v: string) => void }) {
+  if (!value) return null;
+  return (
+    <button
+      onClick={() => onCopy(label, value)}
+      title={`Copy ${label}`}
+      className="flex items-center gap-1.5 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[rgba(201,165,90,0.35)] hover:text-[var(--gold-base)]"
+    >
+      <Copy className="h-3 w-3 opacity-60" />
+      {label}
+    </button>
+  );
+}
+
+export default function LeadCard({ lead, onCopy, onCopyField, onAddToCrm, onUpdateStatus, statusUpdating, crmState, copied }: Props) {
+  const [expanded, setExpanded] = useState(false);
+
+  const statusColors: Record<string, string> = {
+    new: 'bg-slate-500/20 text-slate-300',
+    engaged: 'bg-blue-500/20 text-blue-300',
+    proposal: 'bg-amber-500/20 text-amber-300',
+    closed: 'bg-emerald-500/20 text-emerald-300',
+    lost: 'bg-red-500/20 text-red-300',
+  };
+  const statusColor = statusColors[lead.status ?? 'new'] ?? statusColors.new;
 
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.32, ease: [0.34, 1.56, 0.64, 1] }}
-      className={cn(styles.panel, styles.panelHover, 'group p-5')}
-    >
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_120px]">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <StatusBadge variant={getBadgeVariant(lead.status)}>{lead.status ?? 'New'}</StatusBadge>
-            {onUpdateStatus ? (
-              <select
-                value={normalizeStatusForSelect(lead.status)}
-                onChange={(event) => onUpdateStatus(event.target.value)}
-                disabled={Boolean(statusUpdating)}
-                className="rounded-full border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-1.5 type-label uppercase text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
-                aria-label="Update lead status"
-              >
-                <option value="new">New</option>
-                <option value="in progress">In Progress</option>
-                <option value="closed">Closed</option>
-              </select>
-            ) : null}
-          </div>
-          <h3 className="mt-4 type-heading text-[var(--text-primary)]">{lead.name}</h3>
-          <div className="mt-2 type-label text-[var(--text-secondary)]">
-            {[lead.city, lead.service_category, lead.business_type].filter(Boolean).join(' / ') || 'Lead pipeline record'}
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {lead.email ? (
-              <button
-                type="button"
-                onClick={() => onCopyField?.('Email', lead.email!)}
-                className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--border-subtle)] bg-[var(--bg-overlay)] px-3 py-2 type-mono text-[var(--text-primary)] transition-colors hover:border-[var(--border-default)]"
-              >
-                <Mail className="h-3.5 w-3.5 text-[var(--gold-muted)]" />
-                {lead.email}
-              </button>
-            ) : null}
-            {lead.phone ? (
-              <button
-                type="button"
-                onClick={() => onCopyField?.('Phone', lead.phone!)}
-                className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--border-subtle)] bg-[var(--bg-overlay)] px-3 py-2 type-mono text-[var(--text-primary)] transition-colors hover:border-[var(--border-default)]"
-              >
-                <Phone className="h-3.5 w-3.5 text-[var(--gold-muted)]" />
-                {lead.phone}
-              </button>
-            ) : null}
-          </div>
-
-          <p className="mt-4 type-body text-[var(--text-secondary)]">
-            {lead.notes || lead.message || 'No notes have been added to this lead yet.'}
-          </p>
+    <div className="group rounded-[16px] border border-[var(--border-default)] bg-[var(--bg-overlay)] transition-all duration-200 hover:border-[rgba(201,165,90,0.2)] hover:shadow-[0_0_0_1px_rgba(201,165,90,0.08)]">
+      {/* Header row */}
+      <div className="flex items-start gap-4 p-5">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-[var(--border-default)] bg-[rgba(201,165,90,0.08)] text-[var(--gold-base)]">
+          <Building2 className="h-5 w-5" strokeWidth={1.5} />
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
-          <div className="rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-overlay)]/70 p-4">
-            <div className="type-subheading text-[var(--text-tertiary)]">Pipeline Value</div>
-            <div className="mt-3 type-mono text-[18px] text-[var(--text-primary)]">{formatMoney(lead.deal_value)}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-[var(--text-primary)] truncate">{lead.name}</span>
+            {lead.service_category && (
+              <span className="rounded-full border border-[var(--border-default)] px-2 py-0.5 text-xs text-[var(--text-tertiary)]">
+                {lead.service_category}
+              </span>
+            )}
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor}`}>
+              {lead.status ?? 'new'}
+            </span>
           </div>
-          <div className="rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-overlay)]/70 p-4">
-            <div className="type-subheading text-[var(--text-tertiary)]">Created</div>
-            <div className="mt-3 type-mono text-[18px] text-[var(--text-primary)]">
-              {new Date(lead.created_at).toLocaleDateString('en-IN')}
-            </div>
-          </div>
-          <div className="rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-overlay)]/70 p-4">
-            <div className="type-subheading text-[var(--text-tertiary)]">Outreach</div>
-            <div className="mt-3 type-mono text-[18px] text-[var(--text-primary)]">{lead.outreach_count ?? 0} touches</div>
+
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[var(--text-tertiary)]">
+            {lead.city && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {lead.city}
+              </span>
+            )}
+            <ScoreDot score={lead.ai_score} />
+            {lead.deal_value && (
+              <span className="flex items-center gap-1">
+                <Star className="h-3 w-3" />
+                ₹{lead.deal_value.toLocaleString('en-IN')}
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-4">
+        <div className="flex shrink-0 items-center gap-2">
           <button
-            type="button"
             onClick={onCopy}
-            className="translate-x-2 rounded-full border border-[var(--border-default)] bg-[var(--bg-overlay)] p-2 text-[var(--text-secondary)] opacity-0 transition-all duration-200 hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] group-hover:translate-x-0 group-hover:opacity-100"
-            aria-label="Copy lead"
+            title="Copy lead brief"
+            className={`rounded-[8px] border px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+              copied
+                ? 'border-[rgba(201,165,90,0.4)] bg-[rgba(201,165,90,0.12)] text-[var(--gold-base)]'
+                : 'border-[var(--border-default)] bg-transparent text-[var(--text-secondary)] hover:border-[rgba(201,165,90,0.35)] hover:text-[var(--gold-base)]'
+            }`}
           >
-            <Copy className="h-4 w-4" />
+            {copied ? 'Copied' : 'Copy'}
           </button>
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="rounded-[8px] border border-[var(--border-default)] bg-transparent p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+          >
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
 
-          <ScoreArc value={score} max={10} compact />
-          <div className="type-caption text-center">{copied ? 'Copied' : 'Score'}</div>
-
-          {onAddToCrm ? (
-            <button
-              type="button"
-              onClick={onAddToCrm}
-              disabled={crmState === 'copying'}
-              className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-2 type-label text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {crmState === 'copying' ? 'Adding…' : crmState === 'copied' ? 'In my CRM' : 'Copy to my CRM'}
-            </button>
-          ) : null}
-
-          <div className="mt-auto flex flex-wrap justify-end gap-2">
-            {lead.website_link ? (
-              <a
-                href={lead.website_link}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--border-subtle)] bg-[var(--bg-overlay)] px-3 py-2 type-label text-[var(--text-secondary)] hover:border-[var(--border-default)] hover:text-[var(--text-primary)]"
-              >
-                <Globe className="h-3.5 w-3.5" />
-                Website
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            ) : null}
-            {lead.google_map_link ? (
+      {/* Expanded panel */}
+      {expanded && (
+        <div className="border-t border-[var(--border-default)] px-5 pb-5 pt-4 space-y-4">
+          {/* Contact chips */}
+          <div className="flex flex-wrap gap-2">
+            <CopyChip label="Email" value={lead.email} onCopy={onCopyField} />
+            <CopyChip label="Phone" value={lead.phone} onCopy={onCopyField} />
+            {lead.google_map_link && (
               <a
                 href={lead.google_map_link}
                 target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--border-subtle)] bg-[var(--bg-overlay)] px-3 py-2 type-label text-[var(--text-secondary)] hover:border-[var(--border-default)] hover:text-[var(--text-primary)]"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[rgba(201,165,90,0.35)] hover:text-[var(--gold-base)]"
               >
-                <MapPinned className="h-3.5 w-3.5" />
-                Map
-                <ExternalLink className="h-3.5 w-3.5" />
+                <MapPin className="h-3 w-3 opacity-60" />
+                Maps
+                <ExternalLink className="h-2.5 w-2.5 opacity-40" />
               </a>
-            ) : null}
+            )}
+            {lead.website_link && (
+              <a
+                href={lead.website_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[rgba(201,165,90,0.35)] hover:text-[var(--gold-base)]"
+              >
+                <Globe className="h-3 w-3 opacity-60" />
+                Website
+                <ExternalLink className="h-2.5 w-2.5 opacity-40" />
+              </a>
+            )}
+            {lead.phone && (
+              <a
+                href={`tel:${lead.phone}`}
+                className="flex items-center gap-1.5 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:border-[rgba(201,165,90,0.35)] hover:text-[var(--gold-base)]"
+              >
+                <Phone className="h-3 w-3 opacity-60" />
+                Call
+              </a>
+            )}
+          </div>
+
+          {/* Notes */}
+          {lead.notes && (
+            <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{lead.notes}</p>
+          )}
+
+          {/* Status + CRM */}
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <select
+              value={lead.status ?? 'new'}
+              disabled={statusUpdating}
+              onChange={e => onUpdateStatus(e.target.value)}
+              className="rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-1.5 text-xs text-[var(--text-primary)] focus:outline-none disabled:opacity-60"
+            >
+              {STATUS_OPTIONS.map(s => (
+                <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              ))}
+            </select>
+
+            <button
+              onClick={onAddToCrm}
+              disabled={crmState !== 'idle'}
+              className={`rounded-[8px] border px-3 py-1.5 text-xs font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${
+                crmState === 'copied'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+                  : 'border-[var(--border-default)] bg-[var(--bg-overlay)] text-[var(--text-secondary)] hover:border-[rgba(201,165,90,0.35)] hover:text-[var(--gold-base)]'
+              }`}
+            >
+              {crmState === 'copying' ? 'Adding…' : crmState === 'copied' ? 'In CRM' : 'Add to CRM'}
+            </button>
           </div>
         </div>
-      </div>
-
-      <div className="mt-5 flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-4">
-        <span className="rounded-[4px] border border-[var(--border-subtle)] bg-[var(--bg-overlay)] px-2 py-1 type-caption text-[var(--text-secondary)]">
-          Source: {lead.source || 'Unlabeled'}
-        </span>
-        <span className="rounded-[4px] border border-[var(--border-subtle)] bg-[var(--bg-overlay)] px-2 py-1 type-caption text-[var(--text-secondary)]">
-          {dataQuality}
-        </span>
-        {lead.budget ? (
-          <span className="rounded-[4px] border border-[var(--border-subtle)] bg-[var(--bg-overlay)] px-2 py-1 type-caption text-[var(--text-secondary)]">
-            Budget: {lead.budget}
-          </span>
-        ) : null}
-      </div>
-    </motion.article>
+      )}
+    </div>
   );
 }

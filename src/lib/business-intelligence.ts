@@ -971,7 +971,7 @@ function normalizeLineSeries(value: unknown, targetName?: string): LineSeries | 
           : undefined,
       }
     })
-    .filter((point): point is LineSeries['points'][number] => Boolean(point))
+    .filter((point) => point !== null) as LineSeries['points']
 
   if (points.length === 0) {
     return null
@@ -1272,10 +1272,10 @@ export function normalizeResearchModulePayload(value: unknown, targetName?: stri
       return {
         title,
         data,
-        orientation: chartCandidate.orientation === 'horizontal' ? 'horizontal' : 'vertical',
+        orientation: (chartCandidate.orientation === 'horizontal' ? 'horizontal' : 'vertical') as 'horizontal' | 'vertical',
       }
     })
-    .filter((item): item is NonNullable<ResearchModulePayload['barCharts']>[number] => Boolean(item))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item)) as NonNullable<ResearchModulePayload['barCharts']>
   const scatterPlots = asArray(candidate.scatterPlots)
     .map(chart => {
       const chartCandidate = asRecord(chart)
@@ -1364,7 +1364,7 @@ export function normalizeResearchModulePayload(value: unknown, targetName?: stri
         cards,
       }
     })
-    .filter((item): item is NonNullable<ResearchModulePayload['cardGroups']>[number] => Boolean(item))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item)) as NonNullable<ResearchModulePayload['cardGroups']>
   const listSections = asArray(candidate.listSections).map((item) => normalizeListSection(item, targetName)).filter((item): item is ListSection => Boolean(item))
   const quadrants = asArray(candidate.quadrants).map((item) => normalizeQuadrant(item, targetName)).filter((item): item is Quadrant => Boolean(item))
   const nestedRingCandidate = asRecord(candidate.nestedRings)

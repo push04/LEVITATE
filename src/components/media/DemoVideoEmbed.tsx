@@ -1,45 +1,31 @@
 'use client';
-import { useState, useEffect } from 'react';
+
+import { useState } from 'react';
+import { Play } from 'lucide-react';
 
 export default function DemoVideoEmbed() {
-  const [isVisible, setIsVisible] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); } },
-      { rootMargin: '200px' }
-    );
-    const el = document.getElementById('demo-video-container');
-    if (el) observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const videoUrl = process.env.NEXT_PUBLIC_DEMO_VIDEO_URL;
+  const [playing, setPlaying] = useState(false);
 
   return (
-    <div id="demo-video-container" className="mt-8 md:mt-12 max-w-4xl mx-auto">
-      <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
-        {!showVideo && isVisible && (
-          <div 
-            className="absolute inset-0 bg-white/5 rounded-[14px] flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors"
-            onClick={() => setShowVideo(true)}
-          >
-            <div className="w-16 h-16 bg-[#C8A96E] rounded-full flex items-center justify-center">
-              <div className="w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-l-12 border-l-[#0C0C0B] ml-1"></div>
-            </div>
+    <div className="relative mt-6 w-full overflow-hidden rounded-2xl border border-[rgba(176,141,87,0.18)] bg-[#0f0e0b] shadow-[0_8px_40px_rgba(0,0,0,0.5)]" style={{ aspectRatio: '16/9' }}>
+      {playing ? (
+        <iframe
+          src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1"
+          className="absolute inset-0 h-full w-full"
+          allow="autoplay; fullscreen"
+          title="Levitate OS demo"
+        />
+      ) : (
+        <button
+          onClick={() => setPlaying(true)}
+          className="group absolute inset-0 flex flex-col items-center justify-center gap-4"
+        >
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(176,141,87,0.9)] shadow-[0_0_32px_rgba(176,141,87,0.4)] transition-transform duration-300 group-hover:scale-110">
+            <Play className="h-7 w-7 translate-x-0.5 text-white" fill="white" />
           </div>
-        )}
-        {showVideo && videoUrl && (
-          <iframe 
-            src={videoUrl} 
-            className="w-full h-full rounded-[14px]" 
-            allow="autoplay; encrypted-media" 
-            allowFullScreen
-            title="Demo Video"
-          />
-        )}
-      </div>
+          <span className="text-sm font-medium text-white/70">Watch product demo</span>
+        </button>
+      )}
     </div>
   );
 }

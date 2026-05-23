@@ -60,7 +60,7 @@ export default function SalesDashboard() {
 
             // Merge and Sort
             const activityList = [
-                ...(newLeads?.map(l => ({
+                ...(newLeads?.map((l: any) => ({
                     type: 'lead',
                     title: `New Lead: ${l.name}`,
                     subtitle: l.company || 'No Company',
@@ -70,7 +70,7 @@ export default function SalesDashboard() {
                     bg: 'bg-blue-500/10',
                     status: 'New'
                 })) || []),
-                ...(sentCampaigns?.map(c => ({
+                ...(sentCampaigns?.map((c: any) => ({
                     type: 'campaign',
                     title: `Campaign: ${c.title}`,
                     subtitle: `Status: ${c.status}`,

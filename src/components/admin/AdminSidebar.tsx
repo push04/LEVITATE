@@ -145,7 +145,7 @@ export default function AdminSidebar() {
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
         {filteredMenu.map((item) => {
-          const isActive = pathname === item.href || (item.subItems && pathname.startsWith(item.href));
+          const isActive = pathname === item.href || ((item as any).subItems && pathname.startsWith(item.href));
           const isSubItemActive = (subHref: string) => pathname === subHref;
 
           return (

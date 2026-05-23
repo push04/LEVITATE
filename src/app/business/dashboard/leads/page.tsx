@@ -378,7 +378,7 @@ export default function BusinessLeadsPage() {
                 onCopy={() => handleCopyOne(record)}
                 onCopyField={handleCopyField}
                 onAddToCrm={() => handleCopyToCrm(record)}
-                onUpdateStatus={(nextStatus) => handleUpdateStatus(record, nextStatus)}
+                onUpdateStatus={(nextStatus: string) => handleUpdateStatus(record, nextStatus)}
                 statusUpdating={updatingId === record.id}
                 crmState={
                   crmCopyState === record.id

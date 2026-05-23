@@ -28,13 +28,14 @@ export async function GET() {
 
     const leads = leadsRes.data ?? []
     const sumRevenue = (arr: { amount: unknown }[]) => arr.reduce((s, r) => s + Number(r.amount), 0)
+    const sumField = (arr: Record<string, unknown>[], field: string) => arr.reduce((s, r) => s + Number(r[field] ?? 0), 0)
 
     const stats = {
       // Revenue
       todayRevenue: sumRevenue(todayRevenueRes.data ?? []),
       monthRevenue: sumRevenue(monthRevenueRes.data ?? []),
       totalRevenue: sumRevenue(totalRevenueRes.data ?? []),
-      pendingRevenue: sumRevenue(pendingRevenueRes.data ?? []),
+      pendingRevenue: sumField(pendingRevenueRes.data ?? [], 'total'),
 
       // Lead funnel
       leadsTotal: leads.length,

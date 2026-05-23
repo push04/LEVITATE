@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 
     queuedLogId = queuedLog.id;
 
-    const trackingPixel = `<img src="${appUrl}/api/admin/mailbox/open?message=${encodeURIComponent(queuedLogId)}" width="1" height="1" style="display:none;" alt="" />`;
+    const trackingPixel = `<img src="${appUrl}/api/admin/mailbox/open?message=${encodeURIComponent(queuedLogId ?? '')}" width="1" height="1" style="display:none;" alt="" />`;
     const trackedHtml = `${bodyHtml}${trackingPixel}`;
 
     const transporter = nodemailer.createTransport({

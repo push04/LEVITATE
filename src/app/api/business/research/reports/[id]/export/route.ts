@@ -73,7 +73,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ? buildReportPdf(assembledReport)
       : await buildReportDocx(assembledReport)
 
-    return new NextResponse(buffer, {
+    return new NextResponse(buffer as BodyInit, {
       headers: {
         'Content-Type': format === 'pdf'
           ? 'application/pdf'

@@ -269,7 +269,7 @@ export default function ResearchReportView({
     !readOnly &&
     Boolean(reportId) &&
     Boolean(report) &&
-    (report.status === 'generating' || progress.pending > 0);
+    (report?.status === 'generating' || progress.pending > 0);
 
   useEffect(() => {
     hasReportRef.current = Boolean(report);

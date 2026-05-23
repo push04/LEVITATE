@@ -27,7 +27,7 @@ export async function POST() {
           'research'
         )
 
-        let parsed = { priority_score: 5, estimated_value: 15000 }
+        let parsed: { priority_score: number; estimated_value: number; industry_trends?: unknown[] } = { priority_score: 5, estimated_value: 15000 }
         try { parsed = JSON.parse(research) } catch { }
 
         await supabase.from('leads').update({

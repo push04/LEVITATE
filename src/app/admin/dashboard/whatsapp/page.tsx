@@ -22,9 +22,9 @@ export default function WhatsAppAdmin() {
       setQueue(data)
       setStats(s => ({
         ...s,
-        pending: data.filter(m => m.status === 'pending').length,
-        sent: data.filter(m => m.status === 'sent').length,
-        failed: data.filter(m => m.status === 'failed').length,
+        pending: data.filter((m: any) => m.status === 'pending').length,
+        sent: data.filter((m: any) => m.status === 'sent').length,
+        failed: data.filter((m: any) => m.status === 'failed').length,
       }))
     }
   }

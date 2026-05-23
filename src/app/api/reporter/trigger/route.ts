@@ -66,16 +66,18 @@ Sign off: "— Levitate Labs Automation"`,
 
     // Log reporter email to agent_emails for admin dashboard visibility.
     if (emailSent) {
-      await supabase.from('agent_emails').insert({
-        lead_id:    null,
-        agent_name: 'reporter',
-        direction:  'outbound',
-        to_email:   process.env.SMTP_FROM ?? 'founder@levitatelabs.online',
-        from_email: process.env.SMTP_FROM ?? process.env.SMTP_USER ?? 'ai@levitatelabs.online',
-        subject,
-        body,
-        status: 'sent'
-      }).catch(() => {})
+      try {
+        await supabase.from('agent_emails').insert({
+          lead_id:    null,
+          agent_name: 'reporter',
+          direction:  'outbound',
+          to_email:   process.env.SMTP_FROM ?? 'founder@levitatelabs.online',
+          from_email: process.env.SMTP_FROM ?? process.env.SMTP_USER ?? 'ai@levitatelabs.online',
+          subject,
+          body,
+          status: 'sent'
+        })
+      } catch {}
     }
     
     await supabase.from('agent_logs').insert({

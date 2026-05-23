@@ -21,7 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const { createClient } = await import('@/lib/supabase');
       const supabase = createClient();
       const { data: posts } = await supabase.from('blog_posts').select('slug, updated_at');
-      blogPages = posts?.map(p => ({
+      blogPages = posts?.map((p: { slug: string; updated_at: string }) => ({
         url: `${baseUrl}/blog/${p.slug}`,
         lastModified: new Date(p.updated_at),
       })) || [];

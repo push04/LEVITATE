@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       ? buildLegalNoticePdf(draft)
       : await buildLegalNoticeDocx(draft)
 
-    return new NextResponse(buffer, {
+    return new NextResponse(buffer as BodyInit, {
       headers: {
         'Content-Type': format === 'pdf'
           ? 'application/pdf'

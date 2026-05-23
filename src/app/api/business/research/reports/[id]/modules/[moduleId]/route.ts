@@ -8,7 +8,10 @@ import {
 } from '@/lib/business-intelligence-server'
 import {
   normalizeSelectedModules,
+  normalizeResearchModulePayload,
   type BusinessProfilePayload,
+  type ResearchModuleId,
+  type ModuleRunStatus,
   type ResearchModuleResult,
 } from '@/lib/business-intelligence'
 import { getServiceSupabase } from '@/lib/supabase'
@@ -192,13 +195,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       const failedResults = (failedModules ?? []).reduce((acc, row) => {
         const item = row as ModuleRow
         acc[item.module_id] = {
-          id: item.module_id,
+          id: item.module_id as ResearchModuleId,
           title: item.title,
-          status: item.status,
+          status: item.status as ModuleRunStatus,
           provider: item.provider ?? undefined,
           generatedAt: item.generated_at ?? undefined,
           error: item.error ?? undefined,
-          payload: item.payload && typeof item.payload === 'object' ? item.payload : undefined,
+          payload: normalizeResearchModulePayload(item.payload) ?? undefined,
         }
         return acc
       }, {} as Record<string, ResearchModuleResult>)
@@ -255,13 +258,13 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     const moduleResults = (allModules ?? []).reduce((acc, row) => {
       const item = row as ModuleRow
       acc[item.module_id] = {
-        id: item.module_id,
+        id: item.module_id as ResearchModuleId,
         title: item.title,
-        status: item.status,
+        status: item.status as ModuleRunStatus,
         provider: item.provider ?? undefined,
         generatedAt: item.generated_at ?? undefined,
         error: item.error ?? undefined,
-        payload: item.payload && typeof item.payload === 'object' ? item.payload : undefined,
+        payload: normalizeResearchModulePayload(item.payload) ?? undefined,
       }
       return acc
     }, {} as Record<string, ResearchModuleResult>)

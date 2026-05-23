@@ -36,6 +36,7 @@ import {
   normalizeResearchModulePayload,
   normalizeResearchModuleResults,
   normalizeSelectedModules,
+  RESEARCH_MODULES,
   type ProgressMeter,
   type ResearchModuleId,
   type ResearchModulePayload,

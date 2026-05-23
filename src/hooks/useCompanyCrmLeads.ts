@@ -344,7 +344,7 @@ export function useCompanyCrmLeads(enabled: boolean, scopeKey = 'default'): UseC
       email: sourceLead.email ?? null,
       phone: sourceLead.phone ?? null,
       whatsapp: sourceLead.phone ?? null,
-      company_name: sourceLead.business_name ?? null,
+      company_name: (sourceLead as any).business_name ?? sourceLead.name ?? null,
       title: null,
       city: sourceLead.city ?? null,
       service_category: sourceLead.service_category ?? null,

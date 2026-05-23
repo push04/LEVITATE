@@ -1,33 +1,25 @@
-import { cn } from './utils';
+import { type ReactNode } from 'react';
 
-const VARIANTS = {
-  new: 'border-[color:rgba(107,127,163,0.3)] bg-[rgba(107,127,163,0.12)] text-[var(--status-new)]',
-  contacted: 'border-[color:rgba(184,124,58,0.3)] bg-[rgba(184,124,58,0.12)] text-[var(--status-progress)]',
-  progress: 'border-[color:rgba(184,124,58,0.3)] bg-[rgba(184,124,58,0.12)] text-[var(--status-progress)]',
-  closed: 'border-[color:rgba(61,122,92,0.3)] bg-[rgba(61,122,92,0.12)] text-[var(--status-closed)]',
-  active: 'border-[color:rgba(61,122,92,0.3)] bg-[rgba(61,122,92,0.12)] text-[var(--status-closed)]',
-  warn: 'border-[color:rgba(138,92,58,0.3)] bg-[rgba(138,92,58,0.12)] text-[var(--status-warn)]',
-  gold: 'border-[var(--border-strong)] bg-[var(--gold-glow)] text-[var(--gold-bright)]',
-  neutral: 'border-[var(--border-default)] bg-[var(--bg-overlay)] text-[var(--text-secondary)]',
-} as const;
+type Variant = 'gold' | 'new' | 'progress' | 'closed' | 'warn' | 'neutral' | 'active';
 
-export default function StatusBadge({
-  children,
-  variant = 'neutral',
-  className,
-}: {
-  children: React.ReactNode;
-  variant?: keyof typeof VARIANTS;
-  className?: string;
-}) {
+const variantStyles: Record<Variant, string> = {
+  gold: 'bg-[rgba(201,165,90,0.12)] border-[rgba(201,165,90,0.28)] text-[var(--gold-base)]',
+  new: 'bg-[rgba(100,130,200,0.1)] border-[rgba(100,130,200,0.25)] text-blue-400',
+  progress: 'bg-[rgba(96,165,250,0.1)] border-[rgba(96,165,250,0.25)] text-blue-400',
+  closed: 'bg-[rgba(52,211,153,0.1)] border-[rgba(52,211,153,0.25)] text-emerald-400',
+  warn: 'bg-[rgba(248,113,113,0.1)] border-[rgba(248,113,113,0.25)] text-red-400',
+  neutral: 'bg-[var(--border-default)] border-transparent text-[var(--text-tertiary)]',
+  active: 'bg-[rgba(52,211,153,0.08)] border-[rgba(52,211,153,0.2)] text-emerald-400',
+};
+
+interface Props {
+  variant?: Variant;
+  children: ReactNode;
+}
+
+export default function StatusBadge({ variant = 'neutral', children }: Props) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em]',
-        VARIANTS[variant],
-        className
-      )}
-    >
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${variantStyles[variant]}`}>
       {children}
     </span>
   );

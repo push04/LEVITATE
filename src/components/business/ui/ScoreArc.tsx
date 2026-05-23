@@ -1,83 +1,52 @@
-import AnimatedNumber from './AnimatedNumber';
-
-function polarToCartesian(cx: number, cy: number, radius: number, angle: number) {
-  const radians = ((angle - 90) * Math.PI) / 180.0;
-  return {
-    x: cx + radius * Math.cos(radians),
-    y: cy + radius * Math.sin(radians),
-  };
-}
-
-function describeArc(cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
-  const start = polarToCartesian(cx, cy, radius, endAngle);
-  const end = polarToCartesian(cx, cy, radius, startAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
-
-  return ['M', start.x, start.y, 'A', radius, radius, 0, largeArcFlag, 0, end.x, end.y].join(' ');
-}
-
-function getToneColor(value: number) {
-  if (value >= 90) return 'var(--gold-base)';
-  if (value >= 75) return 'var(--status-closed)';
-  if (value >= 60) return 'var(--status-progress)';
-  if (value >= 40) return 'var(--status-new)';
-  return 'var(--status-warn)';
-}
-
-export default function ScoreArc({
-  value,
-  max = 100,
-  size = 88,
-  label,
-  compact = false,
-}: {
+interface Props {
   value: number;
-  max?: number;
-  size?: number;
   label?: string;
-  compact?: boolean;
-}) {
-  const normalized = Math.max(0, Math.min(value, max));
-  const percent = normalized / max;
-  const color = getToneColor((normalized / max) * 100);
-  const radius = compact ? 16 : 30;
-  const strokeWidth = compact ? 4 : 6;
-  const startAngle = 180;
-  const endAngle = 180 + percent * 180;
+  size?: number;
+}
+
+export default function ScoreArc({ value, label = 'Score', size = 112 }: Props) {
+  const radius = (size - 16) / 2;
+  const circumference = Math.PI * radius;
+  const pct = Math.min(100, Math.max(0, value));
+  const offset = circumference * (1 - pct / 100);
+  const color = pct >= 70 ? '#34D399' : pct >= 40 ? '#C9A55A' : '#6B7280';
+  const cx = size / 2;
+  const cy = size / 2;
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <svg width={size} height={compact ? 42 : 54} viewBox={`0 0 ${size} ${compact ? 42 : 54}`} fill="none">
+    <div className="flex flex-col items-center gap-1" style={{ width: size }}>
+      <svg width={size} height={size / 2 + 12} viewBox={`0 0 ${size} ${size / 2 + 12}`}>
+        {/* Background arc */}
         <path
-          d={describeArc(size / 2, compact ? 30 : 38, radius, 180, 360)}
-          stroke="rgba(201, 165, 90, 0.12)"
-          strokeWidth={strokeWidth}
+          d={`M ${8} ${cy} A ${radius} ${radius} 0 0 1 ${size - 8} ${cy}`}
+          fill="none"
+          stroke="var(--border-default)"
+          strokeWidth="6"
           strokeLinecap="round"
         />
+        {/* Score arc */}
         <path
-          d={describeArc(size / 2, compact ? 30 : 38, radius, startAngle, Math.max(endAngle, startAngle + 1))}
+          d={`M ${8} ${cy} A ${radius} ${radius} 0 0 1 ${size - 8} ${cy}`}
+          fill="none"
           stroke={color}
-          strokeWidth={strokeWidth}
+          strokeWidth="6"
           strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
         />
         <text
-          x="50%"
-          y={compact ? '32' : '41'}
+          x={cx}
+          y={cy + 4}
           textAnchor="middle"
-          className={compact ? 'type-label' : 'type-stat-sm'}
+          fontSize="22"
+          fontWeight="700"
+          fontFamily="monospace"
           fill="var(--text-primary)"
         >
-          {compact ? Math.round(normalized) : ''}
+          {pct}
         </text>
       </svg>
-      {!compact ? (
-        <>
-          <div className="type-stat-sm text-[var(--text-primary)]">
-            <AnimatedNumber value={normalized} />
-          </div>
-          {label ? <div className="type-caption uppercase tracking-[0.18em]">{label}</div> : null}
-        </>
-      ) : null}
+      <span className="text-xs text-[var(--text-tertiary)]">{label}</span>
     </div>
   );
 }

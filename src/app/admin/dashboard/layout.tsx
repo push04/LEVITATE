@@ -4,7 +4,6 @@ import { useState, useEffect, type ReactNode } from 'react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { Menu, X, Shield } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import ThemeToggle from '@/components/ThemeToggle';
 
 export default function DashboardLayout({
     children,
@@ -58,22 +57,19 @@ export default function DashboardLayout({
 
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 {/* Mobile Header */}
-                <header className="md:hidden flex items-center justify-between p-4 border-b border-[var(--border)] bg-[var(--surface)] sticky top-0 z-40">
+                <header className="md:hidden flex items-center justify-between p-4 border-b border-gray-200 bg-white sticky top-0 z-40">
                     <div className="flex items-center gap-2">
                         <div className="p-1.5 rounded-lg bg-[var(--primary)] text-white">
                             <Shield className="w-5 h-5" />
                         </div>
-                        <span className="font-bold text-lg">LevitateOS</span>
+                        <span className="font-bold text-lg text-gray-900">LevitateOS</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <ThemeToggle />
-                        <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="p-2 rounded-lg hover:bg-[var(--secondary)] text-[var(--foreground)]"
-                        >
-                            <Menu className="w-6 h-6" />
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="p-2 rounded-lg hover:bg-gray-100 text-gray-700"
+                    >
+                        <Menu className="w-6 h-6" />
+                    </button>
                 </header>
 
                 {/* Main Content */}
