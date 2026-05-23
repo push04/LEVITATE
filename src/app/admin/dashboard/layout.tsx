@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { Menu, X, Shield } from 'lucide-react';
 import { usePathname } from 'next/navigation';
@@ -9,10 +9,17 @@ import ThemeToggle from '@/components/ThemeToggle';
 export default function DashboardLayout({
     children,
 }: {
-    children: React.ReactNode;
+    children: ReactNode;
 }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const pathname = usePathname();
+
+    // Force light mode in admin
+    useEffect(() => {
+        const html = document.documentElement;
+        html.classList.remove('dark');
+        return () => {}; // keep light mode
+    }, []);
 
     // Close sidebar on route change (mobile)
     useEffect(() => {
@@ -20,7 +27,7 @@ export default function DashboardLayout({
     }, [pathname]);
 
     return (
-        <div className="flex min-h-screen bg-[var(--background)]">
+        <div className="admin-light flex min-h-screen bg-[var(--background)]">
 
             {/* Desktop Sidebar */}
             <aside className="hidden md:block shrink-0 h-screen sticky top-0 overflow-y-auto w-64 border-r border-[var(--border)] bg-[var(--surface)]">

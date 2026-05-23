@@ -533,6 +533,26 @@ select {
   100% { left: 140%; }
 }
 
+/* ── Admin Dashboard Light Mode ── */
+.glass-card {
+  background: #fff;
+  border: 1px solid #E5E0D8;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(26,25,22,0.06), 0 0 0 1px rgba(176,141,87,0.05);
+  transition: box-shadow 200ms ease, border-color 200ms ease;
+}
+.glass-card:hover {
+  border-color: rgba(176,141,87,0.25);
+  box-shadow: 0 4px 16px rgba(26,25,22,0.08), 0 0 0 1px rgba(176,141,87,0.1);
+}
+
+/* admin pages use text-white / bg-white/5 — remap to light */
+.admin-light .text-white { color: #1A1916 !important; }
+.admin-light .text-white\/60 { color: #6B6860 !important; }
+.admin-light .text-white\/80 { color: #4A4844 !important; }
+.admin-light .bg-white\/5 { background: #F4F2EE !important; }
+.admin-light .bg-white\/10 { background: #EDE9E3 !important; }
+
 /* scrollbar: thin gold, light mode only */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 html:not(.dark) ::-webkit-scrollbar-track { background: #F4F2EE; }

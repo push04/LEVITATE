@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { generateLinkedInContent, createLinkedInPost } from '@/lib/linkedin';
 import { getServiceSupabase } from '@/lib/supabase';
 
-const CRON_SECRET = process.env.CRON_SECRET || 'levitate_auto_secure_key_2026';
+const CRON_SECRET = process.env.CRON_SECRET;
 
 export async function GET(request: Request) {
     return handleRequest(request);

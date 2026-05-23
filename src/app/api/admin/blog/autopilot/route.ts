@@ -15,7 +15,7 @@ const FIELDS = [
     'Electric Vehicles & Battery Tech'
 ];
 
-const CRON_SECRET = process.env.CRON_SECRET || 'levitate_auto_secure_key_2026';
+const CRON_SECRET = process.env.CRON_SECRET;
 
 export async function GET(request: Request) {
     return handleRequest(request);
@@ -31,14 +31,11 @@ async function handleRequest(request: Request) {
         const key = searchParams.get('key');
 
         // Simple Cron Auth
-        if (key !== CRON_SECRET) {
-            // If internal (from browser dashboard), we might use session, but for now let's just use the key or session.
-            // Since this is "autopilot" intended for cron, let's enforce key or session.
-            // For simplicity in this context, let's assume dashboard sends POST and Cron sends GET/POST with key.
+        if (!CRON_SECRET || key !== CRON_SECRET) {
             const supabase = getServiceSupabase();
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session && key !== CRON_SECRET) {
-                return NextResponse.json({ error: 'Unauthorized. Use ?key=levitate_auto_secure_key_2026 for cron.' }, { status: 401 });
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
             }
         }
 

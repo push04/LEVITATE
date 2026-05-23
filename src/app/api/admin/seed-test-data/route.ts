@@ -3,6 +3,9 @@ import { getServiceSupabase } from '@/lib/supabase'
 import { queueBusinessLeadWhatsApp } from '@/lib/whatsapp/queue-business-lead'
 
 export async function POST() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production.' }, { status: 403 })
+  }
   const supabase = getServiceSupabase()
   
   try {

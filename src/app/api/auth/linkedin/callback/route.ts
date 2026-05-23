@@ -26,7 +26,7 @@ export async function GET(request: Request) {
         const response = NextResponse.redirect(new URL('/admin/dashboard', request.url));
 
         // Set cookie with 60 days expiry (approx token life)
-        response.cookies.set('linkedin_token', tokenData.access_token, {
+        response.cookies.set('linkedin_access_token', tokenData.access_token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',

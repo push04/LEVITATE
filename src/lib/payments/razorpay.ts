@@ -67,7 +67,10 @@ export async function createPaymentLink(params: {
 export function verifyRazorpaySignature(body: string, signature: string | null): boolean {
   if (!signature) return false
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET
-  if (!secret) return true // Skip verification in dev
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') return false
+    return true // Skip verification in dev only
+  }
 
   try {
     const crypto = require('crypto') as typeof import('crypto')

@@ -25,8 +25,8 @@ export async function checkAdminAuth(_request?: NextRequest): Promise<{ isAuthen
         }
     )
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
         return { isAuthenticated: false }
     }
 
@@ -34,7 +34,7 @@ export async function checkAdminAuth(_request?: NextRequest): Promise<{ isAuthen
     const { data: profile, error } = await serviceSupabase
         .from('profiles')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single()
 
     if (error || !profile) {
