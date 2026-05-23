@@ -302,7 +302,7 @@ export default function MailboxPage() {
                     {filteredThreads.map(thread => (
                         <div
                             key={thread.cleanEmail}
-                            onClick={() => setSelectedContact(thread.cleanEmail)}
+                            onClick={() => setSelectedContact(thread.cleanEmail ?? null)}
                             className={`p-4 border-b border-[var(--border)] cursor-pointer hover:bg-[var(--secondary)]/50 transition-colors ${selectedContact === thread.cleanEmail ? 'bg-[var(--secondary)] border-l-4 border-l-[var(--primary)]' : ''}`}
                         >
                             <div className="flex justify-between mb-1">

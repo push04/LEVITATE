@@ -131,8 +131,8 @@ export default function ChatPage() {
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'messages' },
-                async (payload) => {
-                    const newMsg = payload.new as Message;
+                async (payload: { new: Message }) => {
+                    const newMsg = payload.new;
 
                     // Logic to determine if this message belongs to the current view
                     const isRelevant =

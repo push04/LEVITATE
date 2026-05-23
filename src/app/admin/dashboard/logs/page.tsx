@@ -92,8 +92,8 @@ export default function LogsPage() {
     const supabase = createClient()
     const channel = supabase
       .channel('agent_logs_realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'agent_logs' }, (payload) => {
-        const newLog = payload.new as AgentLog
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'agent_logs' }, (payload: { new: AgentLog }) => {
+        const newLog = payload.new
         setLogs(prev => [newLog, ...prev.slice(0, 199)])
       })
       .subscribe()
