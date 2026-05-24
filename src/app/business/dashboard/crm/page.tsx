@@ -29,6 +29,19 @@ function groupedBarTone(index: number) {
   return ['var(--gold-base)', 'var(--gold-muted)', 'var(--status-progress)', 'var(--status-new)'][index] ?? 'var(--gold-base)';
 }
 
+function safeStr(val: unknown): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return '[Complex Object]';
+    }
+  }
+  return String(val);
+}
+
 function inputClass() {
   return 'w-full rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-input)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)] focus:shadow-[0_0_0_3px_var(--gold-glow)]';
 }
@@ -98,15 +111,15 @@ export default function BusinessCrmPage() {
 
     return crm.leads.filter((lead) =>
       [
-        lead.name,
-        lead.email,
-        lead.phone,
-        lead.company_name,
-        lead.city,
-        lead.service_category,
-        lead.notes,
-        lead.priority,
-        lead.pipeline_stage,
+        safeStr(lead.name),
+        safeStr(lead.email),
+        safeStr(lead.phone),
+        safeStr(lead.company_name),
+        safeStr(lead.city),
+        safeStr(lead.service_category),
+        safeStr(lead.notes),
+        safeStr(lead.priority),
+        safeStr(lead.pipeline_stage),
       ]
         .filter(Boolean)
         .join(' ')
@@ -455,9 +468,9 @@ export default function BusinessCrmPage() {
                     >
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <div className="type-heading text-[var(--text-primary)]">{lead.name}</div>
+                          <div className="type-heading text-[var(--text-primary)]">{safeStr(lead.name) || 'Unnamed Lead'}</div>
                           <div className="mt-1 type-caption">
-                            {[lead.company_name, lead.city, lead.service_category].filter(Boolean).join(' • ') || 'Business CRM lead'}
+                            {[safeStr(lead.company_name), safeStr(lead.city), safeStr(lead.service_category)].filter(Boolean).join(' • ') || 'Business CRM lead'}
                           </div>
                         </div>
                         <div className="text-left md:text-right">
@@ -487,23 +500,23 @@ export default function BusinessCrmPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <div className="mb-2 type-label uppercase text-[var(--text-secondary)]">Lead name</div>
-                    <input className={inputClass()} value={editorState.name ?? ''} onChange={(event) => setEditorState((previous) => ({ ...previous, name: event.target.value }))} />
+                    <input className={inputClass()} value={safeStr(editorState.name)} onChange={(event) => setEditorState((previous) => ({ ...previous, name: event.target.value }))} />
                   </div>
                   <div>
                     <div className="mb-2 type-label uppercase text-[var(--text-secondary)]">Email</div>
-                    <input className={inputClass()} value={editorState.email ?? ''} onChange={(event) => setEditorState((previous) => ({ ...previous, email: event.target.value }))} />
+                    <input className={inputClass()} value={safeStr(editorState.email)} onChange={(event) => setEditorState((previous) => ({ ...previous, email: event.target.value }))} />
                   </div>
                   <div>
                     <div className="mb-2 type-label uppercase text-[var(--text-secondary)]">Phone</div>
-                    <input className={inputClass()} value={editorState.phone ?? ''} onChange={(event) => setEditorState((previous) => ({ ...previous, phone: event.target.value }))} />
+                    <input className={inputClass()} value={safeStr(editorState.phone)} onChange={(event) => setEditorState((previous) => ({ ...previous, phone: event.target.value }))} />
                   </div>
                   <div>
                     <div className="mb-2 type-label uppercase text-[var(--text-secondary)]">City</div>
-                    <input className={inputClass()} value={editorState.city ?? ''} onChange={(event) => setEditorState((previous) => ({ ...previous, city: event.target.value }))} />
+                    <input className={inputClass()} value={safeStr(editorState.city)} onChange={(event) => setEditorState((previous) => ({ ...previous, city: event.target.value }))} />
                   </div>
                   <div>
                     <div className="mb-2 type-label uppercase text-[var(--text-secondary)]">Category</div>
-                    <input className={inputClass()} value={editorState.service_category ?? ''} onChange={(event) => setEditorState((previous) => ({ ...previous, service_category: event.target.value }))} />
+                    <input className={inputClass()} value={safeStr(editorState.service_category)} onChange={(event) => setEditorState((previous) => ({ ...previous, service_category: event.target.value }))} />
                   </div>
                   <div>
                     <div className="mb-2 type-label uppercase text-[var(--text-secondary)]">Pipeline stage</div>
@@ -570,7 +583,7 @@ export default function BusinessCrmPage() {
                     <div className="mb-2 type-label uppercase text-[var(--text-secondary)]">Notes</div>
                     <textarea
                       className={`${inputClass()} min-h-[140px]`}
-                      value={editorState.notes ?? ''}
+                      value={safeStr(editorState.notes)}
                       onChange={(event) => setEditorState((previous) => ({ ...previous, notes: event.target.value }))}
                     />
                   </div>

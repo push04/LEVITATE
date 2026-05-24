@@ -111,6 +111,11 @@ function normalizeCompanyCrmLead(raw: unknown): CompanyCrmLead {
 
   return {
     ...(record as CompanyCrmLead),
+    name: typeof record.name === 'string' ? record.name : typeof record.name === 'object' && record.name ? JSON.stringify(record.name) : 'Unnamed Lead',
+    email: typeof record.email === 'string' ? record.email : typeof record.email === 'object' && record.email ? JSON.stringify(record.email) : null,
+    phone: typeof record.phone === 'string' ? record.phone : typeof record.phone === 'object' && record.phone ? JSON.stringify(record.phone) : null,
+    whatsapp: typeof record.whatsapp === 'string' ? record.whatsapp : typeof record.whatsapp === 'object' && record.whatsapp ? JSON.stringify(record.whatsapp) : null,
+    notes: typeof record.notes === 'string' ? record.notes : typeof record.notes === 'object' && record.notes ? JSON.stringify(record.notes) : null,
     company_name: typeof record.company_name === 'string' ? record.company_name : typeof record.company_name === 'object' && record.company_name ? JSON.stringify(record.company_name) : null,
     city: typeof record.city === 'string' ? record.city : typeof record.city === 'object' && record.city ? JSON.stringify(record.city) : null,
     service_category: typeof record.service_category === 'string' ? record.service_category : typeof record.service_category === 'object' && record.service_category ? JSON.stringify(record.service_category) : null,
