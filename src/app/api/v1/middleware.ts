@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 import { getServiceSupabase } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 
-const MONTHLY_RATE_LIMIT = 1000
+const MONTHLY_RATE_LIMIT = 200
 
 export interface ApiKeyContext {
   keyId: string
