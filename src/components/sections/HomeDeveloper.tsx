@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { useReveal } from '@/hooks/useReveal';
 import s from '@/styles/home.module.css';
 
 const CODE_TABS = [
@@ -64,7 +62,7 @@ print(f"Conversion: {data['rate']:.1f}%")`,
 const FEATURES = [
   {
     title: 'Serverless-Native',
-    body: 'Vercel Edge-ready. Sub-50ms globally. No infra to manage.',
+    body: 'Netlify Edge-ready. Sub-50ms globally. No infra to manage.',
     svg: (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path d="M10 2L3 7v6l7 5 7-5V7L10 2z" stroke="#C9A96E" strokeWidth="1.4" strokeLinejoin="round" />
@@ -170,25 +168,29 @@ function syntaxHighlight(code: string): React.ReactNode {
   const lines = code.split('\n');
   return lines.map((line, li) => {
     const parts: React.ReactNode[] = [];
-    let remaining = line;
     let key = 0;
 
     const pushColored = (text: string, color: string) => {
       parts.push(<span key={key++} style={{ color }}>{text}</span>);
     };
 
-    const commentMatch = remaining.match(/^(.*?)(#.*)$/);
-    if (commentMatch) {
-      remaining = commentMatch[1];
-      const comment = commentMatch[2];
-      const beforeComment = remaining;
-      remaining = '';
-      processTokens(beforeComment, parts, pushColored, key);
-      key = parts.length;
-      pushColored(comment, 'rgba(139,148,158,0.8)');
-    } else {
-      processTokens(remaining, parts, pushColored, key);
-    }
+    const commentMatch = line.match(/^(.*?)(#.*)$/);
+    const textToProcess = commentMatch ? commentMatch[1] : line;
+    const comment = commentMatch ? commentMatch[2] : null;
+
+    const tokens = textToProcess.split(/('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|\b(?:import|from|const|let|await|fetch|return|print|def|params|headers)\b|\b\d+(?:\.\d+)?\b)/g);
+    tokens.forEach((tok, i) => {
+      if (!tok) return;
+      if (i % 2 === 1) {
+        if (/^['"]/.test(tok)) pushColored(tok, '#98C379');
+        else if (/^\d/.test(tok)) pushColored(tok, '#E5C07B');
+        else pushColored(tok, '#C678DD');
+      } else {
+        parts.push(<span key={key++} style={{ color: 'rgba(232,228,220,0.85)' }}>{tok}</span>);
+      }
+    });
+
+    if (comment) pushColored(comment, 'rgba(139,148,158,0.8)');
 
     return (
       <span key={li}>
@@ -199,26 +201,6 @@ function syntaxHighlight(code: string): React.ReactNode {
         {'\n'}
       </span>
     );
-  });
-}
-
-function processTokens(
-  text: string,
-  parts: React.ReactNode[],
-  pushColored: (t: string, c: string) => void,
-  startKey: number
-) {
-  const tokens = text.split(/('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|\b(?:import|from|const|let|await|fetch|return|print|def|params|headers)\b|\b\d+(?:\.\d+)?\b)/g);
-  let k = startKey;
-  tokens.forEach((tok, i) => {
-    if (!tok) return;
-    if (i % 2 === 1) {
-      if (/^['"]/.test(tok)) pushColored(tok, '#98C379');
-      else if (/^\d/.test(tok)) pushColored(tok, '#E5C07B');
-      else pushColored(tok, '#C678DD');
-    } else {
-      parts.push(<span key={k++} style={{ color: 'rgba(232,228,220,0.85)' }}>{tok}</span>);
-    }
   });
 }
 
@@ -239,19 +221,13 @@ function CodeTerminal() {
       timerRef.current = setTimeout(() => {
         setDisplayed(full.slice(0, charIdx + 1));
         setCharIdx(c => c + 1);
-      }, 14);
+      }, 12);
     }
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [activeTab, charIdx]);
 
   return (
-    <div style={{
-      background: '#0A0C10',
-      borderRadius: 16,
-      overflow: 'hidden',
-      border: '1px solid rgba(255,255,255,0.07)',
-      boxShadow: '0 0 60px rgba(176,141,87,0.08), 0 32px 80px rgba(0,0,0,0.5)',
-    }}>
+    <div style={{ background: '#0A0C10', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 0 60px rgba(176,141,87,0.08), 0 32px 80px rgba(0,0,0,0.5)' }}>
       <div style={{ background: '#161B22', padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ display: 'flex', gap: 6 }}>
           {['#FF5F57', '#FFBD2E', '#27C93F'].map(c => (
@@ -281,14 +257,7 @@ function CodeTerminal() {
       </div>
 
       <div style={{ padding: '20px 24px', minHeight: 240 }}>
-        <pre style={{
-          margin: 0,
-          fontFamily: '"IBM Plex Mono", "Fira Code", "Cascadia Code", monospace',
-          fontSize: 13,
-          lineHeight: 1.75,
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}>
+        <pre style={{ margin: 0, fontFamily: '"IBM Plex Mono","Fira Code","Cascadia Code",monospace', fontSize: 13, lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
           {syntaxHighlight(displayed)}
           <span style={{ display: 'inline-block', width: 2, height: '1em', background: '#C9A96E', verticalAlign: 'text-bottom', borderRadius: 1, animation: 'devCursorBlink 1s step-start infinite' }} />
         </pre>
@@ -301,50 +270,45 @@ function CodeTerminal() {
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#27C93F', display: 'inline-block', animation: 'devPulse 2s ease-in-out infinite' }} />
             <span style={{ fontSize: 11, color: 'rgba(39,201,63,0.7)', fontFamily: 'Inter, sans-serif' }}>API Online</span>
           </div>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontFamily: 'Inter, sans-serif' }}>12ms</span>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontFamily: 'Inter, sans-serif' }}>IN region</span>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', fontFamily: 'Inter, sans-serif' }}>12ms · IN region</span>
         </div>
       </div>
     </div>
   );
 }
 
-function MetricCounter({ metric, trigger }: { metric: typeof METRICS[0]; trigger: boolean }) {
+function MetricCounter({ metric }: { metric: typeof METRICS[0] }) {
   const [count, setCount] = useState(0);
   const rafRef = useRef<number | null>(null);
+  const started = useRef(false);
+  const elRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!trigger) return;
-    const start = performance.now();
-    const duration = 1800;
-    const animate = (now: number) => {
-      const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const ease = 1 - Math.pow(1 - progress, 3);
-      setCount(parseFloat((metric.value * ease).toFixed(metric.decimals)));
-      if (progress < 1) rafRef.current = requestAnimationFrame(animate);
-    };
-    rafRef.current = requestAnimationFrame(animate);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [trigger, metric]);
+    const el = elRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !started.current) {
+        started.current = true;
+        obs.disconnect();
+        const start = performance.now();
+        const duration = 1800;
+        const animate = (now: number) => {
+          const elapsed = now - start;
+          const progress = Math.min(elapsed / duration, 1);
+          const ease = 1 - Math.pow(1 - progress, 3);
+          setCount(parseFloat((metric.value * ease).toFixed(metric.decimals)));
+          if (progress < 1) rafRef.current = requestAnimationFrame(animate);
+        };
+        rafRef.current = requestAnimationFrame(animate);
+      }
+    }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => { obs.disconnect(); if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [metric]);
 
   return (
-    <div style={{
-      flex: '1 1 160px',
-      padding: '20px 24px',
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.07)',
-      borderRadius: 12,
-      textAlign: 'center',
-    }}>
-      <div style={{
-        fontFamily: 'Instrument Serif, serif',
-        fontSize: 'clamp(1.5rem, 2.5vw, 2rem)',
-        fontWeight: 400,
-        color: '#C9A96E',
-        lineHeight: 1,
-        marginBottom: 6,
-      }}>
+    <div ref={elRef} style={{ flex: '1 1 160px', padding: '20px 24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, textAlign: 'center' }}>
+      <div style={{ fontFamily: 'Instrument Serif, serif', fontSize: 'clamp(1.5rem,2.5vw,2rem)', fontWeight: 400, color: '#C9A96E', lineHeight: 1, marginBottom: 6 }}>
         {metric.prefix}{count.toFixed(metric.decimals)}{metric.suffix}
       </div>
       <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.03em' }}>
@@ -355,145 +319,55 @@ function MetricCounter({ metric, trigger }: { metric: typeof METRICS[0]; trigger
 }
 
 export default function HomeDeveloper() {
-  const head = useReveal();
-  const terminal = useReveal(0.08);
-  const features = useReveal(0.08);
-  const metrics = useReveal(0.2);
-  const pricing = useReveal(0.08);
-  const cta = useReveal(0.1);
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
   const [hoveredTier, setHoveredTier] = useState<number | null>(null);
 
   return (
-    <section
-      id="developers"
-      style={{ background: '#0D1117', position: 'relative', overflow: 'hidden', padding: 'clamp(80px,10vw,140px) 0' }}
-    >
+    <section id="developers" style={{ background: '#0D1117', position: 'relative', overflow: 'hidden', padding: 'clamp(80px,10vw,140px) 0' }}>
       <style>{`
         @keyframes devCursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
         @keyframes devPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        @keyframes devOrbFloat1 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(24px,-18px) scale(1.04)} 66%{transform:translate(-12px,28px) scale(0.97)} }
-        @keyframes devOrbFloat2 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(-20px,20px) scale(1.06)} 66%{transform:translate(16px,-24px) scale(0.95)} }
-        @keyframes devOrbFloat3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(12px,16px) scale(1.03)} }
-        @keyframes devShimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
         @keyframes devGridDrift { 0%{transform:perspective(800px) rotateX(6deg) translateY(0)} 100%{transform:perspective(800px) rotateX(6deg) translateY(-40px)} }
+        @keyframes devShimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
+        @keyframes devFadeUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
 
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 0,
-        backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
-        backgroundSize: '48px 48px',
-        transform: 'perspective(900px) rotateX(6deg)',
-        transformOrigin: 'top center',
-        animation: 'devGridDrift 20s linear infinite',
-        maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.06) 60%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.06) 60%, transparent 100%)',
-      }} />
+      {/* Background grid */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px)', backgroundSize: '48px 48px', transform: 'perspective(900px) rotateX(6deg)', transformOrigin: 'top center', animation: 'devGridDrift 20s linear infinite', maskImage: 'linear-gradient(to bottom,rgba(0,0,0,0.3) 0%,rgba(0,0,0,0.06) 60%,transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom,rgba(0,0,0,0.3) 0%,rgba(0,0,0,0.06) 60%,transparent 100%)' }} />
 
-      <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.09) 0%, transparent 65%)', animation: 'devOrbFloat1 9s ease-in-out infinite', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(88,166,255,0.05) 0%, transparent 65%)', animation: 'devOrbFloat2 11s ease-in-out infinite', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'absolute', top: '40%', left: '45%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,169,110,0.04) 0%, transparent 65%)', animation: 'devOrbFloat3 7s ease-in-out infinite', pointerEvents: 'none', zIndex: 0 }} />
+      {/* Orbs */}
+      <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(201,169,110,0.09) 0%,transparent 65%)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle,rgba(88,166,255,0.05) 0%,transparent 65%)', pointerEvents: 'none', zIndex: 0 }} />
 
       <div className={s.container} style={{ position: 'relative', zIndex: 1 }}>
 
-        <div
-          ref={head.ref}
-          style={{
-            textAlign: 'center',
-            marginBottom: 'clamp(48px,7vw,80px)',
-            opacity: head.visible ? 1 : 0,
-            transform: head.visible ? 'translateY(0)' : 'translateY(32px)',
-            transition: 'opacity 0.8s ease, transform 0.8s cubic-bezier(0.16,1,0.3,1)',
-          }}
-        >
-          <span style={{
-            fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em',
-            textTransform: 'uppercase', color: '#C9A96E', display: 'inline-block', marginBottom: 20,
-            background: 'rgba(201,169,110,0.08)', border: '1px solid rgba(201,169,110,0.2)',
-            borderRadius: 20, padding: '5px 14px',
-          }}>
+        {/* Heading */}
+        <div style={{ textAlign: 'center', marginBottom: 'clamp(48px,7vw,80px)', animation: 'devFadeUp 0.7s ease both' }}>
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#C9A96E', display: 'inline-block', marginBottom: 20, background: 'rgba(201,169,110,0.08)', border: '1px solid rgba(201,169,110,0.2)', borderRadius: 20, padding: '5px 14px' }}>
             For Developers & Agencies
           </span>
-
-          <h2 style={{
-            fontFamily: 'Instrument Serif, serif',
-            fontSize: 'clamp(2.4rem, 5.5vw, 4.5rem)',
-            fontWeight: 400,
-            lineHeight: 1.1,
-            letterSpacing: '-0.02em',
-            margin: '0 auto 24px',
-            maxWidth: 720,
-            backgroundImage: 'linear-gradient(135deg, #C9A96E 0%, #ffffff 55%, #C9A96E 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            backgroundSize: '200% auto',
-            animation: 'devShimmer 6s linear infinite',
-          }}>
+          <h2 style={{ fontFamily: 'Instrument Serif, serif', fontSize: 'clamp(2.4rem,5.5vw,4.5rem)', fontWeight: 400, lineHeight: 1.1, letterSpacing: '-0.02em', margin: '0 auto 24px', maxWidth: 720, backgroundImage: 'linear-gradient(135deg,#C9A96E 0%,#ffffff 55%,#C9A96E 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', backgroundSize: '200% auto', animation: 'devShimmer 6s linear infinite' }}>
             Your platform. Our intelligence.
           </h2>
-
-          <p style={{
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 'clamp(1rem, 1.5vw, 1.125rem)',
-            color: 'rgba(255,255,255,0.55)',
-            lineHeight: 1.7,
-            maxWidth: 580,
-            margin: '0 auto',
-          }}>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 'clamp(1rem,1.5vw,1.125rem)', color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, maxWidth: 580, margin: '0 auto' }}>
             Embed AI-powered lead capture, CRM, and analytics directly in your client&apos;s website — one API key, zero infrastructure.
           </p>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,0.85fr)',
-          gap: 'clamp(24px,4vw,56px)',
-          alignItems: 'start',
-          marginBottom: 'clamp(48px,7vw,80px)',
-        }}>
-          <div
-            ref={terminal.ref}
-            style={{
-              opacity: terminal.visible ? 1 : 0,
-              transform: terminal.visible ? 'translateY(0)' : 'translateY(40px)',
-              transition: 'opacity 0.8s ease 0.1s, transform 0.8s cubic-bezier(0.16,1,0.3,1) 0.1s',
-            }}
-          >
-            <CodeTerminal />
-          </div>
+        {/* Terminal + Features grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,0.85fr)', gap: 'clamp(24px,4vw,56px)', alignItems: 'start', marginBottom: 'clamp(48px,7vw,80px)', animation: 'devFadeUp 0.7s ease 0.1s both' }}>
+          <CodeTerminal />
 
-          <div
-            ref={features.ref}
-            style={{
-              opacity: features.visible ? 1 : 0,
-              transform: features.visible ? 'translateY(0)' : 'translateY(40px)',
-              transition: 'opacity 0.8s ease 0.2s, transform 0.8s cubic-bezier(0.16,1,0.3,1) 0.2s',
-            }}
-          >
+          <div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {FEATURES.map((f, i) => (
                 <div
                   key={i}
                   onMouseEnter={() => setHoveredFeature(i)}
                   onMouseLeave={() => setHoveredFeature(null)}
-                  style={{
-                    background: '#161B22',
-                    border: `1px solid ${hoveredFeature === i ? 'rgba(176,141,87,0.4)' : 'rgba(255,255,255,0.06)'}`,
-                    borderRadius: 12,
-                    padding: '18px 16px',
-                    cursor: 'default',
-                    transition: 'border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease',
-                    boxShadow: hoveredFeature === i ? '0 0 24px rgba(176,141,87,0.1)' : 'none',
-                    transform: hoveredFeature === i ? 'translateY(-2px)' : 'none',
-                  }}
+                  style={{ background: '#161B22', border: `1px solid ${hoveredFeature === i ? 'rgba(176,141,87,0.4)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 12, padding: '18px 16px', cursor: 'default', transition: 'border-color 0.25s,box-shadow 0.25s,transform 0.25s', boxShadow: hoveredFeature === i ? '0 0 24px rgba(176,141,87,0.1)' : 'none', transform: hoveredFeature === i ? 'translateY(-2px)' : 'none' }}
                 >
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 10, marginBottom: 12,
-                    background: 'linear-gradient(135deg, rgba(201,169,110,0.15), rgba(140,109,63,0.08))',
-                    border: '1px solid rgba(201,169,110,0.15)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, marginBottom: 12, background: 'linear-gradient(135deg,rgba(201,169,110,0.15),rgba(140,109,63,0.08))', border: '1px solid rgba(201,169,110,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {f.svg}
                   </div>
                   <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.9)', margin: '0 0 6px' }}>{f.title}</p>
@@ -512,39 +386,20 @@ export default function HomeDeveloper() {
                 <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 13, color: '#C9A96E', margin: '0 0 2px' }}>Full API Documentation</p>
                 <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'rgba(201,169,110,0.5)', margin: 0 }}>OpenAPI spec + Postman collection ready to import</p>
               </div>
-              <a href="/developers" style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#C9A96E', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', opacity: 0.85 }}>
-                Docs →
-              </a>
+              <a href="/developers" style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#C9A96E', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', opacity: 0.85 }}>Docs →</a>
             </div>
           </div>
         </div>
 
-        <div
-          ref={metrics.ref}
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 12,
-            marginBottom: 'clamp(48px,7vw,80px)',
-            opacity: metrics.visible ? 1 : 0,
-            transform: metrics.visible ? 'translateY(0)' : 'translateY(24px)',
-            transition: 'opacity 0.7s ease 0.1s, transform 0.7s ease 0.1s',
-          }}
-        >
+        {/* Metrics */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 'clamp(48px,7vw,80px)', animation: 'devFadeUp 0.7s ease 0.2s both' }}>
           {METRICS.map(m => (
-            <MetricCounter key={m.label} metric={m} trigger={metrics.visible} />
+            <MetricCounter key={m.label} metric={m} />
           ))}
         </div>
 
-        <div
-          ref={pricing.ref}
-          style={{
-            marginBottom: 'clamp(48px,7vw,80px)',
-            opacity: pricing.visible ? 1 : 0,
-            transform: pricing.visible ? 'translateY(0)' : 'translateY(40px)',
-            transition: 'opacity 0.8s ease, transform 0.8s cubic-bezier(0.16,1,0.3,1)',
-          }}
-        >
+        {/* Pricing */}
+        <div style={{ marginBottom: 'clamp(48px,7vw,80px)', animation: 'devFadeUp 0.7s ease 0.3s both' }}>
           <div style={{ textAlign: 'center', marginBottom: 40 }}>
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#C9A96E' }}>API Access Plans</span>
             <p style={{ fontFamily: 'Instrument Serif, serif', fontSize: 'clamp(1.4rem,2.5vw,2rem)', color: 'rgba(255,255,255,0.88)', margin: '10px 0 0', fontWeight: 400 }}>
@@ -552,57 +407,26 @@ export default function HomeDeveloper() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 20 }}>
             {TIERS.map((tier, i) => (
               <div
                 key={i}
                 onMouseEnter={() => setHoveredTier(i)}
                 onMouseLeave={() => setHoveredTier(null)}
-                style={{
-                  borderRadius: 16,
-                  padding: tier.highlight ? '2px' : '0',
-                  background: tier.highlight
-                    ? 'linear-gradient(135deg, #C9A96E, #8C6D3F, #C9A96E)'
-                    : 'transparent',
-                  backgroundSize: tier.highlight ? '200% 200%' : undefined,
-                  animation: tier.highlight ? 'devShimmer 3s linear infinite' : undefined,
-                  transform: hoveredTier === i ? 'translateY(-4px)' : 'none',
-                  transition: 'transform 0.25s ease, box-shadow 0.25s ease',
-                  boxShadow: tier.highlight
-                    ? `0 0 40px rgba(201,169,110,${hoveredTier === i ? '0.22' : '0.1'}), 0 16px 48px rgba(0,0,0,0.4)`
-                    : hoveredTier === i ? '0 16px 40px rgba(0,0,0,0.3)' : 'none',
-                  position: 'relative',
-                }}
+                style={{ borderRadius: 16, padding: tier.highlight ? '2px' : '0', background: tier.highlight ? 'linear-gradient(135deg,#C9A96E,#8C6D3F,#C9A96E)' : 'transparent', backgroundSize: tier.highlight ? '200% 200%' : undefined, animation: tier.highlight ? 'devShimmer 3s linear infinite' : undefined, transform: hoveredTier === i ? 'translateY(-4px)' : 'none', transition: 'transform 0.25s,box-shadow 0.25s', boxShadow: tier.highlight ? `0 0 40px rgba(201,169,110,${hoveredTier === i ? '0.22' : '0.1'}),0 16px 48px rgba(0,0,0,0.4)` : hoveredTier === i ? '0 16px 40px rgba(0,0,0,0.3)' : 'none', position: 'relative' }}
               >
-                <div style={{
-                  background: tier.highlight ? '#0D1117' : '#161B22',
-                  borderRadius: tier.highlight ? 14 : 16,
-                  padding: '28px 24px',
-                  border: tier.highlight ? 'none' : '1px solid rgba(255,255,255,0.07)',
-                  height: '100%',
-                  boxSizing: 'border-box',
-                }}>
+                <div style={{ background: tier.highlight ? '#0D1117' : '#161B22', borderRadius: tier.highlight ? 14 : 16, padding: '28px 24px', border: tier.highlight ? 'none' : '1px solid rgba(255,255,255,0.07)', height: '100%', boxSizing: 'border-box' }}>
                   {tier.highlight && (
-                    <div style={{
-                      position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)',
-                      background: 'linear-gradient(135deg, #C9A96E, #8C6D3F)',
-                      color: 'white', fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-                      padding: '5px 14px', borderRadius: 20, fontFamily: 'Inter, sans-serif',
-                      textTransform: 'uppercase', whiteSpace: 'nowrap',
-                    }}>
+                    <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg,#C9A96E,#8C6D3F)', color: 'white', fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', padding: '5px 14px', borderRadius: 20, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                       Most Popular
                     </div>
                   )}
-
                   <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 700, color: tier.highlight ? '#C9A96E' : 'rgba(255,255,255,0.4)', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 12 }}>{tier.name}</p>
-
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 4 }}>
                     <span style={{ fontFamily: 'Instrument Serif, serif', fontSize: '2.1rem', fontWeight: 400, color: 'rgba(255,255,255,0.92)', lineHeight: 1 }}>{tier.price}</span>
                     <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>{tier.sub}</span>
                   </div>
-
                   <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: tier.highlight ? 'rgba(201,169,110,0.7)' : 'rgba(255,255,255,0.3)', marginBottom: 24, fontWeight: 500 }}>{tier.limit}</p>
-
                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20, marginBottom: 24 }}>
                     {tier.features.map((f, fi) => (
                       <div key={fi} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -614,43 +438,20 @@ export default function HomeDeveloper() {
                       </div>
                     ))}
                   </div>
-
-                  <a
-                    href={tier.href}
-                    style={{
-                      display: 'block', textAlign: 'center', padding: '11px 0', borderRadius: 10,
-                      fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, textDecoration: 'none',
-                      background: tier.highlight ? 'linear-gradient(135deg, #C9A96E, #8C6D3F)' : 'transparent',
-                      color: tier.highlight ? 'white' : 'rgba(255,255,255,0.65)',
-                      border: tier.highlight ? 'none' : '1px solid rgba(255,255,255,0.15)',
-                      transition: 'opacity 0.2s ease, border-color 0.2s ease',
-                    }}
-                  >
+                  <a href={tier.href} style={{ display: 'block', textAlign: 'center', padding: '11px 0', borderRadius: 10, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, textDecoration: 'none', background: tier.highlight ? 'linear-gradient(135deg,#C9A96E,#8C6D3F)' : 'transparent', color: tier.highlight ? 'white' : 'rgba(255,255,255,0.65)', border: tier.highlight ? 'none' : '1px solid rgba(255,255,255,0.15)', transition: 'opacity 0.2s' }}>
                     {tier.cta}
                   </a>
                 </div>
               </div>
             ))}
           </div>
-
           <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.25)', marginTop: 20, textAlign: 'center' }}>
             All plans include HTTPS, JWT-compatible tokens, and India-region hosting.
           </p>
         </div>
 
-        <motion.div
-          ref={cta.ref}
-          initial={{ opacity: 0, y: 24 }}
-          animate={cta.visible ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            flexWrap: 'wrap', gap: 20,
-            background: 'rgba(201,169,110,0.06)',
-            border: '1px solid rgba(201,169,110,0.2)',
-            borderRadius: 16, padding: '28px 36px',
-          }}
-        >
+        {/* CTA bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20, background: 'rgba(201,169,110,0.06)', border: '1px solid rgba(201,169,110,0.2)', borderRadius: 16, padding: '28px 36px', animation: 'devFadeUp 0.7s ease 0.4s both' }}>
           <div>
             <p style={{ fontFamily: 'Instrument Serif, serif', fontSize: 'clamp(1.2rem,2vw,1.5rem)', color: 'rgba(255,255,255,0.9)', margin: '0 0 6px', fontWeight: 400 }}>
               Ready to start building?
@@ -660,37 +461,17 @@ export default function HomeDeveloper() {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <a
-              href="/business/dashboard/api-keys"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                background: 'linear-gradient(135deg, #C9A96E, #8C6D3F)',
-                color: 'white', fontFamily: 'Inter, sans-serif', fontSize: 14,
-                fontWeight: 600, padding: '12px 24px', borderRadius: 10, textDecoration: 'none',
-                boxShadow: '0 4px 20px rgba(176,141,87,0.25)',
-                transition: 'opacity 0.2s ease',
-              }}
-            >
+            <a href="/business/dashboard/api-keys" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#C9A96E,#8C6D3F)', color: 'white', fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 600, padding: '12px 24px', borderRadius: 10, textDecoration: 'none', boxShadow: '0 4px 20px rgba(176,141,87,0.25)' }}>
               Start building for free
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                 <path d="M3 8h10M9 4l4 4-4 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </a>
-            <a
-              href="/developers"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                color: 'rgba(255,255,255,0.6)', fontFamily: 'Inter, sans-serif', fontSize: 14,
-                fontWeight: 500, textDecoration: 'none',
-                padding: '12px 20px', borderRadius: 10,
-                border: '1px solid rgba(255,255,255,0.12)',
-                transition: 'border-color 0.2s ease, color 0.2s ease',
-              }}
-            >
+            <a href="/developers" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'rgba(255,255,255,0.6)', fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 500, textDecoration: 'none', padding: '12px 20px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)' }}>
               Read the docs
             </a>
           </div>
-        </motion.div>
+        </div>
 
       </div>
     </section>
