@@ -6,12 +6,13 @@ import {
   RefreshCw, Check, X, AlertCircle, Upload, Link, Webhook,
   Download, Play, Settings, ChevronRight, Eye, EyeOff,
   FileSpreadsheet, Users, FileText, Package, BookOpen,
-  Copy, ExternalLink, Zap, Clock, Activity, Info,
+  Copy, ExternalLink, Zap, Clock, Activity, Info, Bot,
+  Terminal, ArrowRight,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface BusyConfig {
-  integration_type: 'manual' | 'busynotify' | 'webhook'
+  integration_type: 'manual' | 'agent' | 'busynotify' | 'webhook'
   busynotify_token: string
   busynotify_base_url: string
   sync_enabled: boolean
@@ -130,7 +131,7 @@ const pill = (color: 'green' | 'red' | 'orange') => {
 function fmtDate(d: string) { return new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) }
 
 // ── Page ───────────────────────────────────────────────────────────────────
-type TabId = 'overview' | 'busynotify' | 'upload' | 'webhook' | 'logs'
+type TabId = 'overview' | 'agent' | 'busynotify' | 'upload' | 'webhook' | 'logs'
 
 export default function BusyIntegrationPage() {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
@@ -330,7 +331,7 @@ export default function BusyIntegrationPage() {
         {/* Status cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
           {[
-            { icon: Activity, label: 'Integration Mode', value: config.integration_type === 'busynotify' ? 'BusyNotify API' : config.integration_type === 'webhook' ? 'Live Webhook' : 'Manual Upload', color: '#3B82F6' },
+            { icon: Activity, label: 'Integration Mode', value: config.integration_type === 'agent' ? 'LEVITATE Agent' : config.integration_type === 'busynotify' ? 'BusyNotify API' : config.integration_type === 'webhook' ? 'Live Webhook' : 'Manual Upload', color: '#3B82F6' },
             { icon: Users, label: 'Sync Customers', value: config.sync_customers ? 'Enabled' : 'Disabled', color: config.sync_customers ? '#059669' : '#9CA3AF' },
             { icon: FileText, label: 'Sync Invoices', value: config.sync_invoices ? 'Enabled' : 'Disabled', color: config.sync_invoices ? '#059669' : '#9CA3AF' },
             { icon: Package, label: 'Sync Products', value: config.sync_products ? 'Enabled' : 'Disabled', color: config.sync_products ? '#059669' : '#9CA3AF' },
@@ -349,9 +350,10 @@ export default function BusyIntegrationPage() {
         <div style={{ borderBottom: '1px solid #E5E7EB', marginBottom: 28 }}>
           {([
             ['overview', 'Overview', Settings],
-            ['busynotify', 'BusyNotify API', Link],
+            ['agent', 'LEVITATE Agent', Bot],
             ['upload', 'CSV Upload', Upload],
             ['webhook', 'Live Webhook', Webhook],
+            ['busynotify', 'BusyNotify API', Link],
             ['logs', 'Sync Logs', Activity],
           ] as [TabId, string, React.ComponentType<{size?: number; color?: string}>][]).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setActiveTab(id)} style={tab(activeTab === id)}>
@@ -373,9 +375,10 @@ export default function BusyIntegrationPage() {
                 Choose how LEVITATE connects to your BUSY installation.
               </p>
               {([
+                ['agent', 'LEVITATE Agent (Recommended)', 'Free Windows .exe agent reads your BUSY database directly and pushes to LEVITATE. No third-party subscription required.', Bot],
                 ['manual', 'Manual CSV Upload', 'Export CSV from BUSY → upload here. Works with all BUSY versions.', Upload],
-                ['busynotify', 'BusyNotify API', 'Auto-sync via BusyNotify connector installed on your BUSY server. Requires BusyNotify subscription.', Link],
                 ['webhook', 'Live Webhook', 'BUSY fires an HTTP call on every invoice save — capture real-time events.', Webhook],
+                ['busynotify', 'BusyNotify API', 'Auto-sync via BusyNotify. Requires a paid BusyNotify subscription.', Link],
               ] as [BusyConfig['integration_type'], string, string, React.ComponentType<{size?:number;color?:string}>][]).map(([val, label, desc, Icon]) => (
                 <div
                   key={val}
@@ -448,6 +451,176 @@ export default function BusyIntegrationPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── LEVITATE AGENT TAB ────────────────────────────────────────── */}
+        {activeTab === 'agent' && (
+          <div style={{ maxWidth: 760 }}>
+
+            {/* Hero banner */}
+            <div style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', borderRadius: 16, padding: '28px 32px', marginBottom: 24, color: 'white' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Bot size={24} color="white" />
+                </div>
+                <div>
+                  <h2 style={{ ...F('18px'), fontWeight: 800, margin: 0 }}>LEVITATE Sync Agent</h2>
+                  <p style={{ ...F('13px'), color: 'rgba(255,255,255,0.7)', margin: '3px 0 0' }}>Free Windows desktop agent — no BusyNotify subscription required</p>
+                </div>
+                <div style={{ marginLeft: 'auto', background: '#22c55e', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700 }}>FREE</div>
+              </div>
+              <p style={{ ...F('13px'), color: 'rgba(255,255,255,0.8)', lineHeight: 1.7, margin: 0 }}>
+                The LEVITATE Sync Agent is a small Windows program (.exe) that runs on the same machine as BUSY.
+                It reads your BUSY database files directly — <strong>completely free</strong>, no middleware subscription needed.
+                Your customers only pay LEVITATE. The agent auto-syncs on a schedule and pushes data here.
+              </p>
+            </div>
+
+            {/* One-click setup banner */}
+            <div style={{ background: '#F0FDF4', border: '2px solid #86EFAC', borderRadius: 14, padding: '20px 24px', marginBottom: 24 }}>
+              <p style={{ ...F('14px'), fontWeight: 700, color: '#14532D', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Zap size={15} color="#16A34A" /> 3-Step Customer Setup
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr auto 1fr', gap: 0, alignItems: 'center' }}>
+                {[
+                  { n: '1', title: 'Download Agent', sub: 'ZIP file → extract on BUSY machine', btn: true, href: '/downloads/levitate_busy_agent.zip', btnLabel: 'Download ZIP' },
+                  null,
+                  { n: '2', title: 'Download Config', sub: 'Pre-filled with your API key & site URL', btn: true, href: '/api/admin/integrations/busy/agent-config', btnLabel: 'Download config.json' },
+                  null,
+                  { n: '3', title: 'Run setup.bat', sub: 'Installs driver + starts syncing. Done.', btn: false, href: '', btnLabel: '' },
+                ].map((step, i) =>
+                  step === null ? (
+                    <div key={i} style={{ textAlign: 'center', color: '#86EFAC', fontSize: 22, padding: '0 8px' }}>→</div>
+                  ) : (
+                    <div key={i} style={{ background: 'white', borderRadius: 12, padding: '16px 14px', border: '1px solid #BBF7D0', textAlign: 'center' }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 9, background: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
+                        <span style={{ ...F('12px'), fontWeight: 800, color: 'white' }}>{step.n}</span>
+                      </div>
+                      <p style={{ ...F('13px'), fontWeight: 700, color: '#14532D', margin: 0 }}>{step.title}</p>
+                      <p style={{ ...F('11px'), color: '#6B7280', margin: '3px 0 10px', lineHeight: 1.4 }}>{step.sub}</p>
+                      {step.btn ? (
+                        <a href={step.href} download style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 7, background: '#111827', color: 'white', ...F('12px'), fontWeight: 600, textDecoration: 'none' }}>
+                          <Download size={12} />{step.btnLabel}
+                        </a>
+                      ) : (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 7, background: '#F3F4F6', color: '#374151', ...F('12px'), fontWeight: 600 }}>
+                          <Terminal size={12} /> Double-click it
+                        </div>
+                      )}
+                    </div>
+                  )
+                )}
+              </div>
+              <p style={{ ...F('11px'), color: '#16A34A', margin: '12px 0 0', fontWeight: 600 }}>
+                ✓ No Python installation needed &nbsp;·&nbsp; ✓ Auto-detects Busy data path &nbsp;·&nbsp; ✓ Syncs every hour by default
+              </p>
+            </div>
+
+            {/* Download + steps */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+              <div style={{ ...card }}>
+                <h3 style={{ ...F('14px'), fontWeight: 700, color: '#111827', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Download size={15} color="#B08D57" /> What&apos;s in the ZIP
+                </h3>
+                {[
+                  ['setup.bat', 'First-time setup — installs Python + ODBC driver + runs config wizard'],
+                  ['run.bat', 'Start syncing (loop mode, respects config interval)'],
+                  ['setup_driver.bat', 'Only installs the Access ODBC driver if already have Python'],
+                  ['busy_levitate_agent.py', 'The agent script (Python)'],
+                  ['config.example.json', 'Config template (replace with downloaded config.json)'],
+                  ['README.txt', 'Step-by-step instructions'],
+                ].map(([file, desc]) => (
+                  <div key={file} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                    <code style={{ ...F('11px'), background: '#F3F4F6', color: '#374151', padding: '2px 6px', borderRadius: 4, flexShrink: 0, height: 'fit-content', marginTop: 1 }}>{file}</code>
+                    <p style={{ ...F('12px'), color: '#6B7280', margin: 0, lineHeight: 1.4 }}>{desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ ...card }}>
+                <h3 style={{ ...F('14px'), fontWeight: 700, color: '#111827', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Terminal size={15} color="#B08D57" /> What setup.bat Does
+                </h3>
+                {[
+                  ['Checks Python', 'If not installed, shows download link (python.org)'],
+                  ['pip install', 'Installs pyodbc + requests quietly'],
+                  ['ODBC Driver', 'Downloads & installs Microsoft Access Database Engine 2016 x64 (free from Microsoft)'],
+                  ['Config wizard', 'Interactive prompts for BUSY data path + sync interval (API key pre-filled)'],
+                  ['Starts agent', 'Launches first sync immediately'],
+                ].map(([step, desc]) => (
+                  <div key={step} style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+                    <Check size={13} color="#059669" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <div>
+                      <span style={{ ...F('13px'), fontWeight: 600, color: '#111827' }}>{step}: </span>
+                      <span style={{ ...F('12px'), color: '#6B7280' }}>{desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Config.json guide */}
+            <div style={{ ...card, marginBottom: 24 }}>
+              <h3 style={{ ...F('14px'), fontWeight: 700, color: '#111827', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Settings size={15} color="#B08D57" /> config.json Reference
+              </h3>
+              <pre style={{ background: '#0F172A', color: '#E2E8F0', borderRadius: 10, padding: '18px 20px', ...F('12px'), fontFamily: 'monospace', overflow: 'auto', margin: 0, lineHeight: 1.6 }}>{`{
+  "levitate_api_url":  "https://your-domain.netlify.app",
+  "levitate_api_key":  "lv_xxxxxxxxxxxxxxxxxxxx",   ← from Admin → API Portal
+  "busy_data_dir":     "C:\\\\BusyWin\\\\DATA\\\\COMP0001",
+  "financial_year":    "auto",                       ← or e.g. "2024"
+  "sync_customers":    true,
+  "sync_invoices":     true,
+  "sync_interval_minutes": 60                        ← 0 = run once
+}`}</pre>
+              <p style={{ ...F('12px'), color: '#6B7280', marginTop: 12, marginBottom: 0, lineHeight: 1.6 }}>
+                The agent writes a <code style={{ background: '#F3F4F6', padding: '1px 5px', borderRadius: 4 }}>levitate_agent.log</code> file next to itself with sync results.
+                Set <code style={{ background: '#F3F4F6', padding: '1px 5px', borderRadius: 4 }}>sync_interval_minutes: 0</code> to run once and exit (useful for scheduled tasks).
+              </p>
+            </div>
+
+            {/* How it works */}
+            <div style={{ ...card, marginBottom: 24 }}>
+              <h3 style={{ ...F('14px'), fontWeight: 700, color: '#111827', margin: '0 0 16px' }}>How It Works</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
+                {[
+                  { icon: '🗄️', title: 'BUSY .bds File', desc: 'Microsoft Access database on customer machine' },
+                  { icon: '→', title: '', desc: '' },
+                  { icon: '🤖', title: 'LEVITATE Agent', desc: 'Reads Master1 (parties) + Tran1 (invoices)' },
+                  { icon: '→', title: '', desc: '' },
+                  { icon: '☁️', title: 'LEVITATE CRM', desc: 'Customers → Leads · Invoices → stored data' },
+                ].map((step, i) => (
+                  step.icon === '→' ? (
+                    <div key={i} style={{ padding: '0 12px', color: '#D1D5DB', fontSize: 20 }}>→</div>
+                  ) : (
+                    <div key={i} style={{ flex: 1, minWidth: 140, background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, padding: '16px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>{step.icon}</div>
+                      <p style={{ ...F('13px'), fontWeight: 700, color: '#111827', margin: 0 }}>{step.title}</p>
+                      <p style={{ ...F('11px'), color: '#6B7280', margin: '4px 0 0', lineHeight: 1.4 }}>{step.desc}</p>
+                    </div>
+                  )
+                ))}
+              </div>
+            </div>
+
+            {/* Run as Windows Task Scheduler */}
+            <div style={{ ...card, background: '#FFFBF5', border: '1px solid #FDE68A' }}>
+              <h3 style={{ ...F('13px'), fontWeight: 700, color: '#92400E', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Clock size={14} /> Optional: Run Automatically at Startup (Windows Task Scheduler)
+              </h3>
+              <ol style={{ ...F('13px'), color: '#78350F', margin: 0, paddingLeft: 20, lineHeight: 2 }}>
+                <li>Open <strong>Task Scheduler</strong> → Create Basic Task</li>
+                <li>Trigger: <strong>At Startup</strong> or <strong>Daily at a time</strong></li>
+                <li>Action: <strong>Start a program</strong> → browse to <code style={{ background: 'rgba(120,53,15,0.08)', padding: '0 4px', borderRadius: 3 }}>levitate_busy_agent.exe</code></li>
+                <li>Arguments: <code style={{ background: 'rgba(120,53,15,0.08)', padding: '0 4px', borderRadius: 3 }}>--once --config config.json</code></li>
+                <li>Set <strong>Start in</strong> to the folder containing the .exe and config.json</li>
+              </ol>
+              <p style={{ ...F('12px'), color: '#92400E', marginTop: 10, marginBottom: 0 }}>
+                Or simply leave <strong>run.bat</strong> running in the background — it loops automatically per your configured interval.
+              </p>
+            </div>
+
           </div>
         )}
 

@@ -1,0 +1,9 @@
+{
+  "levitate_api_url": "https://your-levitate-domain.netlify.app",
+  "levitate_api_key": "lv_xxxxxxxxxxxxxxxxxxxx",
+  "busy_data_dir": "C:\\BusyWin\\DATA\\COMP0001",
+  "financial_year": "auto",
+  "sync_customers": true,
+  "sync_invoices": true,
+  "sync_interval_minutes": 60
+}
