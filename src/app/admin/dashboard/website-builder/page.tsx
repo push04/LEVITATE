@@ -140,6 +140,7 @@ export default function WebsiteBuilderPage() {
   })
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
   const [aiProgressIdx, setAiProgressIdx] = useState(0)
   const [aiSuggestions, setAiSuggestions] = useState<{ theme: ColorTheme; reason: string }[]>([])
   const [editingSection, setEditingSection] = useState<string | null>(null)
@@ -150,6 +151,7 @@ export default function WebsiteBuilderPage() {
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [sectionDiffs, setSectionDiffs] = useState<Record<string, Record<string, string>>>({})
   const [regenLoading, setRegenLoading] = useState<string | null>(null)
+  const [regenError, setRegenError] = useState<Record<string, string>>({})
   const aiProgressRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const stepIndex = STEP_ORDER.indexOf(step)
@@ -198,8 +200,9 @@ export default function WebsiteBuilderPage() {
   }
 
   const runAiCopy = async () => {
-    if (!aiPrompt.trim() || !state.businessName) return
+    if (!state.businessName) { setAiError('Enter a business name first (Step 1)'); return }
     setAiLoading(true)
+    setAiError('')
     startAiProgress()
     const prevSections: Record<string, Record<string, string>> = {}
     state.sections.filter(s => s.enabled).forEach(sec => {
@@ -219,13 +222,14 @@ export default function WebsiteBuilderPage() {
         }),
       })
       const json = await res.json()
-      if (json.success && json.sections) {
+      if (!json.success) throw new Error(json.error || 'AI generation failed')
+      if (json.sections) {
         const diffs: Record<string, Record<string, string>> = {}
         setState(s => ({
           ...s,
           sections: s.sections.map(sec => {
             const generated = json.sections[sec.type]
-            if (generated) {
+            if (generated && typeof generated === 'object') {
               diffs[sec.id] = prevSections[sec.id] ?? {}
               return { ...sec, content: { ...sec.content, ...generated } }
             }
@@ -233,8 +237,12 @@ export default function WebsiteBuilderPage() {
           })
         }))
         setSectionDiffs(diffs)
+        // Auto-expand first section to show results
+        const firstEnabled = state.sections.find(s => s.enabled)
+        if (firstEnabled) setEditingSection(firstEnabled.id)
       }
-    } catch {
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'AI generation failed. Check your GROQ_API_KEY.')
     } finally {
       stopAiProgress()
       setAiLoading(false)
@@ -260,7 +268,8 @@ export default function WebsiteBuilderPage() {
         }),
       })
       const json = await res.json()
-      if (json.success && json.sections?.[sec.type]) {
+      if (!json.success) throw new Error(json.error || 'Regeneration failed')
+      if (json.sections?.[sec.type]) {
         setSectionDiffs(d => ({ ...d, [secId]: prev }))
         setState(s => ({
           ...s,
@@ -268,8 +277,10 @@ export default function WebsiteBuilderPage() {
             se.id === secId ? { ...se, content: { ...se.content, ...json.sections[sec.type] } } : se
           )
         }))
+        setRegenError(e => { const n = { ...e }; delete n[secId]; return n })
       }
-    } catch {
+    } catch (err) {
+      setRegenError(e => ({ ...e, [secId]: err instanceof Error ? err.message : 'Regeneration failed' }))
     } finally {
       setRegenLoading(null)
     }
@@ -978,6 +989,11 @@ export default function WebsiteBuilderPage() {
                     </>
                   )}
                 </button>
+                {aiError && (
+                  <div className="mt-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+                    {aiError}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -1006,6 +1022,11 @@ export default function WebsiteBuilderPage() {
                           <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${editingSection === sec.id ? 'rotate-90' : ''}`} />
                         </div>
                       </div>
+                      {regenError[sec.id] && (
+                        <div className="px-5 py-1.5 bg-red-50 border-b border-red-100 text-[10px] text-red-600">
+                          {regenError[sec.id]}
+                        </div>
+                      )}
 
                       {sectionDiffs[sec.id] && (
                         <div className="px-5 py-2 bg-emerald-50 border-b border-emerald-100">

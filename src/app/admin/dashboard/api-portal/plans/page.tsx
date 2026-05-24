@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, Edit2, Trash2, X, Check, RefreshCw, ToggleLeft, ToggleRight,
   Users, TrendingUp, Zap, Crown, ChevronDown, ChevronUp, AlertCircle,
-  IndianRupee, Key, ShieldCheck
+  IndianRupee, Key, ShieldCheck, UserPlus, Search, Copy, Eye, EyeOff,
+  UserCheck, RotateCcw, Ban, ChevronRight,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -43,6 +44,26 @@ interface RevenueStats {
   mrr: number
   arr: number
   most_popular: string
+}
+
+interface ManagedUser {
+  id: string
+  email: string
+  full_name: string
+  created_at: string
+}
+
+interface ManagedKey {
+  id: string
+  key_prefix: string
+  name: string
+  is_active: boolean
+  plan_id: string | null
+  plan_name: string
+  plan_override_limit: number | null
+  call_limit: number
+  requests_count: number
+  created_at: string
 }
 
 const TIER_COLORS: Record<string, string> = {
@@ -102,6 +123,23 @@ export default function ApiPlansAdminPage() {
   const [overrideMsg, setOverrideMsg] = useState('')
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null)
   const [toastMsg, setToastMsg] = useState('')
+
+  // Manual user management
+  const [showUserMgr, setShowUserMgr] = useState(false)
+  const [userMgrTab, setUserMgrTab] = useState<'create' | 'find'>('create')
+  const [umEmail, setUmEmail] = useState('')
+  const [umName, setUmName] = useState('')
+  const [umPlanId, setUmPlanId] = useState('')
+  const [umKeyName, setUmKeyName] = useState('')
+  const [umLoading, setUmLoading] = useState(false)
+  const [umError, setUmError] = useState('')
+  const [umRevealedKey, setUmRevealedKey] = useState('')
+  const [umKeyVisible, setUmKeyVisible] = useState(false)
+  const [umFoundUser, setUmFoundUser] = useState<ManagedUser | null>(null)
+  const [umFoundKeys, setUmFoundKeys] = useState<ManagedKey[]>([])
+  const [umKeyPatch, setUmKeyPatch] = useState<Record<string, { planId: string; limit: string }>>({})
+  const [umKeyRegen, setUmKeyRegen] = useState<string | null>(null)
+  const [umNewKey, setUmNewKey] = useState<{ key: string; key_id: string } | null>(null)
 
   const toast = (msg: string) => {
     setToastMsg(msg)
@@ -248,6 +286,107 @@ export default function ApiPlansAdminPage() {
     setTimeout(() => setOverrideMsg(''), 4000)
   }
 
+  const umCreateUser = async () => {
+    if (!umEmail.trim()) { setUmError('Email required'); return }
+    setUmLoading(true); setUmError(''); setUmRevealedKey(''); setUmKeyVisible(false)
+    const res = await fetch('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: umEmail, full_name: umName, plan_id: umPlanId || undefined, key_name: umKeyName || undefined }),
+    })
+    const json = await res.json()
+    if (json.error) { setUmError(json.error); setUmLoading(false); return }
+    setUmRevealedKey(json.key)
+    setUmKeyVisible(true)
+    toast(json.is_new_user ? 'User created & API key generated' : 'API key generated for existing user')
+    setUmEmail(''); setUmName(''); setUmPlanId(''); setUmKeyName('')
+    loadKeys()
+    setUmLoading(false)
+  }
+
+  const umFindUser = async () => {
+    if (!umEmail.trim()) { setUmError('Email required'); return }
+    setUmLoading(true); setUmError(''); setUmFoundUser(null); setUmFoundKeys([])
+    const res = await fetch(`/api/admin/users?email=${encodeURIComponent(umEmail.trim())}`)
+    const json = await res.json()
+    setUmLoading(false)
+    if (!json.found) { setUmError('No user found with that email'); return }
+    setUmFoundUser(json.profile)
+    setUmFoundKeys(json.keys)
+    setUmKeyPatch(Object.fromEntries(json.keys.map((k: ManagedKey) => [k.id, { planId: k.plan_id ?? '', limit: k.plan_override_limit?.toString() ?? '' }])))
+  }
+
+  const umToggleKey = async (keyId: string, current: boolean) => {
+    await fetch('/api/admin/users/api-key', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key_id: keyId, is_active: !current }),
+    })
+    setUmFoundKeys(ks => ks.map(k => k.id === keyId ? { ...k, is_active: !current } : k))
+    loadKeys()
+    toast(current ? 'Key suspended' : 'Key activated')
+  }
+
+  const umUpdateKey = async (keyId: string) => {
+    const patch = umKeyPatch[keyId]
+    await fetch('/api/admin/users/api-key', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key_id: keyId,
+        plan_id: patch.planId || null,
+        plan_override_limit: patch.limit ? parseInt(patch.limit) : null,
+      }),
+    })
+    toast('Key updated')
+    umFindUser()
+    loadKeys()
+  }
+
+  const umRegenKey = async (keyId: string, userId: string) => {
+    setUmKeyRegen(keyId); setUmNewKey(null)
+    await fetch(`/api/admin/users/api-key?key_id=${keyId}`, { method: 'DELETE' })
+    const patch = umKeyPatch[keyId]
+    const res = await fetch('/api/admin/users/api-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, plan_id: patch?.planId || null }),
+    })
+    const json = await res.json()
+    setUmKeyRegen(null)
+    if (json.key) {
+      setUmNewKey({ key: json.key, key_id: json.key_id })
+      toast('Key regenerated — copy it now')
+      umFindUser()
+      loadKeys()
+    }
+  }
+
+  const umRevokeKey = async (keyId: string) => {
+    await fetch(`/api/admin/users/api-key?key_id=${keyId}`, { method: 'DELETE' })
+    setUmFoundKeys(ks => ks.filter(k => k.id !== keyId))
+    loadKeys()
+    toast('Key revoked')
+  }
+
+  const umAddKeyForUser = async () => {
+    if (!umFoundUser) return
+    setUmLoading(true)
+    const res = await fetch('/api/admin/users/api-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: umFoundUser.id, plan_id: umPlanId || null, key_name: umKeyName || undefined }),
+    })
+    const json = await res.json()
+    setUmLoading(false)
+    if (json.key) {
+      setUmNewKey({ key: json.key, key_id: json.key_id })
+      toast('New key generated — copy it now')
+      umFindUser()
+      loadKeys()
+    }
+  }
+
   const addFeature = () => setForm(f => ({ ...f, features: [...f.features, ''] }))
   const removeFeature = (i: number) => setForm(f => ({ ...f, features: f.features.filter((_, idx) => idx !== i) }))
   const updateFeature = (i: number, val: string) => setForm(f => ({ ...f, features: f.features.map((x, idx) => idx === i ? val : x) }))
@@ -302,6 +441,13 @@ export default function ApiPlansAdminPage() {
             >
               <RefreshCw size={14} />
               Refresh
+            </button>
+            <button
+              onClick={() => { setShowUserMgr(true); setUserMgrTab('create'); setUmError(''); setUmRevealedKey(''); setUmFoundUser(null); setUmFoundKeys([]) }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 8, border: 'none', background: '#059669', fontSize: 13, fontFamily: 'Inter, sans-serif', cursor: 'pointer', color: 'white', fontWeight: 600 }}
+            >
+              <UserPlus size={14} />
+              Add User
             </button>
             <button
               onClick={openCreate}
@@ -547,6 +693,287 @@ export default function ApiPlansAdminPage() {
         </div>
 
       </div>
+
+      {/* Manual User Management Drawer */}
+      <AnimatePresence>
+        {showUserMgr && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowUserMgr(false)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, backdropFilter: 'blur(4px)' }}
+            />
+            <motion.div
+              initial={{ opacity: 0, x: '100%' }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 560, background: 'white', zIndex: 1001, boxShadow: '-8px 0 48px rgba(0,0,0,0.15)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+            >
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: 'white', zIndex: 1 }}>
+                <h3 style={{ fontFamily: 'Inter, sans-serif', fontSize: 16, fontWeight: 700, color: '#111827', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Users size={16} color="#059669" />
+                  Manual User Management
+                </h3>
+                <button onClick={() => setShowUserMgr(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4 }}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div style={{ display: 'flex', borderBottom: '1px solid #F3F4F6', padding: '0 24px' }}>
+                {(['create', 'find'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => { setUserMgrTab(tab); setUmError(''); setUmRevealedKey(''); setUmFoundUser(null); setUmFoundKeys([]); setUmNewKey(null) }}
+                    style={{ padding: '12px 0', marginRight: 24, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', borderBottom: userMgrTab === tab ? '2px solid #059669' : '2px solid transparent', color: userMgrTab === tab ? '#059669' : '#6B7280', transition: 'all 0.15s' }}
+                  >
+                    {tab === 'create' ? 'Create & Assign Key' : 'Find & Manage User'}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ padding: 24, flex: 1, display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+                {userMgrTab === 'create' && (
+                  <>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280', margin: 0 }}>
+                      Create a new user account and generate their first API key. If the email already exists, a new key will be added to their account.
+                    </p>
+
+                    <div>
+                      <label style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Email Address *</label>
+                      <input
+                        type="email" value={umEmail} onChange={e => setUmEmail(e.target.value)}
+                        placeholder="user@example.com"
+                        style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontFamily: 'Inter, sans-serif', fontSize: 13, boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Full Name <span style={{ color: '#9CA3AF' }}>(optional)</span></label>
+                      <input
+                        value={umName} onChange={e => setUmName(e.target.value)}
+                        placeholder="Rahul Sharma"
+                        style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontFamily: 'Inter, sans-serif', fontSize: 13, boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Assign Plan <span style={{ color: '#9CA3AF' }}>(optional)</span></label>
+                        <select
+                          value={umPlanId} onChange={e => setUmPlanId(e.target.value)}
+                          style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontFamily: 'Inter, sans-serif', fontSize: 13, background: 'white', boxSizing: 'border-box' }}
+                        >
+                          <option value="">No Plan (default)</option>
+                          {plans.map(p => <option key={p.id} value={p.id}>{p.name} — {fmtINR(p.price_monthly)}/mo</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Key Name <span style={{ color: '#9CA3AF' }}>(optional)</span></label>
+                        <input
+                          value={umKeyName} onChange={e => setUmKeyName(e.target.value)}
+                          placeholder="Admin Key"
+                          style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontFamily: 'Inter, sans-serif', fontSize: 13, boxSizing: 'border-box' }}
+                        />
+                      </div>
+                    </div>
+
+                    {umError && (
+                      <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#DC2626', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <AlertCircle size={13} />
+                        {umError}
+                      </div>
+                    )}
+
+                    {umRevealedKey && (
+                      <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 10, padding: '14px 16px' }}>
+                        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 600, color: '#15803D', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Check size={13} />
+                          API Key Generated — Copy Now
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <code style={{ flex: 1, fontFamily: 'monospace', fontSize: 12, color: '#111827', background: 'white', border: '1px solid #D1FAE5', borderRadius: 6, padding: '8px 10px', wordBreak: 'break-all' }}>
+                            {umKeyVisible ? umRevealedKey : '•'.repeat(48)}
+                          </code>
+                          <button onClick={() => setUmKeyVisible(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', padding: 4 }}>
+                            {umKeyVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(umRevealedKey); toast('Key copied') }}
+                            style={{ background: '#059669', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', color: 'white', fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <Copy size={11} />
+                            Copy
+                          </button>
+                        </div>
+                        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#6B7280', margin: '8px 0 0' }}>This key will never be shown again. Share it securely with the user.</p>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={umCreateUser}
+                      disabled={umLoading || !umEmail.trim()}
+                      style={{ padding: '11px 0', borderRadius: 8, border: 'none', background: '#059669', color: 'white', fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 600, cursor: 'pointer', opacity: (umLoading || !umEmail.trim()) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    >
+                      {umLoading ? <RefreshCw size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> : <UserPlus size={14} />}
+                      {umLoading ? 'Creating...' : 'Create User & Generate Key'}
+                    </button>
+                  </>
+                )}
+
+                {userMgrTab === 'find' && (
+                  <>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <input
+                        type="email" value={umEmail} onChange={e => setUmEmail(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && umFindUser()}
+                        placeholder="Search by email..."
+                        style={{ flex: 1, padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontFamily: 'Inter, sans-serif', fontSize: 13 }}
+                      />
+                      <button
+                        onClick={umFindUser}
+                        disabled={umLoading}
+                        style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: '#111827', color: 'white', fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: umLoading ? 0.5 : 1 }}
+                      >
+                        {umLoading ? <RefreshCw size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Search size={13} />}
+                        Find
+                      </button>
+                    </div>
+
+                    {umError && (
+                      <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#DC2626', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <AlertCircle size={13} />
+                        {umError}
+                      </div>
+                    )}
+
+                    {umFoundUser && (
+                      <>
+                        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '14px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                            <UserCheck size={15} color="#059669" />
+                            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, color: '#111827' }}>{umFoundUser.full_name || umFoundUser.email}</span>
+                          </div>
+                          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#6B7280', margin: 0 }}>{umFoundUser.email} · Joined {new Date(umFoundUser.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}</p>
+                        </div>
+
+                        {/* Add new key for existing user */}
+                        <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 600, color: '#374151', margin: 0 }}>Generate New Key for this User</p>
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            <select
+                              value={umPlanId} onChange={e => setUmPlanId(e.target.value)}
+                              style={{ flex: 1, padding: '7px 10px', border: '1px solid #E5E7EB', borderRadius: 7, fontFamily: 'Inter, sans-serif', fontSize: 12, background: 'white' }}
+                            >
+                              <option value="">No Plan</option>
+                              {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                            <input
+                              value={umKeyName} onChange={e => setUmKeyName(e.target.value)}
+                              placeholder="Key name..."
+                              style={{ flex: 1, padding: '7px 10px', border: '1px solid #E5E7EB', borderRadius: 7, fontFamily: 'Inter, sans-serif', fontSize: 12 }}
+                            />
+                            <button
+                              onClick={umAddKeyForUser}
+                              disabled={umLoading}
+                              style={{ padding: '7px 14px', borderRadius: 7, border: 'none', background: '#059669', color: 'white', fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                            >
+                              <Key size={11} /> Generate
+                            </button>
+                          </div>
+                        </div>
+
+                        {umNewKey && (
+                          <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 10, padding: '14px 16px' }}>
+                            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 600, color: '#15803D', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Check size={13} />
+                              New Key Generated
+                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <code style={{ flex: 1, fontFamily: 'monospace', fontSize: 11, color: '#111827', background: 'white', border: '1px solid #D1FAE5', borderRadius: 6, padding: '7px 10px', wordBreak: 'break-all' }}>
+                                {umNewKey.key}
+                              </code>
+                              <button
+                                onClick={() => { navigator.clipboard.writeText(umNewKey.key); toast('Key copied') }}
+                                style={{ background: '#059669', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', color: 'white', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
+                              >
+                                <Copy size={11} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 600, color: '#374151', margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Key size={13} color="#B08D57" />
+                          API Keys ({umFoundKeys.length})
+                        </p>
+
+                        {umFoundKeys.length === 0 ? (
+                          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9CA3AF' }}>No API keys yet.</p>
+                        ) : (
+                          umFoundKeys.map(k => (
+                            <div key={k.id} style={{ border: '1px solid #E5E7EB', borderRadius: 10, overflow: 'hidden' }}>
+                              <div style={{ padding: '12px 14px', background: '#FAFAFA', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div>
+                                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, color: '#111827', margin: 0 }}>{k.name}</p>
+                                  <code style={{ fontFamily: 'monospace', fontSize: 11, color: '#9CA3AF' }}>{k.key_prefix}...</code>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#6B7280' }}>{(k.requests_count ?? 0).toLocaleString('en-IN')} calls</span>
+                                  <button onClick={() => umToggleKey(k.id, k.is_active)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                                    {k.is_active ? <ToggleRight size={20} color="#10B981" /> : <ToggleLeft size={20} color="#D1D5DB" />}
+                                  </button>
+                                </div>
+                              </div>
+                              <div style={{ padding: '12px 14px', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid #F3F4F6' }}>
+                                <select
+                                  value={umKeyPatch[k.id]?.planId ?? ''}
+                                  onChange={e => setUmKeyPatch(p => ({ ...p, [k.id]: { ...p[k.id], planId: e.target.value } }))}
+                                  style={{ flex: '1 1 130px', padding: '6px 10px', border: '1px solid #E5E7EB', borderRadius: 6, fontFamily: 'Inter, sans-serif', fontSize: 12, background: 'white' }}
+                                >
+                                  <option value="">No Plan</option>
+                                  {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                                <input
+                                  type="number"
+                                  value={umKeyPatch[k.id]?.limit ?? ''}
+                                  onChange={e => setUmKeyPatch(p => ({ ...p, [k.id]: { ...p[k.id], limit: e.target.value } }))}
+                                  placeholder="Custom limit"
+                                  style={{ flex: '1 1 110px', padding: '6px 10px', border: '1px solid #E5E7EB', borderRadius: 6, fontFamily: 'Inter, sans-serif', fontSize: 12 }}
+                                />
+                                <button
+                                  onClick={() => umUpdateKey(k.id)}
+                                  style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#B08D57', color: 'white', fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  <Check size={11} /> Update
+                                </button>
+                                <button
+                                  onClick={() => umRegenKey(k.id, umFoundUser!.id)}
+                                  disabled={umKeyRegen === k.id}
+                                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #E5E7EB', background: 'white', color: '#374151', fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: umKeyRegen === k.id ? 0.5 : 1 }}
+                                >
+                                  {umKeyRegen === k.id ? <RefreshCw size={11} style={{ animation: 'spin 0.8s linear infinite' }} /> : <RotateCcw size={11} />}
+                                  Regen
+                                </button>
+                                <button
+                                  onClick={() => umRevokeKey(k.id)}
+                                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #FECACA', background: 'rgba(239,68,68,0.05)', color: '#DC2626', fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  <Ban size={11} /> Revoke
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showForm && (
