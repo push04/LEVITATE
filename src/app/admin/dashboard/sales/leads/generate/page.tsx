@@ -99,7 +99,8 @@ export default function LeadGeneratorPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name: lead.title,
+                    business_name: lead.title,   // DB column is business_name
+                    name: lead.title,             // fallback for older rows
                     website_link: lead.url,
                     email: lead.email || '',
                     phone: lead.phone || '',
@@ -110,16 +111,18 @@ export default function LeadGeneratorPage() {
                 })
             });
 
+            const json = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.error || 'Failed to add lead');
+                throw new Error(typeof json.error === 'string' ? json.error : 'Failed to add lead');
             }
 
             setLeads(prev => prev.map((l, i) => i === index ? { ...l, isAdded: true } : l));
-        } catch (err: any) {
-            alert('Failed to add: ' + err.message);
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Unknown error';
+            alert('Failed to add: ' + msg);
         }
     };
+
 
     return (
         <div className="p-8 min-h-screen pb-24 max-w-[1920px] mx-auto">

@@ -13,15 +13,17 @@ export async function POST(request: Request) {
 
         const supabase = getServiceSupabase();
 
-        // Validate required fields
-        if (!body.name) {
-            return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 });
+        // Validate required fields — DB column is `business_name`
+        const displayName = body.business_name || body.name;
+        if (!displayName) {
+            return NextResponse.json({ success: false, error: 'business_name is required' }, { status: 400 });
         }
 
         const { data, error } = await supabase
             .from('leads')
             .insert([{
                 ...body,
+                business_name: displayName,   // ensure correct DB column
                 created_at: body.created_at ?? new Date().toISOString(),
                 status: body.status ?? 'New',
                 source: body.source ?? 'manual_entry'
@@ -29,7 +31,10 @@ export async function POST(request: Request) {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('[leads/add] DB error:', error);
+            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        }
 
         await queueBusinessLeadWhatsApp(data);
 
