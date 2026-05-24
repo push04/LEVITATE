@@ -36,12 +36,12 @@ export async function POST(req: Request) {
       // Try by payment link reference
       if (referenceId.startsWith('lead_')) {
         const leadId = referenceId.replace('lead_', '')
-        const { data } = await supabase.from('proposals').select('*').eq('lead_id', leadId).order('created_at', { ascending: false }).limit(1).single()
+        const { data } = await supabase.from('proposals').select('*').eq('lead_id', leadId).order('created_at', { ascending: false }).limit(1).maybeSingle()
         proposal = data
       }
 
       if (!proposal) {
-        const { data } = await supabase.from('proposals').select('*').eq('payment_link_id', payment.payment_link_id ?? '').single()
+        const { data } = await supabase.from('proposals').select('*').eq('payment_link_id', payment.payment_link_id ?? '').maybeSingle()
         proposal = data
       }
 
