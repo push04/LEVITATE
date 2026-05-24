@@ -1,0 +1,319 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Check, Copy, Eye, EyeOff, Key, Loader2, Plus, Trash2, AlertTriangle } from 'lucide-react'
+
+type ApiKey = {
+  id: string
+  prefix: string
+  name: string
+  createdAt: string
+  lastUsedAt: string | null
+  requestsThisMonth: number
+  rateLimit: number
+  isActive: boolean
+}
+
+type NewKeyResult = {
+  id: string
+  key: string
+  prefix: string
+  name: string
+  createdAt: string
+}
+
+function CodeBlock({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const copy = () => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div className="relative rounded-lg bg-gray-950 text-gray-100 text-[12px] font-mono">
+      <button
+        onClick={copy}
+        className="absolute right-3 top-3 flex items-center gap-1 rounded px-2 py-1 text-[11px] text-gray-400 transition hover:bg-gray-800 hover:text-gray-100"
+      >
+        {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+      <pre className="overflow-x-auto p-4 leading-relaxed">{code}</pre>
+    </div>
+  )
+}
+
+function UsageMeter({ used, limit }: { used: number; limit: number }) {
+  const pct = Math.min((used / limit) * 100, 100)
+  const color = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-[#B08D57]'
+  return (
+    <div className="w-full">
+      <div className="mb-1 flex justify-between text-[11px] text-gray-400">
+        <span>{used.toLocaleString()} requests</span>
+        <span>{limit.toLocaleString()} / mo limit</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+export default function ApiKeysPage() {
+  const [keys, setKeys] = useState<ApiKey[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [newKeyName, setNewKeyName] = useState('')
+  const [newKey, setNewKey] = useState<NewKeyResult | null>(null)
+  const [revealed, setRevealed] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const fetchKeys = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/business/api-keys')
+      const json: unknown = await res.json()
+      if (!res.ok || typeof json !== 'object' || json === null || !('success' in json)) {
+        throw new Error('Failed to load keys')
+      }
+      const payload = json as { success: boolean; data?: { keys: ApiKey[] }; error?: string }
+      if (!payload.success) throw new Error(payload.error ?? 'Failed to load keys')
+      setKeys(payload.data?.keys ?? [])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchKeys() }, [fetchKeys])
+
+  useEffect(() => {
+    if (showForm) setTimeout(() => inputRef.current?.focus(), 50)
+  }, [showForm])
+
+  const handleCreate = async () => {
+    if (creating) return
+    setCreating(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/business/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newKeyName.trim() || 'Default Key' }),
+      })
+      const json: unknown = await res.json()
+      if (!res.ok || typeof json !== 'object' || json === null) throw new Error('Failed to create key')
+      const payload = json as { success: boolean; data?: NewKeyResult; error?: string }
+      if (!payload.success) throw new Error(payload.error ?? 'Failed to create key')
+      setNewKey(payload.data ?? null)
+      setRevealed(false)
+      setCopied(false)
+      setShowForm(false)
+      setNewKeyName('')
+      await fetchKeys()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const copyKey = () => {
+    if (!newKey) return
+    navigator.clipboard.writeText(newKey.key).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  const selectedKey = newKey ? keys.find(k => k.id === newKey.id) : null
+  const curlSnippet = newKey
+    ? `curl -X GET "https://levitatelabs.online/api/v1/leads?limit=50" \\\n  -H "Authorization: Bearer ${newKey.key}"`
+    : keys[0]
+    ? `curl -X GET "https://levitatelabs.online/api/v1/leads?limit=50" \\\n  -H "Authorization: Bearer ${keys[0].prefix}<your_key>"`
+    : `curl -X GET "https://levitatelabs.online/api/v1/leads?limit=50" \\\n  -H "Authorization: Bearer lv_live_<your_key>"`
+
+  const jsSnippet = newKey
+    ? `const res = await fetch('https://levitatelabs.online/api/v1/leads?limit=50', {\n  headers: { Authorization: 'Bearer ${newKey.key}' },\n})\nconst { data } = await res.json()\nconsole.log(data.leads)`
+    : keys[0]
+    ? `const res = await fetch('https://levitatelabs.online/api/v1/leads?limit=50', {\n  headers: { Authorization: 'Bearer ${keys[0].prefix}<your_key>' },\n})\nconst { data } = await res.json()\nconsole.log(data.leads)`
+    : `const res = await fetch('https://levitatelabs.online/api/v1/leads?limit=50', {\n  headers: { Authorization: 'Bearer lv_live_<your_key>' },\n})\nconst { data } = await res.json()\nconsole.log(data.leads)`
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="mx-auto max-w-3xl space-y-6">
+
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-[22px] font-bold text-gray-900">API Keys</h1>
+            <p className="mt-0.5 text-[13px] text-gray-500">Authenticate programmatic access to your leads data.</p>
+          </div>
+          <button
+            onClick={() => setShowForm(v => !v)}
+            className="flex items-center gap-2 rounded-lg bg-[#B08D57] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#9a7a4a] active:scale-95"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New Key
+          </button>
+        </div>
+
+        {error && (
+          <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] text-red-700">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {showForm && (
+          <div className="rounded-xl border border-[#e8d9bc] bg-[#fdf8f1] p-5">
+            <p className="mb-3 text-[13px] font-semibold text-gray-800">Create a new API key</p>
+            <div className="flex gap-3">
+              <input
+                ref={inputRef}
+                type="text"
+                value={newKeyName}
+                onChange={e => setNewKeyName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                placeholder="Key name (e.g. Production)"
+                maxLength={60}
+                className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] text-gray-800 placeholder-gray-400 outline-none focus:border-[#B08D57] focus:ring-2 focus:ring-[#B08D57]/20"
+              />
+              <button
+                onClick={handleCreate}
+                disabled={creating}
+                className="flex items-center gap-2 rounded-lg bg-[#B08D57] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#9a7a4a] disabled:opacity-50"
+              >
+                {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                {creating ? 'Creating…' : 'Create'}
+              </button>
+              <button
+                onClick={() => { setShowForm(false); setNewKeyName('') }}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-[13px] text-gray-500 transition hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {newKey && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <Check className="h-4 w-4 text-emerald-600" />
+              <p className="text-[13px] font-semibold text-emerald-800">
+                Key created — copy it now. You won&apos;t be able to see it again.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-2.5">
+              <Key className="h-4 w-4 shrink-0 text-[#B08D57]" />
+              <span className="flex-1 font-mono text-[13px] text-gray-800 break-all">
+                {revealed ? newKey.key : newKey.key.slice(0, 16) + '••••••••••••••••••••••••••••••'}
+              </span>
+              <button
+                onClick={() => setRevealed(v => !v)}
+                className="rounded p-1 text-gray-400 transition hover:text-gray-700"
+                title={revealed ? 'Hide key' : 'Reveal key'}
+              >
+                {revealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={copyKey}
+                className="flex items-center gap-1.5 rounded-lg bg-[#B08D57] px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#9a7a4a]"
+              >
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            {selectedKey && (
+              <div className="mt-3">
+                <UsageMeter used={selectedKey.requestsThisMonth} limit={selectedKey.rateLimit} />
+              </div>
+            )}
+            <button
+              onClick={() => setNewKey(null)}
+              className="mt-3 text-[11px] text-gray-400 transition hover:text-gray-600"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        <div className="rounded-xl border border-gray-200 bg-white">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <p className="text-[13px] font-semibold text-gray-800">Your API Keys</p>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-5 w-5 animate-spin text-gray-300" />
+            </div>
+          ) : keys.length === 0 ? (
+            <div className="py-12 text-center">
+              <Key className="mx-auto mb-3 h-8 w-8 text-gray-200" />
+              <p className="text-[13px] text-gray-400">No API keys yet. Create one to get started.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {keys.map(k => (
+                <li key={k.id} className="px-5 py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[13px] font-semibold text-gray-900">{k.name}</span>
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 font-mono text-[11px] text-gray-500">{k.prefix}</span>
+                        {!k.isActive && (
+                          <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-500">Inactive</span>
+                        )}
+                      </div>
+                      <UsageMeter used={k.requestsThisMonth} limit={k.rateLimit} />
+                      <div className="flex flex-wrap gap-4 text-[11px] text-gray-400">
+                        <span>Created {new Date(k.createdAt).toLocaleDateString()}</span>
+                        {k.lastUsedAt && <span>Last used {new Date(k.lastUsedAt).toLocaleDateString()}</span>}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1 text-gray-300">
+                      <span title="Contact support to revoke keys"><Trash2 className="h-3.5 w-3.5 cursor-not-allowed" /></span>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <p className="text-[13px] font-semibold text-gray-800">Integration examples</p>
+            <p className="mt-0.5 text-[12px] text-gray-400">Use your API key in the Authorization header.</p>
+          </div>
+          <div className="space-y-4 px-5 py-5">
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">cURL</p>
+              <CodeBlock code={curlSnippet} />
+            </div>
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">JavaScript / Node.js</p>
+              <CodeBlock code={jsSnippet} />
+            </div>
+            <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-[12px] text-gray-500">
+              <span className="font-semibold text-gray-700">Base URL:</span>{' '}
+              <span className="font-mono">https://levitatelabs.online/api/v1</span>
+              {'  '}
+              <span className="font-semibold text-gray-700">Rate limit:</span>{' '}
+              1,000 requests / month
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  )
+}

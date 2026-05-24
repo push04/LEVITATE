@@ -4,12 +4,12 @@ type Variant = 'gold' | 'new' | 'progress' | 'closed' | 'warn' | 'neutral' | 'ac
 
 const variantStyles: Record<Variant, string> = {
   gold: 'bg-[rgba(201,165,90,0.12)] border-[rgba(201,165,90,0.28)] text-[var(--gold-base)]',
-  new: 'bg-[rgba(100,130,200,0.1)] border-[rgba(100,130,200,0.25)] text-blue-400',
-  progress: 'bg-[rgba(96,165,250,0.1)] border-[rgba(96,165,250,0.25)] text-blue-400',
-  closed: 'bg-[rgba(52,211,153,0.1)] border-[rgba(52,211,153,0.25)] text-emerald-400',
-  warn: 'bg-[rgba(248,113,113,0.1)] border-[rgba(248,113,113,0.25)] text-red-400',
-  neutral: 'bg-[var(--border-default)] border-transparent text-[var(--text-tertiary)]',
-  active: 'bg-[rgba(52,211,153,0.08)] border-[rgba(52,211,153,0.2)] text-emerald-400',
+  new: 'bg-blue-50 border-blue-200 text-blue-700',
+  progress: 'bg-blue-50 border-blue-200 text-blue-700',
+  closed: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+  warn: 'bg-red-50 border-red-200 text-red-700',
+  neutral: 'bg-gray-100 border-gray-200 text-gray-600',
+  active: 'bg-emerald-50 border-emerald-200 text-emerald-700',
 };
 
 interface Props {

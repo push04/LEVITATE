@@ -126,13 +126,13 @@ export default function LogsPage() {
           </h1>
           <p className="text-[var(--muted)] text-sm mt-1">
             Real-time feed of everything every agent does
-            {isLive && <span className="ml-2 text-green-400 text-xs">● LIVE</span>}
+            {isLive && <span className="ml-2 text-emerald-600 text-xs font-semibold">● LIVE</span>}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsLive(!isLive)}
-            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${isLive ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'}`}
+            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${isLive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}`}
           >
             {isLive ? '● Live' : '○ Paused'}
           </button>
@@ -146,23 +146,23 @@ export default function LogsPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="glass-card p-4 flex items-center gap-3">
-          <CheckCircle className="w-8 h-8 text-green-400" />
+          <CheckCircle className="w-8 h-8 text-emerald-500" />
           <div>
-            <p className="text-xl font-bold text-green-400">{successCount}</p>
-            <p className="text-xs text-[var(--muted)]">Successful actions</p>
+            <p className="text-xl font-bold text-emerald-600">{successCount}</p>
+            <p className="text-xs text-gray-500">Successful actions</p>
           </div>
         </div>
         <div className="glass-card p-4 flex items-center gap-3">
-          <XCircle className="w-8 h-8 text-red-400" />
+          <XCircle className="w-8 h-8 text-red-500" />
           <div>
-            <p className="text-xl font-bold text-red-400">{failureCount}</p>
-            <p className="text-xs text-[var(--muted)]">Failed actions</p>
+            <p className="text-xl font-bold text-red-600">{failureCount}</p>
+            <p className="text-xs text-gray-500">Failed actions</p>
           </div>
         </div>
         <div className="glass-card p-4 flex items-center gap-3">
-          <Activity className="w-8 h-8 text-yellow-400" />
+          <Activity className="w-8 h-8 text-amber-500" />
           <div>
-            <p className="text-xl font-bold text-yellow-400">{totalCredits > 0 ? '+' : ''}{totalCredits}</p>
+            <p className="text-xl font-bold text-amber-600">{totalCredits > 0 ? '+' : ''}{totalCredits}</p>
             <p className="text-xs text-[var(--muted)]">Net credits in view</p>
           </div>
         </div>
@@ -221,12 +221,12 @@ export default function LogsPage() {
                     <span className="text-[var(--muted)] text-xs">→</span>
                     <span className="text-sm text-[var(--foreground)]">{log.action.replace(/_/g, ' ')}</span>
                     {log.credits_earned !== 0 && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${log.credits_earned > 0 ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${log.credits_earned > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                         {log.credits_earned > 0 ? '+' : ''}{log.credits_earned} cr
                       </span>
                     )}
                     {log.status === 'failure' && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-red-900 text-red-300">FAILED</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">FAILED</span>
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs text-[var(--muted)]">
@@ -237,11 +237,11 @@ export default function LogsPage() {
                 </div>
                 <div className="flex-shrink-0">
                   {log.status === 'success' ? (
-                    <CheckCircle className="w-4 h-4 text-green-400" />
+                    <CheckCircle className="w-4 h-4 text-emerald-500" />
                   ) : log.status === 'failure' ? (
-                    <XCircle className="w-4 h-4 text-red-400" />
+                    <XCircle className="w-4 h-4 text-red-500" />
                   ) : (
-                    <AlertTriangle className="w-4 h-4 text-yellow-400" />
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
                   )}
                 </div>
               </div>
@@ -249,16 +249,16 @@ export default function LogsPage() {
               <AnimatePresence>
                 {expandedLog === log.id && (
                   <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mt-3 overflow-hidden">
-                    <div className="terminal text-xs p-3 rounded space-y-1">
-                      {log.error && <p className="text-red-400">Error: {log.error}</p>}
+                    <div className="bg-gray-50 border border-gray-200 text-xs p-3 rounded space-y-1">
+                      {log.error && <p className="text-red-600">Error: {log.error}</p>}
                       {log.input && Object.keys(log.input).length > 0 && (
-                        <p className="text-gray-400">Input: {JSON.stringify(log.input, null, 2).slice(0, 300)}</p>
+                        <p className="text-gray-600">Input: {JSON.stringify(log.input, null, 2).slice(0, 300)}</p>
                       )}
                       {log.output && Object.keys(log.output).length > 0 && (
-                        <p className="text-green-400">Output: {JSON.stringify(log.output, null, 2).slice(0, 300)}</p>
+                        <p className="text-emerald-700">Output: {JSON.stringify(log.output, null, 2).slice(0, 300)}</p>
                       )}
-                      {log.project_id && <p className="text-blue-400">Project: {log.project_id}</p>}
-                      {log.lead_id && <p className="text-purple-400">Lead: {log.lead_id}</p>}
+                      {log.project_id && <p className="text-blue-600">Project: {log.project_id}</p>}
+                      {log.lead_id && <p className="text-violet-600">Lead: {log.lead_id}</p>}
                     </div>
                   </motion.div>
                 )}

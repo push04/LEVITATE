@@ -35,8 +35,8 @@ export function ResearchModuleRenderer({ module, targetName, compact, retryCount
   const { status, title, payload, error } = module;
 
   const statusIcon =
-    status === 'complete' ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> :
-    status === 'failed' ? <AlertCircle className="h-4 w-4 text-red-400" /> :
+    status === 'complete' ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> :
+    status === 'failed' ? <AlertCircle className="h-4 w-4 text-red-600" /> :
     status === 'loading' ? <Loader2 className="h-4 w-4 animate-spin text-[var(--gold-base)]" /> :
     <Clock className="h-4 w-4 text-[var(--text-tertiary)]" />;
 
@@ -53,7 +53,7 @@ export function ResearchModuleRenderer({ module, targetName, compact, retryCount
       </div>
 
       {status === 'failed' && error && (
-        <p className="text-sm text-red-400">{error}</p>
+        <p className="text-sm text-red-600">{error}</p>
       )}
 
       {status === 'loading' && (

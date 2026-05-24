@@ -519,25 +519,25 @@ export default function AdminDashboard() {
                                 title="New"
                                 value={stats.new}
                                 icon={Clock}
-                                color="text-blue-400"
+                                color="text-blue-600"
                             />
                             <StatCard
                                 title="Contacted"
                                 value={stats.contacted}
                                 icon={TrendingUp}
-                                color="text-yellow-400"
+                                color="text-amber-600"
                             />
                             <StatCard
                                 title="Pipeline Value"
                                 value={`₹${stats.totalValue.toLocaleString()}`}
                                 icon={IndianRupee}
-                                color="text-green-400"
+                                color="text-emerald-600"
                             />
                             <StatCard
                                 title="Total Value"
                                 value={`₹${stats.totalValue.toLocaleString()}`}
                                 icon={IndianRupee}
-                                color="text-green-500"
+                                color="text-emerald-600"
                                 isCurrency
                             />
                             <StatCard
@@ -737,7 +737,7 @@ export default function AdminDashboard() {
                                                         {selectedLead.service_category}
                                                     </span>
                                                     {selectedLead.budget && (
-                                                        <span className="px-2 py-0.5 rounded text-xs bg-green-500/10 text-green-400">
+                                                        <span className="px-2 py-0.5 rounded text-xs bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                             {selectedLead.budget}
                                                         </span>
                                                     )}
@@ -1037,11 +1037,11 @@ export default function AdminDashboard() {
                                         <div className="relative group">
                                             <a
                                                 href="/api/auth/linkedin?type=company"
-                                                className="block px-4 py-2 text-center rounded-xl border border-blue-600 text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-sm"
+                                                className="block px-4 py-2 text-center rounded-xl border border-blue-600 text-blue-600 font-bold hover:bg-blue-50 transition-colors text-sm"
                                             >
                                                 Connect + Company Page
                                             </a>
-                                            <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-xl z-50">
+                                            <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-white border border-gray-200 text-gray-700 text-xs rounded-lg shadow-lg z-50">
                                                 Requires "Marketing Developer Platform" product enabled in LinkedIn Developer Portal.
                                             </div>
                                         </div>
@@ -1307,7 +1307,7 @@ function LeadCard({
                     )}
                     <p className="text-sm text-[var(--muted)] truncate">{lead.email || lead.phone || 'No contact info'}</p>
                     {lead.is_followup && (
-                        <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-red-500/10 text-red-400 font-medium">
+                        <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-red-50 text-red-600 border border-red-200 font-medium">
                             <Clock3 className="w-3 h-3" /> Follow Up Required
                         </div>
                     )}

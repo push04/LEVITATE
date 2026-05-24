@@ -218,7 +218,7 @@ export default function OnboardingManager() {
                     <td className="p-4">
                       <div className="flex justify-end gap-2">
                         <button onClick={() => startEdit(plan)} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm hover:bg-[var(--secondary)]"><Pencil className="w-4 h-4" />Edit</button>
-                        <button onClick={() => deletePlan(plan.id)} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10"><Trash2 className="w-4 h-4" />Delete</button>
+                        <button onClick={() => deletePlan(plan.id)} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"><Trash2 className="w-4 h-4" />Delete</button>
                       </div>
                     </td>
                   </tr>

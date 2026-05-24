@@ -72,10 +72,10 @@ export default function RevenuePage() {
   const fmt = (n: number) => `₹${n.toLocaleString('en-IN')}`
 
   const statusColor = (status: string) => {
-    if (status === 'paid') return 'text-green-400 bg-green-950'
-    if (status === 'overdue') return 'text-red-400 bg-red-950'
-    if (status === 'sent') return 'text-yellow-400 bg-yellow-950'
-    return 'text-gray-400 bg-gray-800'
+    if (status === 'paid') return 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+    if (status === 'overdue') return 'text-red-700 bg-red-50 border border-red-200'
+    if (status === 'sent') return 'text-amber-700 bg-amber-50 border border-amber-200'
+    return 'text-gray-600 bg-gray-100 border border-gray-200'
   }
 
   return (
@@ -83,8 +83,8 @@ export default function RevenuePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-3">
-            <IndianRupee className="w-7 h-7 text-green-400" />
+          <h1 className="text-2xl font-bold flex items-center gap-3 text-gray-900">
+            <IndianRupee className="w-7 h-7 text-emerald-600" />
             Revenue Dashboard
           </h1>
           <p className="text-[var(--muted)] text-sm mt-1">All money flowing through Levitate Labs</p>
@@ -112,11 +112,11 @@ export default function RevenuePage() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {[
-              { label: 'Total Received', value: fmt(data.metrics.total_received), icon: CheckCircle, color: 'text-green-400' },
-              { label: 'Avg Deal Size', value: fmt(data.metrics.avg_deal_size), icon: TrendingUp, color: 'text-blue-400' },
-              { label: 'Transactions', value: data.metrics.transactions_count, icon: BarChart3, color: 'text-purple-400' },
-              { label: 'Pending Invoices', value: data.metrics.pending_invoices, icon: Clock, color: 'text-yellow-400' },
-              { label: 'Pending Amount', value: fmt(data.metrics.pending_amount), icon: AlertTriangle, color: 'text-red-400' }
+              { label: 'Total Received', value: fmt(data.metrics.total_received), icon: CheckCircle, color: 'text-emerald-600' },
+              { label: 'Avg Deal Size', value: fmt(data.metrics.avg_deal_size), icon: TrendingUp, color: 'text-blue-600' },
+              { label: 'Transactions', value: data.metrics.transactions_count, icon: BarChart3, color: 'text-violet-600' },
+              { label: 'Pending Invoices', value: data.metrics.pending_invoices, icon: Clock, color: 'text-amber-600' },
+              { label: 'Pending Amount', value: fmt(data.metrics.pending_amount), icon: AlertTriangle, color: 'text-red-600' }
             ].map((m) => (
               <motion.div key={m.label} whileHover={{ scale: 1.02 }} className="glass-card p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -137,7 +137,7 @@ export default function RevenuePage() {
                 <BarChart data={data.charts.daily.slice(-30)}>
                   <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#64748b' }} tickFormatter={d => d.slice(5)} interval={Math.floor(data.charts.daily.length / 6)} />
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={v => v >= 1000 ? `₹${v / 1000}k` : `₹${v}`} />
-                  <Tooltip formatter={(v: number | undefined) => [`₹${(v ?? 0).toLocaleString('en-IN')}`, 'Revenue']} contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }} />
+                  <Tooltip formatter={(v: number | undefined) => [`₹${(v ?? 0).toLocaleString('en-IN')}`, 'Revenue']} contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 8, color: '#111827' }} />
                   <Bar dataKey="amount" fill="#4f9cf9" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -155,7 +155,7 @@ export default function RevenuePage() {
                           <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(v: number | undefined) => `₹${(v ?? 0).toLocaleString('en-IN')}`} contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }} />
+                      <Tooltip formatter={(v: number | undefined) => `₹${(v ?? 0).toLocaleString('en-IN')}`} contentStyle={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 8, color: '#111827' }} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="space-y-1 mt-2">
@@ -189,8 +189,8 @@ export default function RevenuePage() {
                 {data.transactions.slice(0, 20).map((txn) => (
                   <div key={txn.id} className="flex items-center justify-between p-3 rounded-lg bg-[var(--secondary)] border border-[var(--border)]">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-green-900 flex items-center justify-center">
-                        <IndianRupee className="w-4 h-4 text-green-400" />
+                      <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+                        <IndianRupee className="w-4 h-4 text-emerald-600" />
                       </div>
                       <div>
                         <p className="text-sm font-medium">{txn.clients?.business_name ?? 'Unknown Client'}</p>
@@ -198,7 +198,7 @@ export default function RevenuePage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-green-400">{fmt(txn.amount)}</p>
+                      <p className="text-sm font-bold text-emerald-600">{fmt(txn.amount)}</p>
                       <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${TYPE_COLORS[txn.type] ? 'text-white' : ''}`}
                         style={{ background: TYPE_COLORS[txn.type] ?? '#64748b' }}>
                         {txn.type}

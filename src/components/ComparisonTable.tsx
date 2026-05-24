@@ -47,12 +47,12 @@ export default function ComparisonTable({ platformA, platformB, intro }: Compari
                         <tr key={row.feature} className={`border-b border-[var(--border-subtle)] last:border-0 ${idx % 2 === 0 ? 'bg-[var(--bg-base)]/50' : ''}`}>
                             <td className="px-4 py-3 font-medium">{row.feature}</td>
                             <td className="px-4 py-3 text-center text-[var(--text-secondary)]">
-                                <span className={row.usOk === false ? 'text-red-400' : row.usOk ? 'text-green-400' : ''}>
+                                <span className={row.usOk === false ? 'text-red-600' : row.usOk ? 'text-emerald-600' : ''}>
                                     {String(row[platformA.name])}
                                 </span>
                             </td>
                             <td className="px-4 py-3 text-center text-[var(--text-secondary)]">
-                                <span className={row.levOk === false ? 'text-red-400' : row.levOk ? 'text-green-400' : ''}>
+                                <span className={row.levOk === false ? 'text-red-600' : row.levOk ? 'text-emerald-600' : ''}>
                                     {String(row[platformB.name])}
                                 </span>
                             </td>

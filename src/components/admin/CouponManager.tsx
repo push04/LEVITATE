@@ -68,7 +68,7 @@ export default function CouponManager({ plans }: { plans: OnboardingPlan[] }) {
               <span className="font-mono font-bold text-[var(--primary)]">{c.code}</span>
               <span className="text-[var(--muted)]">{c.discountPct}% off</span>
               {c.expiresAt && <span className="text-[var(--muted)]">Expires {c.expiresAt}</span>}
-              <button onClick={() => setCoupons(prev => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-300">
+              <button onClick={() => setCoupons(prev => prev.filter((_, j) => j !== i))} className="text-red-600 hover:text-red-700">
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>

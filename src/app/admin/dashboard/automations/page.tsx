@@ -91,29 +91,29 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
 }
 
 const AGENT_COLORS: Record<string, string> = {
-  reporter:        'text-blue-400',
-  research:        'text-purple-400',
-  outreach:        'text-green-400',
-  followup:        'text-yellow-400',
-  bizdev:          'text-orange-400',
-  invoice:         'text-red-400',
-  retention:       'text-pink-400',
-  agent_evaluator: 'text-cyan-400',
-  discovery:       'text-teal-400',
-  proposal:        'text-indigo-400',
-  onboarding:      'text-emerald-400',
-  coder:           'text-violet-400',
-  deployer:        'text-amber-400'
+  reporter:        'text-blue-600',
+  research:        'text-purple-600',
+  outreach:        'text-green-600',
+  followup:        'text-amber-600',
+  bizdev:          'text-orange-600',
+  invoice:         'text-red-600',
+  retention:       'text-pink-600',
+  agent_evaluator: 'text-cyan-600',
+  discovery:       'text-teal-600',
+  proposal:        'text-indigo-600',
+  onboarding:      'text-emerald-600',
+  coder:           'text-violet-600',
+  deployer:        'text-amber-700'
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getTier(balance: number): { label: string; color: string } {
-  if (balance >= 1000) return { label: 'LEGENDARY', color: 'bg-yellow-500/20 text-yellow-300 border border-yellow-700' }
-  if (balance >= 500)  return { label: 'ELITE',     color: 'bg-purple-500/20 text-purple-300 border border-purple-700' }
-  if (balance >= 200)  return { label: 'PERFORMING',color: 'bg-blue-500/20 text-blue-300 border border-blue-700' }
-  if (balance >= 50)   return { label: 'NORMAL',    color: 'bg-gray-500/20 text-gray-300 border border-gray-700' }
-  return { label: 'PROBATION', color: 'bg-red-500/20 text-red-300 border border-red-700' }
+  if (balance >= 1000) return { label: 'LEGENDARY', color: 'bg-amber-50 text-amber-700 border border-amber-200' }
+  if (balance >= 500)  return { label: 'ELITE',     color: 'bg-violet-50 text-violet-700 border border-violet-200' }
+  if (balance >= 200)  return { label: 'PERFORMING',color: 'bg-blue-50 text-blue-700 border border-blue-200' }
+  if (balance >= 50)   return { label: 'NORMAL',    color: 'bg-gray-100 text-gray-600 border border-gray-200' }
+  return { label: 'PROBATION', color: 'bg-red-50 text-red-700 border border-red-200' }
 }
 
 function statusDot(agent: AgentData) {
@@ -238,27 +238,27 @@ export default function AutomationsPage() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="glass-card p-4">
           <p className="text-xs text-[var(--muted)] mb-1">Total Credits</p>
-          <p className="text-2xl font-bold text-yellow-400">{totalCredits.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-amber-600">{totalCredits.toLocaleString()}</p>
           <p className="text-xs text-[var(--muted)] mt-1">economy balance</p>
         </div>
         <div className="glass-card p-4">
           <p className="text-xs text-[var(--muted)] mb-1">Avg Success</p>
-          <p className={`text-2xl font-bold ${avgSuccess >= 80 ? 'text-green-400' : 'text-yellow-400'}`}>{avgSuccess}%</p>
+          <p className={`text-2xl font-bold ${avgSuccess >= 80 ? 'text-emerald-600' : 'text-amber-600'}`}>{avgSuccess}%</p>
           <p className="text-xs text-[var(--muted)] mt-1">all time</p>
         </div>
         <div className="glass-card p-4">
           <p className="text-xs text-[var(--muted)] mb-1">Active (24h)</p>
-          <p className="text-2xl font-bold text-blue-400">{active24h}</p>
+          <p className="text-2xl font-bold text-blue-600">{active24h}</p>
           <p className="text-xs text-[var(--muted)] mt-1">of {agents.length} agents</p>
         </div>
         <div className="glass-card p-4">
           <p className="text-xs text-[var(--muted)] mb-1">Suspended</p>
-          <p className={`text-2xl font-bold ${suspended > 0 ? 'text-red-400' : 'text-green-400'}`}>{suspended}</p>
+          <p className={`text-2xl font-bold ${suspended > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{suspended}</p>
           <p className="text-xs text-[var(--muted)] mt-1">{suspended === 0 ? 'all clear' : 'need attention'}</p>
         </div>
         <div className="glass-card p-4">
           <p className="text-xs text-[var(--muted)] mb-1">Never Run</p>
-          <p className={`text-2xl font-bold ${neverRun > 0 ? 'text-orange-400' : 'text-green-400'}`}>{neverRun}</p>
+          <p className={`text-2xl font-bold ${neverRun > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>{neverRun}</p>
           <p className="text-xs text-[var(--muted)] mt-1">agents idle</p>
         </div>
       </div>
@@ -293,7 +293,7 @@ export default function AutomationsPage() {
                   <p className="text-xs text-[var(--muted)]">Active</p>
                 </div>
               </div>
-              <span className="text-xs px-2 py-1 rounded-full bg-green-900/50 text-green-300 border border-green-800">ACTIVE</span>
+              <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">ACTIVE</span>
             </div>
           </div>
 
@@ -329,7 +329,7 @@ export default function AutomationsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <p className={`text-sm font-bold ${agent.current_balance >= 100 ? 'text-green-400' : agent.current_balance >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        <p className={`text-sm font-bold ${agent.current_balance >= 100 ? 'text-emerald-600' : agent.current_balance >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
                           {agent.current_balance} cr
                         </p>
                         <ChevronDown className={`w-3 h-3 text-[var(--muted)] transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -341,10 +341,10 @@ export default function AutomationsPage() {
                     </p>
 
                     <div className="flex items-center justify-between mt-3 text-xs text-[var(--muted)]">
-                      <span>Success: <span className="text-white font-medium">{Math.round(agent.success_rate)}%</span></span>
-                      <span>24h: <span className="text-white font-medium">{agent.tasks_last_24h} tasks</span></span>
+                      <span>Success: <span className="text-gray-800 font-medium">{Math.round(agent.success_rate)}%</span></span>
+                      <span>24h: <span className="text-gray-800 font-medium">{agent.tasks_last_24h} tasks</span></span>
                       {neverRanThis
-                        ? <span className="text-orange-400 font-medium">Never ran</span>
+                        ? <span className="text-orange-600 font-medium">Never ran</span>
                         : <span className="text-[var(--muted)]">{formatRelativeTime(agent.last_log!.created_at)}</span>
                       }
                     </div>
@@ -366,12 +366,12 @@ export default function AutomationsPage() {
                             )}
                             {agent.last_log && (
                               <div className="text-xs text-[var(--muted)]">
-                                <p>Last: <span className={agent.last_log.status === 'success' ? 'text-green-400' : 'text-red-400'}>{agent.last_log.status}</span> — {agent.last_log.action.replace(/_/g, ' ')}</p>
+                                <p>Last: <span className={agent.last_log.status === 'success' ? 'text-emerald-600' : 'text-red-600'}>{agent.last_log.status}</span> — {agent.last_log.action.replace(/_/g, ' ')}</p>
                                 <p className="text-[10px] mt-0.5">{new Date(agent.last_log.created_at).toLocaleString('en-IN')}</p>
                               </div>
                             )}
                             {agent.is_suspended && (
-                              <p className="text-xs text-red-400">Suspended: {agent.suspension_reason}</p>
+                              <p className="text-xs text-red-600">Suspended: {agent.suspension_reason}</p>
                             )}
                             {/* Mini 24h bar */}
                             {agent.tasks_last_24h > 0 && (
@@ -394,7 +394,7 @@ export default function AutomationsPage() {
                                 <button
                                   onClick={(e) => agentAction(agent.agent_name, 'unsuspend', e)}
                                   disabled={!!actionLoading}
-                                  className="flex-1 text-xs py-1.5 rounded bg-green-800 hover:bg-green-700 text-white font-medium"
+                                  className="flex-1 text-xs py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
                                 >
                                   {actionLoading === `${agent.agent_name}-unsuspend` ? 'Working...' : 'Unsuspend'}
                                 </button>
@@ -402,7 +402,7 @@ export default function AutomationsPage() {
                                 <button
                                   onClick={(e) => agentAction(agent.agent_name, 'suspend', e)}
                                   disabled={!!actionLoading}
-                                  className="flex-1 text-xs py-1.5 rounded bg-red-900 hover:bg-red-800 text-white font-medium"
+                                  className="flex-1 text-xs py-1.5 rounded bg-red-600 hover:bg-red-700 text-white font-medium"
                                 >
                                   {actionLoading === `${agent.agent_name}-suspend` ? 'Working...' : 'Suspend'}
                                 </button>
@@ -410,7 +410,7 @@ export default function AutomationsPage() {
                               <button
                                 onClick={(e) => agentAction(agent.agent_name, 'reset_credits', e)}
                                 disabled={!!actionLoading}
-                                className="flex-1 text-xs py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white font-medium"
+                                className="flex-1 text-xs py-1.5 rounded bg-gray-600 hover:bg-gray-700 text-white font-medium"
                               >
                                 {actionLoading === `${agent.agent_name}-reset_credits` ? 'Working...' : 'Reset Credits'}
                               </button>
@@ -542,14 +542,14 @@ function LiveLogsTab() {
           onClick={() => setIsLive(v => !v)}
           className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-all ${
             isLive
-              ? 'border-green-700 bg-green-900/30 text-green-400'
-              : 'border-[var(--border)] text-[var(--muted)]'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-gray-200 text-gray-500'
           }`}
         >
           {isLive ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
           {isLive ? 'Live' : 'Paused'}
           {!isLive && newCount > 0 && (
-            <span className="bg-green-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            <span className="bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
               +{newCount}
             </span>
           )}
@@ -588,15 +588,15 @@ function LiveLogsTab() {
       {/* Mini stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="glass-card p-3 text-center">
-          <p className="text-lg font-bold text-green-400">{successCount}</p>
-          <p className="text-xs text-[var(--muted)]">Success</p>
+          <p className="text-lg font-bold text-emerald-600">{successCount}</p>
+          <p className="text-xs text-gray-500">Success</p>
         </div>
         <div className="glass-card p-3 text-center">
-          <p className="text-lg font-bold text-red-400">{failureCount}</p>
-          <p className="text-xs text-[var(--muted)]">Failures</p>
+          <p className="text-lg font-bold text-red-600">{failureCount}</p>
+          <p className="text-xs text-gray-500">Failures</p>
         </div>
         <div className="glass-card p-3 text-center">
-          <p className={`text-lg font-bold ${totalCredits >= 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+          <p className={`text-lg font-bold ${totalCredits >= 0 ? 'text-amber-600' : 'text-red-600'}`}>
             {totalCredits > 0 ? '+' : ''}{totalCredits}
           </p>
           <p className="text-xs text-[var(--muted)]">Credits</p>
@@ -652,14 +652,14 @@ function LiveLogsTab() {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {(item.credits_earned ?? 0) !== 0 && (
-                        <span className={`text-xs font-medium ${item.credits_earned > 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        <span className={`text-xs font-medium ${item.credits_earned > 0 ? 'text-amber-600' : 'text-red-600'}`}>
                           {item.credits_earned > 0 ? '+' : ''}{item.credits_earned}cr
                         </span>
                       )}
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        item.status === 'success' ? 'bg-green-500/20 text-green-400' :
-                        item.status === 'failure' ? 'bg-red-500/20 text-red-400' :
-                        'bg-gray-500/20 text-gray-400'
+                      <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                        item.status === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        item.status === 'failure' ? 'bg-red-50 text-red-700 border-red-200' :
+                        'bg-gray-100 text-gray-600 border-gray-200'
                       }`}>
                         {item.status === 'success' ? <CheckCircle className="w-3 h-3 inline" /> : item.status === 'failure' ? <XCircle className="w-3 h-3 inline" /> : null}
                         {' '}{item.status}
@@ -680,11 +680,11 @@ function LiveLogsTab() {
                         className="overflow-hidden"
                       >
                         <div className="px-4 pb-3 pt-0">
-                          <pre className="text-xs bg-[var(--secondary)] rounded-lg p-3 overflow-x-auto text-green-300 max-h-48 overflow-y-auto">
+                          <pre className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-x-auto text-gray-700 max-h-48 overflow-y-auto">
                             {JSON.stringify(item.output, null, 2)}
                           </pre>
                           {item.input && Object.keys(item.input).length > 0 && (
-                            <pre className="text-xs bg-[var(--secondary)] rounded-lg p-3 overflow-x-auto text-blue-300 max-h-32 overflow-y-auto mt-2">
+                            <pre className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-x-auto text-gray-600 max-h-32 overflow-y-auto mt-2">
                               {JSON.stringify(item.input, null, 2)}
                             </pre>
                           )}
@@ -720,10 +720,10 @@ interface AutomationLead {
 
 const STATUS_ORDER = ['New', 'Contacted', 'Follow Up', 'Closed']
 const STATUS_COLORS: Record<string, string> = {
-  'New':        'bg-blue-500/20 text-blue-300 border-blue-800',
-  'Contacted':  'bg-yellow-500/20 text-yellow-300 border-yellow-800',
-  'Follow Up':  'bg-orange-500/20 text-orange-300 border-orange-800',
-  'Closed':     'bg-green-500/20 text-green-300 border-green-800',
+  'New':        'bg-blue-50 text-blue-700 border-blue-200',
+  'Contacted':  'bg-amber-50 text-amber-700 border-amber-200',
+  'Follow Up':  'bg-orange-50 text-orange-700 border-orange-200',
+  'Closed':     'bg-emerald-50 text-emerald-700 border-emerald-200',
 }
 const FUNNEL_COLORS: Record<string, string> = {
   'New': 'bg-blue-500', 'Contacted': 'bg-yellow-500', 'Follow Up': 'bg-orange-500', 'Closed': 'bg-green-500'
@@ -895,16 +895,16 @@ function PipelineTab() {
                     <td className="px-4 py-2.5 text-xs text-[var(--muted)]">{lead.city}</td>
                     <td className="px-4 py-2.5 text-xs text-[var(--muted)] capitalize">{lead.service_category}</td>
                     <td className="px-4 py-2.5 text-center">
-                      <span className={`text-xs font-bold ${(lead.ai_score ?? 0) >= 8 ? 'text-green-400' : (lead.ai_score ?? 0) >= 6 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                      <span className={`text-xs font-bold ${(lead.ai_score ?? 0) >= 8 ? 'text-emerald-600' : (lead.ai_score ?? 0) >= 6 ? 'text-amber-600' : 'text-gray-500'}`}>
                         {lead.ai_score ?? '-'}/10
                       </span>
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${STATUS_COLORS[lead.status] ?? 'bg-gray-500/20 text-gray-300 border-gray-700'}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${STATUS_COLORS[lead.status] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                         {lead.status}
                       </span>
                       {lead.has_website === false && (
-                        <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-red-900/40 text-red-400 border border-red-800">NO SITE</span>
+                        <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-red-50 text-red-600 border border-red-200">NO SITE</span>
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-xs text-[var(--muted)]">
@@ -966,22 +966,22 @@ function AnalyticsTab({ agents }: { agents: AgentData[] }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="glass-card p-4">
           <p className="text-xs text-[var(--muted)] mb-1">Total Revenue</p>
-          <p className="text-xl font-bold text-green-400">₹{(revenue.total ?? 0).toLocaleString('en-IN')}</p>
-          <p className="text-xs text-[var(--muted)] mt-1">all time</p>
+          <p className="text-xl font-bold text-emerald-600">₹{(revenue.total ?? 0).toLocaleString('en-IN')}</p>
+          <p className="text-xs text-gray-500 mt-1">all time</p>
         </div>
         <div className="glass-card p-4">
-          <p className="text-xs text-[var(--muted)] mb-1">Leads Today</p>
-          <p className="text-xl font-bold text-blue-400">{summary.leads_today ?? 0}</p>
-          <p className="text-xs text-[var(--muted)] mt-1">This week: {summary.leads_this_week ?? 0}</p>
+          <p className="text-xs text-gray-500 mb-1">Leads Today</p>
+          <p className="text-xl font-bold text-blue-600">{summary.leads_today ?? 0}</p>
+          <p className="text-xs text-gray-500 mt-1">This week: {summary.leads_this_week ?? 0}</p>
         </div>
         <div className="glass-card p-4">
-          <p className="text-xs text-[var(--muted)] mb-1">Tasks Today</p>
-          <p className="text-xl font-bold text-purple-400">{summary.total_tasks_today ?? 0}</p>
-          <p className="text-xs text-[var(--muted)] mt-1">by all agents</p>
+          <p className="text-xs text-gray-500 mb-1">Tasks Today</p>
+          <p className="text-xl font-bold text-violet-600">{summary.total_tasks_today ?? 0}</p>
+          <p className="text-xs text-gray-500 mt-1">by all agents</p>
         </div>
         <div className="glass-card p-4">
-          <p className="text-xs text-[var(--muted)] mb-1">Credits Today</p>
-          <p className="text-xl font-bold text-yellow-400">+{summary.total_credits_earned_today ?? 0}</p>
+          <p className="text-xs text-gray-500 mb-1">Credits Today</p>
+          <p className="text-xl font-bold text-amber-600">+{summary.total_credits_earned_today ?? 0}</p>
           <p className="text-xs text-[var(--muted)] mt-1">earned today</p>
         </div>
       </div>
@@ -1006,10 +1006,10 @@ function AnalyticsTab({ agents }: { agents: AgentData[] }) {
               </div>
               <span className="text-xs text-[var(--muted)] w-8 text-right">{a.tasks_today}</span>
               {a.tasks_success > 0 && (
-                <span className="text-xs text-green-400 w-6 text-right">{a.tasks_success}✓</span>
+                <span className="text-xs text-emerald-600 w-6 text-right">{a.tasks_success}✓</span>
               )}
               {a.tasks_failed > 0 && (
-                <span className="text-xs text-red-400 w-6 text-right">{a.tasks_failed}✗</span>
+                <span className="text-xs text-red-600 w-6 text-right">{a.tasks_failed}✗</span>
               )}
             </div>
           ))}
@@ -1050,7 +1050,7 @@ function AnalyticsTab({ agents }: { agents: AgentData[] }) {
         {/* Agent credits leaderboard */}
         <div className="glass-card p-5">
           <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-yellow-400" />
+            <TrendingUp className="w-4 h-4 text-amber-600" />
             Credit Leaderboard
           </h3>
           <div className="space-y-2">
@@ -1066,7 +1066,7 @@ function AnalyticsTab({ agents }: { agents: AgentData[] }) {
                       {(agent.label ?? agent.agent_name).replace(/_/g, ' ')}
                     </p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${tier.color}`}>{tier.label}</span>
-                    <span className={`text-xs font-bold ${agent.current_balance >= 100 ? 'text-green-400' : 'text-yellow-400'}`}>
+                    <span className={`text-xs font-bold ${agent.current_balance >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
                       {agent.current_balance}cr
                     </span>
                   </div>
@@ -1164,11 +1164,11 @@ function EmailsTab() {
         </div>
         <div className="glass-card p-3 sm:p-4 text-center">
           <p className="text-xs text-[var(--muted)] mb-1">Sent by AI</p>
-          <p className="text-xl sm:text-2xl font-bold text-green-400">{outCount}</p>
+          <p className="text-xl sm:text-2xl font-bold text-emerald-600">{outCount}</p>
         </div>
         <div className="glass-card p-3 sm:p-4 text-center">
-          <p className="text-xs text-[var(--muted)] mb-1">Received</p>
-          <p className="text-xl sm:text-2xl font-bold text-blue-400">{inCount}</p>
+          <p className="text-xs text-gray-500 mb-1">Received</p>
+          <p className="text-xl sm:text-2xl font-bold text-blue-600">{inCount}</p>
         </div>
       </div>
 
@@ -1218,21 +1218,21 @@ function EmailsTab() {
                   onClick={() => setExpanded(expanded === email.id ? null : email.id)}
                 >
                   <div className={`mt-0.5 flex-shrink-0 p-1.5 rounded-full ${
-                    email.direction === 'outbound' ? 'bg-green-900/40 text-green-400' : 'bg-blue-900/40 text-blue-400'
+                    email.direction === 'outbound' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-blue-50 text-blue-600 border border-blue-200'
                   }`}>
                     {email.direction === 'outbound' ? <Send className="w-3.5 h-3.5" /> : <Inbox className="w-3.5 h-3.5" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium truncate">{email.subject ?? '(no subject)'}</p>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-900/40 text-purple-300 border border-purple-800 font-medium capitalize shrink-0">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 font-medium capitalize shrink-0">
                         {email.agent_name}
                       </span>
                     </div>
                     <p className="text-xs text-[var(--muted)] mt-0.5">
                       {email.direction === 'outbound'
-                        ? <><span className="text-white">{email.from_email ?? 'agent'}</span> → {email.to_email}</>
-                        : <>From: <span className="text-white">{email.from_email}</span></>
+                        ? <><span className="text-gray-800 font-medium">{email.from_email ?? 'agent'}</span> → {email.to_email}</>
+                        : <>From: <span className="text-gray-800 font-medium">{email.from_email}</span></>
                       }
                     </p>
                     <p className="text-xs text-[var(--muted)] mt-0.5">

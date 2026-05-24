@@ -9,6 +9,7 @@ import HomeServices from '@/components/sections/HomeServices';
 import HomeWork from '@/components/sections/HomeWork';
 import HomeStats from '@/components/sections/HomeStats';
 import HomeCTA from '@/components/sections/HomeCTA';
+import HomeDeveloper from '@/components/sections/HomeDeveloper';
 import s from '@/styles/home.module.css';
 
 export const metadata: Metadata = {
@@ -66,6 +67,12 @@ export default function Home() {
       </div>
       <HomeWork />
       <HomeStats />
+      <div className={s.bridge} style={{ background: '#F0EDE7' }}>
+        <div className={s.bridgeLine} />
+        <span className={s.bridgeText}>Embed it. Ship it.</span>
+        <div className={s.bridgeLine} />
+      </div>
+      <HomeDeveloper />
       <div className={s.bridge} style={{ background: '#F4F2EE' }}>
         <div className={s.bridgeLine} />
         <span className={s.bridgeText}>Ready to join them?</span>

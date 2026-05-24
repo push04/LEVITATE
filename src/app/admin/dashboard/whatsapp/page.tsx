@@ -140,10 +140,10 @@ export default function WhatsAppAdmin() {
             <div className="ml-auto">
               <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
                 isOffline
-                  ? 'bg-red-500/15 text-red-400'
-                  : 'bg-green-500/15 text-green-400'
+                  ? 'bg-red-50 text-red-600 border border-red-200'
+                  : 'bg-green-50 text-green-700 border border-green-200'
               }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-red-400' : 'bg-green-400'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-red-500' : 'bg-green-500'}`} />
                 {isOffline ? 'Offline' : 'Online'}
               </span>
             </div>
@@ -161,24 +161,24 @@ export default function WhatsAppAdmin() {
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-green-500/10">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-green-50 border border-green-200">
                 <div className="flex items-center gap-2">
-                  <Wifi className="w-4 h-4 text-green-400" />
-                  <span className="text-sm font-medium text-green-400">Connected to API</span>
+                  <Wifi className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-700">Connected to API</span>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <div className="p-3 rounded-xl bg-[var(--secondary)] text-center">
-                  <p className="text-lg font-bold text-amber-400">{stats.pending}</p>
-                  <p className="text-xs text-[var(--muted)] mt-0.5">Pending</p>
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-center">
+                  <p className="text-lg font-bold text-amber-700">{stats.pending}</p>
+                  <p className="text-xs text-amber-600 mt-0.5">Pending</p>
                 </div>
-                <div className="p-3 rounded-xl bg-[var(--secondary)] text-center">
-                  <p className="text-lg font-bold text-green-400">{stats.sent}</p>
-                  <p className="text-xs text-[var(--muted)] mt-0.5">Sent</p>
+                <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-center">
+                  <p className="text-lg font-bold text-green-700">{stats.sent}</p>
+                  <p className="text-xs text-green-600 mt-0.5">Sent</p>
                 </div>
-                <div className="p-3 rounded-xl bg-[var(--secondary)] text-center">
-                  <p className="text-lg font-bold text-red-400">{stats.failed}</p>
-                  <p className="text-xs text-[var(--muted)] mt-0.5">Failed</p>
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-center">
+                  <p className="text-lg font-bold text-red-700">{stats.failed}</p>
+                  <p className="text-xs text-red-600 mt-0.5">Failed</p>
                 </div>
               </div>
             </div>
@@ -207,8 +207,8 @@ export default function WhatsAppAdmin() {
               <p className="text-sm text-[var(--muted)]">Start daemon to authenticate</p>
             </div>
           ) : isConnected ? (
-            <div className="flex flex-col items-center justify-center h-36 rounded-xl bg-green-500/10 border border-green-500/20">
-              <CheckCircle2 className="w-10 h-10 text-green-400 mb-3" />
+            <div className="flex flex-col items-center justify-center h-36 rounded-xl bg-green-50 border border-green-200">
+              <CheckCircle2 className="w-10 h-10 text-green-600 mb-3" />
               <p className="font-semibold text-[var(--foreground)]">Ready to Send</p>
               <p className="text-xs text-[var(--muted)] mt-1">Polling active every 60 seconds</p>
             </div>
@@ -242,7 +242,7 @@ export default function WhatsAppAdmin() {
           <button
             onClick={clearQueue}
             title="Clear history"
-            className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+            className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -273,9 +273,9 @@ export default function WhatsAppAdmin() {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      msg.status === 'sent'    ? 'bg-green-500/15 text-green-400' :
-                      msg.status === 'pending' ? 'bg-amber-500/15 text-amber-400' :
-                                                 'bg-red-500/15 text-red-400'
+                      msg.status === 'sent'    ? 'bg-green-50 text-green-700 border border-green-200' :
+                      msg.status === 'pending' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                                 'bg-red-50 text-red-700 border border-red-200'
                     }`}>
                       {msg.status === 'sent'    ? <CheckCircle2 className="w-3 h-3" /> :
                        msg.status === 'pending' ? <Clock className="w-3 h-3" /> :

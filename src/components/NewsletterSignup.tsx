@@ -93,14 +93,14 @@ export default function NewsletterSignup({
       </form>
 
       {status === 'error' && (
-        <div className="flex items-center gap-2 mt-3 text-sm text-red-400">
+        <div className="flex items-center gap-2 mt-3 text-sm text-red-600">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{message}</span>
         </div>
       )}
 
       {status === 'success' && (
-        <div className="flex items-center gap-2 mt-3 text-sm text-green-400">
+        <div className="flex items-center gap-2 mt-3 text-sm text-emerald-600">
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
           <span>{message}</span>
         </div>

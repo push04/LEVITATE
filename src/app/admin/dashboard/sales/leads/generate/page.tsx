@@ -271,13 +271,13 @@ export default function LeadGeneratorPage() {
                         </p>
 
                         <div className="space-y-3 mb-6 flex-1">
-                            <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${lead.email ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-[var(--secondary)] text-[var(--muted)]'}`}>
+                            <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${lead.email ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-[var(--secondary)] text-[var(--muted)]'}`}>
                                 <Mail className="w-4 h-4 shrink-0" />
                                 <span className={`text-sm font-medium truncate ${!lead.email && 'italic'}`}>
                                     {lead.email || 'No Email Found'}
                                 </span>
                             </div>
-                            <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${lead.phone ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' : 'bg-[var(--secondary)] text-[var(--muted)]'}`}>
+                            <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${lead.phone ? 'bg-purple-50 text-purple-600 border border-purple-200' : 'bg-[var(--secondary)] text-[var(--muted)]'}`}>
                                 <Phone className="w-4 h-4 shrink-0" />
                                 <span className={`text-sm font-medium truncate ${!lead.phone && 'italic'}`}>
                                     {lead.phone || 'No Phone Found'}

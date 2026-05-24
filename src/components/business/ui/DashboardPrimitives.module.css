@@ -1,15 +1,20 @@
+.sidebar {
+  background: #ffffff;
+  color: #1A1916;
+}
+
 .panel {
-  border-radius: 16px;
-  border: 1px solid var(--border-default, rgba(255,255,255,0.08));
-  background: var(--bg-overlay, rgba(255,255,255,0.03));
-  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid #EDE9E3;
+  background: #ffffff;
 }
 
 .panelHover {
-  transition: border-color 200ms ease, box-shadow 200ms ease;
+  transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
 }
 
 .panelHover:hover {
-  border-color: rgba(201,165,90,0.22);
-  box-shadow: 0 0 0 1px rgba(201,165,90,0.1);
+  border-color: rgba(176, 141, 87, 0.3);
+  box-shadow: 0 4px 16px rgba(176, 141, 87, 0.08), 0 1px 4px rgba(26, 25, 22, 0.06);
+  transform: translateY(-1px);
 }

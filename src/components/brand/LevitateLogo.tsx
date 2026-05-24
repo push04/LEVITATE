@@ -211,7 +211,7 @@ export function LevitateLockup({
           accentClassName={accentClassName}
         />
         {subtitle ? (
-          <div className={cx('mt-1 text-[10px] uppercase tracking-[0.24em] text-white/45', subtitleClassName)}>
+          <div className={cx('mt-1 text-[10px] uppercase tracking-[0.24em]', subtitleClassName ?? 'text-white/45')}>
             {subtitle}
           </div>
         ) : null}

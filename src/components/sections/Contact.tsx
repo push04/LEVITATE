@@ -260,7 +260,7 @@ export default function Contact() {
                                         exit={{ opacity: 0 }}
                                         className={`rounded-full border px-3 py-2 font-body text-xs uppercase tracking-[0.18em] ${submitStatus === 'success'
                                             ? 'border-[#C8A96E]/30 bg-[#C8A96E]/10 text-[#C8A96E]'
-                                            : 'border-red-500/20 bg-red-500/10 text-red-400'
+                                            : 'border-red-200 bg-red-50 text-red-700'
                                             }`}
                                     >
                                         {submitStatus === 'success' ? 'Message received.' : 'Error sending message.'}
