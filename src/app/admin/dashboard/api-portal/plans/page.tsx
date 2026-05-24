@@ -146,57 +146,36 @@ export default function ApiPlansAdminPage() {
     setTimeout(() => setToastMsg(''), 3000)
   }
 
-  const loadPlans = useCallback(async () => {
+  // Use the service-role server route so RLS doesn't hide other users' keys/plans
+  const loadData = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('api_plans')
-      .select('*')
-      .order('price_monthly', { ascending: true })
+    setKeysLoading(true)
+    try {
+      const res = await fetch('/api/admin/api-portal/data')
+      const json = await res.json()
+      if (json.error) { console.error('[plans]', json.error); return }
 
-    if (!error && data) {
-      const withCounts = await Promise.all(
-        data.map(async (plan: ApiPlan) => {
-          const { count } = await supabase
-            .from('api_keys')
-            .select('id', { count: 'exact', head: true })
-            .eq('plan_id', plan.id)
-            .eq('is_active', true)
-          return { ...plan, subscriber_count: count ?? 0 }
-        })
-      )
-      setPlans(withCounts)
+      const fetchedPlans: ApiPlan[] = json.plans ?? []
+      const fetchedKeys: ApiKeyRow[] = json.keys ?? []
 
-      const totalSubs = withCounts.reduce((a, p) => a + (p.subscriber_count ?? 0), 0)
-      const mrr = withCounts.reduce((a, p) => a + (p.subscriber_count ?? 0) * p.price_monthly, 0)
-      const mostPopular = withCounts.sort((a, b) => (b.subscriber_count ?? 0) - (a.subscriber_count ?? 0))[0]?.name ?? '—'
+      setPlans(fetchedPlans)
+      setKeys(fetchedKeys)
+
+      const totalSubs = fetchedPlans.reduce((a, p) => a + (p.subscriber_count ?? 0), 0)
+      const mrr = fetchedPlans.reduce((a, p) => a + (p.subscriber_count ?? 0) * p.price_monthly, 0)
+      const mostPopular = [...fetchedPlans].sort((a, b) => (b.subscriber_count ?? 0) - (a.subscriber_count ?? 0))[0]?.name ?? '—'
       setStats({ total_subscribers: totalSubs, mrr, arr: mrr * 12, most_popular: mostPopular })
+    } finally {
+      setLoading(false)
+      setKeysLoading(false)
     }
-    setLoading(false)
   }, [])
 
-  const loadKeys = useCallback(async () => {
-    setKeysLoading(true)
-    const { data, error } = await supabase
-      .from('api_keys')
-      .select('id, user_id, key_prefix, name, requests_count, is_active, plan_id, created_at')
-      .order('created_at', { ascending: false })
-      .limit(100)
+  // Keep these thin wrappers so existing call-sites (toast callbacks etc.) still compile
+  const loadPlans = loadData
+  const loadKeys = loadData
 
-    if (!error && data) {
-      const plansMap: Record<string, string> = {}
-      plans.forEach(p => { plansMap[p.id] = p.name })
-
-      const enriched = data.map((k: ApiKeyRow) => ({
-        ...k,
-        plan_name: k.plan_id ? (plansMap[k.plan_id] ?? 'Unknown') : 'Free',
-      }))
-      setKeys(enriched)
-    }
-    setKeysLoading(false)
-  }, [plans])
-
-  useEffect(() => { loadPlans() }, [loadPlans])
-  useEffect(() => { if (plans.length > 0) loadKeys() }, [plans, loadKeys])
+  useEffect(() => { loadData() }, [loadData])
 
   const openCreate = () => {
     setEditPlan(null)
@@ -230,27 +209,46 @@ export default function ApiPlansAdminPage() {
       features: form.features.filter(f => f.trim() !== ''),
       badge: form.badge?.trim() || null,
     }
-    if (editPlan) {
-      const { error } = await supabase.from('api_plans').update(payload).eq('id', editPlan.id)
-      if (!error) { toast('Plan updated'); setShowForm(false); loadPlans() }
-      else toast('Error: ' + error.message)
-    } else {
-      const { error } = await supabase.from('api_plans').insert(payload)
-      if (!error) { toast('Plan created'); setShowForm(false); loadPlans() }
-      else toast('Error: ' + error.message)
+    try {
+      if (editPlan) {
+        const res = await fetch('/api/admin/api-plans', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editPlan.id, ...payload }),
+        })
+        const json = await res.json()
+        if (!json.success) throw new Error(json.error)
+        toast('Plan updated'); setShowForm(false); loadData()
+      } else {
+        const res = await fetch('/api/admin/api-plans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const json = await res.json()
+        if (!json.success) throw new Error(json.error)
+        toast('Plan created'); setShowForm(false); loadData()
+      }
+    } catch (e) {
+      toast('Error: ' + (e instanceof Error ? e.message : 'unknown'))
     }
     setSaving(false)
   }
 
   const deletePlan = async (id: string) => {
-    const { error } = await supabase.from('api_plans').delete().eq('id', id)
-    if (!error) { toast('Plan deleted'); setDeleteId(null); loadPlans() }
-    else toast('Error: ' + error.message)
+    const res = await fetch(`/api/admin/api-plans?id=${id}`, { method: 'DELETE' })
+    const json = await res.json()
+    if (json.success) { toast('Plan deleted'); setDeleteId(null); loadData() }
+    else toast('Error: ' + json.error)
   }
 
   const toggleKeyActive = async (id: string, current: boolean) => {
-    await supabase.from('api_keys').update({ is_active: !current }).eq('id', id)
-    loadKeys()
+    await fetch('/api/admin/users/api-key', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key_id: id, is_active: !current }),
+    })
+    loadData()
     toast(current ? 'API key suspended' : 'API key activated')
   }
 
@@ -258,32 +256,31 @@ export default function ApiPlansAdminPage() {
     if (!overrideEmail.trim() || !overrideLimit) return
     setOverrideSaving(true)
     const limit = parseInt(overrideLimit)
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', overrideEmail.trim())
-      .single()
-
-    if (!profileData) {
-      setOverrideMsg('User not found')
+    // Find the user's key via the service route
+    const res = await fetch(`/api/admin/users?email=${encodeURIComponent(overrideEmail.trim())}`)
+    const json = await res.json()
+    if (!json.found || !json.keys?.length) {
+      setOverrideMsg(json.found ? 'User has no API keys' : 'User not found')
       setOverrideSaving(false)
+      setTimeout(() => setOverrideMsg(''), 4000)
       return
     }
-
-    const { error } = await supabase
-      .from('api_keys')
-      .update({ custom_limit: limit })
-      .eq('user_id', profileData.id)
-
-    if (!error) {
-      setOverrideMsg('Override saved successfully')
-      setOverrideEmail('')
-      setOverrideLimit('')
-    } else {
-      setOverrideMsg('Error: ' + error.message)
-    }
+    // Update all keys for this user with the override limit
+    await Promise.all(
+      json.keys.map((k: { id: string }) =>
+        fetch('/api/admin/users/api-key', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key_id: k.id, plan_override_limit: limit }),
+        })
+      )
+    )
+    setOverrideMsg('Override saved successfully')
+    setOverrideEmail('')
+    setOverrideLimit('')
     setOverrideSaving(false)
     setTimeout(() => setOverrideMsg(''), 4000)
+    loadData()
   }
 
   const umCreateUser = async () => {

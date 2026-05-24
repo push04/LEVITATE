@@ -15,12 +15,29 @@ export async function GET(req: NextRequest) {
   const page = Math.floor(offset / limit) + 1
 
   const supabase = getServiceSupabase()
-  const { data, error, count } = await supabase
+
+  // leads table is scoped by company_id (linked to user via companies table)
+  // First get the company_id for this user
+  const { data: company } = await supabase
+    .from('companies')
+    .select('id')
+    .eq('owner_id', ctx.userId)
+    .maybeSingle()
+
+  let query = supabase
     .from('leads')
     .select('*', { count: 'exact' })
-    .eq('user_id', ctx.userId)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
+
+  if (company?.id) {
+    query = query.eq('company_id', company.id)
+  } else {
+    // fallback: try user_id in case of older rows
+    query = query.eq('user_id', ctx.userId)
+  }
+
+  const { data, error, count } = await query
 
   if (error) return apiError(error.message, 500)
 
