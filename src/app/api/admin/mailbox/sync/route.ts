@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { fetchRecentEmails } from '@/lib/imap-client';
-import { generateGoogleAI } from '@/lib/google-ai';
+import { callAI } from '@/lib/ai/router';
 
 export async function POST() {
     try {
@@ -73,10 +73,11 @@ export async function POST() {
                 let category = 'general';
                 let aiScore = 0;
                 try {
-                    const aiRes = await generateGoogleAI([
-                        { role: 'system', content: 'Categorize this email as "lead", "support", or "general". Return JSON { category, score } where score is 0-100 lead potential.' },
-                        { role: 'user', content: `Subject: ${email.subject}\n\n${email.text.substring(0, 500)}` }
-                    ]);
+                    const aiRes = await callAI(
+                        'Categorize this email as "lead", "support", or "general". Return JSON { category, score } where score is 0-100 lead potential. Reply with JSON only.',
+                        `Subject: ${email.subject}\n\n${email.text.substring(0, 500)}`,
+                        120, 'mailbox'
+                    );
                     if (aiRes) {
                         const parsed = JSON.parse(aiRes.replace(/```json|```/g, ''));
                         category = parsed.category || 'general';

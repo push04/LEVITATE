@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateGoogleAI } from '@/lib/google-ai'
+import { callAI } from '@/lib/ai/router'
 
 const THEME_IDS = ['espresso','ocean','forest','rose','slate','golden','violet','midnight','terracotta','sage']
 
@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   }
 
   const systemPrompt = `You are a professional UI/UX designer specializing in brand identity for Indian businesses.
-Based on the business description, recommend color themes. Respond ONLY with valid JSON, no markdown.`
+Based on the business description, recommend color themes. Respond ONLY with valid JSON, no markdown, no extra text.`
 
   const userPrompt = `Business: "${businessName ?? 'Unknown'}"
 Type: ${template ?? 'general'}
@@ -18,7 +18,7 @@ Description: ${prompt ?? 'A modern Indian business'}
 Available themes: ${THEME_IDS.join(', ')}
 
 Recommend exactly 3 theme IDs with brief reasons why each suits this business.
-Format:
+Return ONLY a JSON array, no explanation:
 [
   { "themeId": "espresso", "reason": "..." },
   { "themeId": "ocean", "reason": "..." },
@@ -26,18 +26,19 @@ Format:
 ]`
 
   try {
-    const result = await generateGoogleAI([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ])
-    if (!result) throw new Error('AI unavailable')
-    const suggestions = JSON.parse(result.replace(/```json|```/g, '').trim())
+    const result = await callAI(systemPrompt, userPrompt, 512, 'website-builder')
+    const cleaned = result.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+    const suggestions = JSON.parse(cleaned)
     const valid = Array.isArray(suggestions)
       ? suggestions.filter((s: { themeId?: string }) => THEME_IDS.includes(s.themeId ?? '')).slice(0, 3)
       : []
-    if (!valid.length) throw new Error('No valid themes')
-    return NextResponse.json({ success: true, suggestions: valid })
-  } catch {
+    if (valid.length) {
+      return NextResponse.json({ success: true, suggestions: valid })
+    }
+    // AI gave valid JSON but wrong theme IDs — fall through to fallback
+    throw new Error('No valid theme IDs in response')
+  } catch (err) {
+    console.warn('[ai-theme] falling back to heuristic:', err instanceof Error ? err.message : err)
     const fallback = pickFallbackThemes(template ?? '')
     return NextResponse.json({ success: true, suggestions: fallback })
   }

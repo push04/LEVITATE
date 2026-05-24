@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateGoogleAI as generateText } from '@/lib/google-ai'
+import { callAI } from '@/lib/ai/router'
 
 export async function POST(req: NextRequest) {
   const { businessName, template, prompt, sections } = await req.json().catch(() => ({})) as {
@@ -28,14 +28,13 @@ Example format:
 }`
 
   try {
-    const result = await generateText([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ])
-    if (!result) return NextResponse.json({ success: false, error: 'AI unavailable' }, { status: 503 })
-    const json = JSON.parse(result.replace(/```json|```/g, '').trim())
+    const result = await callAI(systemPrompt, userPrompt, 2048, 'website-builder')
+    const cleaned = result.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+    const json = JSON.parse(cleaned)
     return NextResponse.json({ success: true, sections: json })
-  } catch {
-    return NextResponse.json({ success: false, error: 'AI generation failed' }, { status: 500 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'AI generation failed'
+    console.error('[ai-copy]', message)
+    return NextResponse.json({ success: false, error: message }, { status: 503 })
   }
 }

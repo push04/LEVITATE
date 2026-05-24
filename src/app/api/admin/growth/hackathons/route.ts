@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
-import { generateGoogleAI } from '@/lib/google-ai';
+import { callAI } from '@/lib/ai/router';
 
 export const runtime = 'edge';
 
@@ -56,7 +56,10 @@ export async function GET(request: Request) {
                         ]
                         `;
 
-                        const aiText = await generateGoogleAI([{ role: 'user', content: prompt }]);
+                        const aiText = await callAI(
+                            'You are a hackathon analyst. Extract structured data from hackathon listings. Return only valid JSON arrays.',
+                            prompt, 1024, 'hackathons'
+                        ).catch(() => null);
 
                         if (aiText) {
                             const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
