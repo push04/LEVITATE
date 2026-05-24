@@ -1,10 +1,16 @@
 /**
  * AI Router — Levitate Labs
- * Priority 1: Primary AI (FREE, no GPU, instant) — PRIMARY
- * Priority 2: Google Gemini Flash (FREE, 1,500 req/day, no GPU) — FALLBACK
- * Priority 3: HuggingFace Inference API (FREE, ~1000 req/day) — FALLBACK
- * Priority 4: Kaggle GPU (FREE, needs notebook running) — OPTIONAL
- * ZERO paid API. ZERO GPU required. Runs fully serverless.
+ *
+ * Groq free tier limits (all models share the same quota pool):
+ *   RPD: 14,400 requests/day
+ *   RPM: 30 requests/minute  ← this is what causes 429s
+ *   TPM: varies per model
+ *
+ * Strategy: try models in order of best quality-for-task.
+ * On 429 (RPM hit), rotate to the next model immediately.
+ * All models below are free-tier production models on Groq.
+ *
+ * Fallback chain: Groq → Gemini → HuggingFace → Kaggle
  */
 
 interface AICallOptions {
@@ -21,40 +27,90 @@ interface Provider {
   available: () => boolean
 }
 
-// ── Primary Provider ───────────────
-// Add to Cloud Provider env var: PRIMARY_API_KEY
+/**
+ * Groq free-tier production models — all have 14,400 RPD / 30 RPM.
+ * Ordered: fastest/lightest first so we exhaust the light model's
+ * per-minute window before falling to heavier ones.
+ *
+ * Model IDs confirmed from https://console.groq.com/docs/models
+ */
+const GROQ_MODELS = [
+  // Best for JSON/structured output — fast, cheap, 128K context
+  'llama-3.1-8b-instant',
+  // Good quality, longer context, high TPM
+  'llama-3.3-70b-versatile',
+  // OpenAI GPT-OSS 20B — solid quality, separate quota pool
+  'openai/gpt-oss-20b',
+  // Google Gemma 2 9B — separate capacity pool on Groq infra
+  'gemma2-9b-it',
+  // Preview: Llama 4 Scout — may have higher limits as newer model
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+]
+
 function makeGroqProvider(): Provider {
   return {
-    name: 'groq-llama70b',
+    name: 'groq',
     available: () => !!process.env.GROQ_API_KEY,
     call: async (opts) => {
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: opts.system },
-            { role: 'user', content: opts.user }
-          ],
-          max_tokens: opts.maxTokens ?? 2000,
-          temperature: opts.temperature ?? 0.7
-        }),
-        signal: AbortSignal.timeout(30000)
-      })
-      if (!res.ok) throw new Error(`Groq error: ${res.status}`)
-      const data = await res.json()
-      return data.choices?.[0]?.message?.content ?? ''
-    }
+      const key = process.env.GROQ_API_KEY!
+      const errors: string[] = []
+
+      for (const model of GROQ_MODELS) {
+        try {
+          const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${key}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: opts.system },
+                { role: 'user', content: opts.user },
+              ],
+              max_tokens: opts.maxTokens ?? 2000,
+              temperature: opts.temperature ?? 0.7,
+            }),
+            signal: AbortSignal.timeout(30000),
+          })
+
+          if (res.status === 429) {
+            // Per-minute rate limit on this model — silently try next
+            errors.push(`${model}: RPM limit hit`)
+            console.warn(`[AIRouter] Groq/${model} rate limited (429), trying next model`)
+            continue
+          }
+
+          if (!res.ok) {
+            const body = await res.text().catch(() => '')
+            throw new Error(`Groq/${model} HTTP ${res.status}: ${body.slice(0, 200)}`)
+          }
+
+          const data = await res.json()
+          const content: string = data.choices?.[0]?.message?.content ?? ''
+          if (content) {
+            console.log(`[AIRouter] Groq model used: ${model}`)
+            return content
+          }
+
+          errors.push(`${model}: empty response`)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          if (msg.includes('RPM limit') || msg.includes('429')) {
+            errors.push(`${model}: rate limited`)
+            continue
+          }
+          throw err // Non-rate-limit error — don't swallow it
+        }
+      }
+
+      throw new Error(`All Groq models rate limited: ${errors.join(' | ')}`)
+    },
   }
 }
 
-// ── Google Gemini Flash (FREE, 1,500 req/day, no GPU) ─────────────────
-// Sign up free at aistudio.google.com → Get API key
-// Add to Cloud Provider env var: GEMINI_API_KEY
+// ── Google Gemini Flash (FREE, 1,500 req/day) ─────────────────────────
 function makeGeminiProvider(): Provider {
   return {
     name: 'gemini-flash',
@@ -67,27 +123,23 @@ function makeGeminiProvider(): Provider {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [
-              { role: 'user', parts: [{ text: `${opts.system}\n\n${opts.user}` }] }
-            ],
+            contents: [{ role: 'user', parts: [{ text: `${opts.system}\n\n${opts.user}` }] }],
             generationConfig: {
               maxOutputTokens: opts.maxTokens ?? 2000,
-              temperature: opts.temperature ?? 0.7
-            }
+              temperature: opts.temperature ?? 0.7,
+            },
           }),
-          signal: AbortSignal.timeout(30000)
+          signal: AbortSignal.timeout(30000),
         }
       )
       if (!res.ok) throw new Error(`Gemini error: ${res.status}`)
       const data = await res.json()
       return data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-    }
+    },
   }
 }
 
-// ── HuggingFace Inference API (FREE, ~1000 req/day, no GPU) ───────────
-// Sign up free at huggingface.co → Settings → Tokens → New token (read)
-// Add to Cloud Provider env var: HF_TOKEN
+// ── HuggingFace Inference API (FREE, ~1000 req/day) ───────────────────
 function makeHuggingFaceProvider(): Provider {
   return {
     name: 'huggingface-qwen',
@@ -100,30 +152,29 @@ function makeHuggingFaceProvider(): Provider {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${process.env.HF_TOKEN}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             model,
             messages: [
               { role: 'system', content: opts.system },
-              { role: 'user', content: opts.user }
+              { role: 'user', content: opts.user },
             ],
             max_tokens: Math.min(opts.maxTokens ?? 2000, 2048),
             temperature: opts.temperature ?? 0.7,
-            stream: false
+            stream: false,
           }),
-          signal: AbortSignal.timeout(45000)
+          signal: AbortSignal.timeout(45000),
         }
       )
       if (!res.ok) throw new Error(`HuggingFace error: ${res.status}`)
       const data = await res.json()
       return data.choices?.[0]?.message?.content ?? ''
-    }
+    },
   }
 }
 
-// ── Kaggle GPU (optional, needs notebook running manually) ────────────
-// Only used if GEMMA_API_URL is set (Kaggle watchdog updates this)
+// ── Kaggle GPU (optional, needs notebook running) ─────────────────────
 function makeKaggleProvider(): Provider {
   return {
     name: 'kaggle-gpu',
@@ -136,18 +187,18 @@ function makeKaggleProvider(): Provider {
         body: JSON.stringify({
           messages: [
             { role: 'system', content: opts.system },
-            { role: 'user', content: opts.user }
+            { role: 'user', content: opts.user },
           ],
           max_tokens: opts.maxTokens ?? 2000,
           temperature: opts.temperature ?? 0.7,
-          stream: false
+          stream: false,
         }),
-        signal: AbortSignal.timeout(60000)
+        signal: AbortSignal.timeout(60000),
       })
       if (!res.ok) throw new Error(`Kaggle error: ${res.status}`)
       const data = await res.json()
       return data.choices?.[0]?.message?.content ?? ''
-    }
+    },
   }
 }
 
@@ -157,10 +208,10 @@ class AIRouter {
 
   constructor() {
     this.providers = [
-      makeGroqProvider(),       // PRIMARY — free, fast, no GPU, 14400/day
-      makeGeminiProvider(),     // FALLBACK — free, no GPU, 1500/day
-      makeHuggingFaceProvider(), // FALLBACK — free, no GPU, 1000/day
-      makeKaggleProvider()      // OPTIONAL — free GPU, only when notebook running
+      makeGroqProvider(),
+      makeGeminiProvider(),
+      makeHuggingFaceProvider(),
+      makeKaggleProvider(),
     ]
   }
 
@@ -172,7 +223,6 @@ class AIRouter {
         errors.push(`${provider.name}: not configured`)
         continue
       }
-
       try {
         const result = await provider.call(opts)
         if (result) {
@@ -198,7 +248,7 @@ class AIRouter {
         action: 'ai_call',
         ai_provider: provider,
         status: 'success',
-        output: { provider }
+        output: { provider },
       })
     } catch { /* ignore */ }
   }
