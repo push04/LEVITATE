@@ -6,7 +6,7 @@ import {
   Plus, Edit2, Trash2, X, Check, RefreshCw, ToggleLeft, ToggleRight,
   Users, TrendingUp, Zap, Crown, ChevronDown, ChevronUp, AlertCircle,
   IndianRupee, Key, ShieldCheck, UserPlus, Search, Copy, Eye, EyeOff,
-  UserCheck, RotateCcw, Ban, ChevronRight,
+  UserCheck, RotateCcw, Ban,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
