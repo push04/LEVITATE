@@ -181,7 +181,7 @@ export default function BusinessIntegrationsPage() {
               {[
                 { n: '1', title: 'Download Agent', sub: 'ZIP → extract on Busy machine', btn: true, href: '/downloads/levitate_busy_agent.zip', label: 'Download ZIP' },
                 null,
-                { n: '2', title: 'Download Config', sub: 'Pre-filled with your API key', btn: true, href: '/api/admin/integrations/busy/agent-config', label: 'Download config.json' },
+                { n: '2', title: 'Download Config', sub: 'Pre-filled with your site URL', btn: true, href: '/api/business/integrations/busy/agent-config', label: 'Download config.json' },
                 null,
                 { n: '3', title: 'Run setup.bat', sub: 'Installs driver + starts syncing', btn: false, href: '', label: '' },
               ].map((step, i) =>
@@ -210,6 +210,19 @@ export default function BusinessIntegrationsPage() {
             <p style={{ fontSize: 11, color: '#16A34A', margin: '12px 0 0', fontWeight: 600 }}>
               ✓ No Python needed &nbsp;·&nbsp; ✓ Works with all Busy versions &nbsp;·&nbsp; ✓ Syncs every hour by default
             </p>
+          </div>
+
+          {/* API key note */}
+          <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 12, padding: '14px 18px', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>🔑</span>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#1E40AF', margin: '0 0 4px' }}>Set your full API key in config.json</p>
+              <p style={{ fontSize: 12, color: '#1E3A8A', margin: 0, lineHeight: 1.6 }}>
+                The downloaded config.json shows only your key prefix. Before running setup.bat, open config.json and replace <code style={{ background: 'rgba(30,58,138,0.1)', padding: '0 4px', borderRadius: 3 }}>levitate_api_key</code> with your full key from{' '}
+                <a href="/business/dashboard/api-keys" style={{ color: '#2563EB', fontWeight: 600 }}>API Keys →</a>
+                {' '}(if you don&apos;t have one yet, generate it there first).
+              </p>
+            </div>
           </div>
 
           {/* What it syncs */}

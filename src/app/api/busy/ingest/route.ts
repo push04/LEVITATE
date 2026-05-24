@@ -53,6 +53,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid or inactive API key' }, { status: 401 })
   }
 
+  // Look up the company_id for this user so leads appear in their business dashboard
+  const { data: companyRow } = await supabase
+    .from('companies')
+    .select('id')
+    .eq('owner_id', keyRow.user_id)
+    .maybeSingle()
+  const companyId: string | null = companyRow?.id ?? null
+
   let body: IngestPayload
   try {
     body = await req.json()
@@ -80,7 +88,7 @@ export async function POST(req: NextRequest) {
         ].filter(Boolean)
 
         return {
-          business_name: name || 'Unknown',
+          name: name || 'Unknown',
           email: c.email?.toString().trim().toLowerCase() || null,
           phone: c.mobile?.toString().trim() || null,
           city: c.city?.toString().trim() || null,
@@ -88,6 +96,8 @@ export async function POST(req: NextRequest) {
           budget: c.credit_limit ? `₹${c.credit_limit}` : null,
           source: 'busy_agent',
           status: 'New',
+          company_id: companyId,
+          user_id: keyRow.user_id,
           created_at: new Date().toISOString(),
         }
       })
