@@ -43,6 +43,7 @@ create table if not exists api_plans (
 alter table api_plans enable row level security;
 drop policy if exists "Public can read active plans" on api_plans;
 drop policy if exists "Admins can manage plans" on api_plans;
+drop policy if exists "Service role manages plans" on api_plans;
 create policy "Public can read active plans" on api_plans for select using (is_active = true);
 create policy "Service role manages plans" on api_plans for all using (auth.role() = 'service_role');
 
@@ -90,3 +91,77 @@ create policy "Owners can manage their sites" on published_sites for all using (
 -- ============================================================
 -- DONE. All 3 tables created.
 -- ============================================================
+
+-- 4. Company CRM Tables (For Business Private CRM)
+-- ============================================================
+create table if not exists company_crm_pipeline_stages (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies(id) on delete cascade,
+  stage_key text not null,
+  label text not null,
+  color_token text,
+  sort_order int default 0,
+  is_default boolean default false,
+  is_closed_stage boolean default false,
+  created_at timestamptz default now()
+);
+alter table company_crm_pipeline_stages enable row level security;
+drop policy if exists "Company owners can manage stages" on company_crm_pipeline_stages;
+create policy "Company owners can manage stages" on company_crm_pipeline_stages for all using (
+  exists (select 1 from companies where id = company_crm_pipeline_stages.company_id and owner_id = auth.uid())
+);
+
+create table if not exists company_crm_leads (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies(id) on delete cascade,
+  owner_user_id uuid,
+  source_lead_id uuid,
+  copied_from text,
+  source_snapshot jsonb,
+  name text not null,
+  email text,
+  phone text,
+  whatsapp text,
+  company_name text,
+  title text,
+  city text,
+  service_category text,
+  status text,
+  pipeline_stage text,
+  tags text[] default array[]::text[],
+  notes text,
+  estimated_value numeric default 0,
+  quoted_price numeric,
+  negotiated_price numeric,
+  currency text default 'INR',
+  source_url text,
+  priority text,
+  assigned_to text,
+  last_contacted_at timestamptz,
+  copied_at timestamptz default now(),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists company_crm_leads_company_id_idx on company_crm_leads(company_id);
+alter table company_crm_leads enable row level security;
+drop policy if exists "Company owners can manage CRM leads" on company_crm_leads;
+create policy "Company owners can manage CRM leads" on company_crm_leads for all using (
+  exists (select 1 from companies where id = company_crm_leads.company_id and owner_id = auth.uid())
+);
+
+create table if not exists company_crm_lead_activity (
+  id uuid primary key default gen_random_uuid(),
+  crm_lead_id uuid not null references company_crm_leads(id) on delete cascade,
+  company_id uuid not null references companies(id) on delete cascade,
+  actor_user_id uuid,
+  event_type text not null,
+  event_label text,
+  payload jsonb,
+  created_at timestamptz default now()
+);
+alter table company_crm_lead_activity enable row level security;
+drop policy if exists "Company owners can view CRM activity" on company_crm_lead_activity;
+create policy "Company owners can view CRM activity" on company_crm_lead_activity for all using (
+  exists (select 1 from companies where id = company_crm_lead_activity.company_id and owner_id = auth.uid())
+);
+

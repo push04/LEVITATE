@@ -17,9 +17,9 @@ export async function GET(req: NextRequest) {
   const supabase = getServiceSupabase()
 
   const query = supabase
-    .from('leads')
+    .from('company_crm_leads')
     .select('*', { count: 'exact' })
-    .eq('user_id', ctx.userId)
+    .eq('company_id', ctx.businessId)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
