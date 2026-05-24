@@ -6,9 +6,15 @@ import Footer from '@/components/Footer'
 
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+
+  // These route groups have their own layouts (sidebar + no footer)
+  const isDashboard =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/business')
+
   const isSitePage = pathname.startsWith('/sites/')
 
-  if (isSitePage) {
+  if (isSitePage || isDashboard) {
     return <>{children}</>
   }
 
@@ -20,3 +26,4 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
     </>
   )
 }
+

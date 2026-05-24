@@ -17,7 +17,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50">
       {/* Desktop sidebar */}
       <aside className="hidden md:block shrink-0 h-screen sticky top-0 overflow-y-auto">
         <AdminSidebar />
@@ -59,7 +59,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </button>
         </header>
 
-        <main className="flex-1 overflow-x-hidden p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">
           {children}
         </main>
       </div>

@@ -15,7 +15,7 @@ export default function BusinessDashboardLayout({ children }: { children: React.
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-gray-50 text-gray-900">
+    <div className="flex h-screen overflow-hidden bg-gray-50 text-gray-900">
       <BusinessResearchRunProvider />
 
       {/* Desktop sidebar */}
@@ -66,7 +66,7 @@ export default function BusinessDashboardLayout({ children }: { children: React.
           </button>
         </header>
 
-        <main className="relative flex-1 overflow-x-hidden">
+        <main className="relative flex-1 overflow-y-auto overflow-x-hidden">
           <div className="mx-auto w-full max-w-[1200px] px-4 py-6 sm:px-5 md:px-8 md:py-8">
             {children}
           </div>
