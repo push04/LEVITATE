@@ -229,47 +229,25 @@ async function callGroqCompletion(
   maxTokens: number,
   temperature = 0.2
 ): Promise<{ content: string; provider: string }> {
-  if (!process.env.GROQ_API_KEY) {
-    throw new Error('Groq AI is not configured for live business generation')
-  }
-
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      max_tokens: maxTokens,
-      temperature,
-    }),
-    signal: AbortSignal.timeout(45000),
-  })
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => '')
-    const errorMessage = `Groq request failed (${response.status})${errorBody ? `: ${errorBody.slice(0, 240)}` : ''}`
-    if (response.status === 429) {
-      throw new GroqRateLimitError(errorMessage, parseGroqRetryAfterSeconds(errorBody))
+  try {
+    const content = await callAI(
+      system,
+      user,
+      maxTokens,
+      'research_module'
+    )
+    
+    return {
+      content,
+      provider: 'levitate-ai-router',
     }
-    throw new Error(errorMessage)
-  }
-
-  const payload = await response.json()
-  const content = payload.choices?.[0]?.message?.content
-
-  if (typeof content !== 'string' || !content.trim()) {
-    throw new Error('Groq returned an empty completion')
-  }
-
-  return {
-    content,
-    provider: 'groq-llama-3.3-70b-versatile',
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (message.includes('429')) {
+      // If we completely exhausted the router, throw the custom error so the UI handles the queue
+      throw new GroqRateLimitError(message, 30) // Wait 30s before retrying next module
+    }
+    throw new Error(message)
   }
 }
 
