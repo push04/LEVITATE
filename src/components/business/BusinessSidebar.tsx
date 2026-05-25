@@ -3,7 +3,7 @@
 import {
   BarChart3, Bot, ClipboardList, FileSearch,
   Files, Gavel, Key, LayoutDashboard, LogOut,
-  Mail, Settings, Plug,
+  Mail, MessageCircle, Settings, Plug,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { ComponentType } from 'react';
@@ -28,6 +28,7 @@ const MENU: SidebarItem[] = [
   { label: 'Leads',       icon: ClipboardList,    href: '/business/dashboard/leads',           feature: 'leads',          paidOnly: true },
   { label: 'Automations', icon: Bot,              href: '/business/dashboard/automations',     feature: 'automations',    paidOnly: true },
   { label: 'Mailbox',     icon: Mail,             href: '/business/dashboard/mailbox',         feature: 'mailbox',        paidOnly: true },
+  { label: 'WhatsApp',   icon: MessageCircle,    href: '/business/dashboard/whatsapp',        feature: 'whatsapp',       paidOnly: true },
   { label: 'Research',    icon: FileSearch,       href: '/business/dashboard/market-research', feature: 'marketResearch', paidOnly: true, quotaBadge: true },
   { label: 'Legal Tools', icon: Gavel,            href: '/business/dashboard/legal-tools',     feature: 'legalTools',     paidOnly: true },
   { label: 'Reports',     icon: Files,            href: '/business/dashboard/reports',         feature: 'reportHistory',  paidOnly: true },

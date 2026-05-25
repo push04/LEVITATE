@@ -40,6 +40,11 @@ export const PORTAL_FEATURES = [
     key: 'profileSettings',
     label: 'Profile Settings',
     description: 'Stored business profile, profile editing, and reusable context.'
+  },
+  {
+    key: 'whatsapp',
+    label: 'WhatsApp',
+    description: 'WhatsApp outreach campaigns and AI agent for automated conversations.'
   }
 ] as const
 
@@ -55,7 +60,8 @@ export const DEFAULT_PLAN_FEATURE_ACCESS: PortalFeatureAccess = {
   marketResearch: true,
   legalTools: true,
   reportHistory: true,
-  profileSettings: true
+  profileSettings: true,
+  whatsapp: true,
 }
 
 export type BusinessModelType =
