@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useState, useRef } from 'react';
-import { Bot, Upload, Download, Terminal, Check, ChevronRight, FileSpreadsheet, X, Settings, Clock, Zap, RefreshCw } from 'lucide-react';
+import { Bot, Upload, Download, Check, ChevronRight, FileSpreadsheet, X, Zap, RefreshCw } from 'lucide-react';
 import { useCompanyPortalState } from '@/hooks/useCompanyPortalState';
 import BusinessPortalLocked from '@/components/business/BusinessPortalLocked';
 
@@ -154,89 +154,92 @@ export default function BusinessIntegrationsPage() {
 
       {/* ── AGENT TAB ─────────────────────────────────────────────────────── */}
       {tab === 'agent' && (
-        <div style={{ maxWidth: 720 }}>
-          {/* Hero */}
-          <div style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', borderRadius: 16, padding: '28px 32px', marginBottom: 24, color: 'white' }}>
+        <div style={{ maxWidth: 680 }}>
+
+          {/* Hero + single download CTA */}
+          <div style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', borderRadius: 16, padding: '28px 32px', marginBottom: 20, color: 'white' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Bot size={24} color="white" />
               </div>
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>LEVITATE Sync Agent</h2>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: '3px 0 0' }}>Auto-sync Busy Accounting data to your CRM leads — completely free</p>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: '3px 0 0' }}>Auto-syncs Busy Accounting customers to your CRM — completely free</p>
               </div>
-              <div style={{ marginLeft: 'auto', background: '#22c55e', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700 }}>FREE</div>
+              <div style={{ marginLeft: 'auto', background: '#22c55e', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>FREE</div>
             </div>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.7, margin: 0 }}>
-              A small Windows program that runs on your Busy machine and syncs your customers + invoices to LEVITATE automatically. No third-party subscription. No manual exports.
-            </p>
+
+            {/* Big single button */}
+            <a
+              href="/api/business/integrations/busy/installer"
+              download="levitate_setup.bat"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'white', color: '#1e1b4b', borderRadius: 12, padding: '16px 24px', fontWeight: 800, fontSize: 15, textDecoration: 'none', marginBottom: 14, transition: 'opacity 0.15s' }}
+            >
+              <Download size={18} />
+              Download One-Click Installer (.bat)
+            </a>
+
+            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'rgba(255,255,255,0.65)', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Check size={11} color="#86efac" /> Auto-installs Python if needed</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Check size={11} color="#86efac" /> Auto-detects your Busy folder</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Check size={11} color="#86efac" /> Adds itself to Windows startup</span>
+            </div>
           </div>
 
-          {/* 3-step setup */}
-          <div style={{ background: '#F0FDF4', border: '2px solid #86EFAC', borderRadius: 14, padding: '20px 24px', marginBottom: 24 }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#14532D', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Zap size={15} color="#16A34A" /> 3-Step Setup
+          {/* API key step — the ONE manual thing */}
+          <div style={{ background: '#FFF7ED', border: '2px solid #FED7AA', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#9A3412', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Zap size={15} color="#EA580C" /> One thing you need before running the installer
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr auto 1fr', alignItems: 'center' }}>
+            <p style={{ fontSize: 13, color: '#7C2D12', margin: '0 0 10px', lineHeight: 1.6 }}>
+              Generate an API key first — the installer will ask you to paste it. That&apos;s the only manual step.
+            </p>
+            <a
+              href="/business/dashboard/api-keys"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#EA580C', color: 'white', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}
+            >
+              Get my API key <ChevronRight size={13} />
+            </a>
+          </div>
+
+          {/* How it works — collapsed steps */}
+          <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, padding: '20px 24px', marginBottom: 20 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 16px' }}>What happens when you double-click it</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { n: '1', title: 'Download Agent', sub: 'ZIP → extract on Busy machine', btn: true, href: '/downloads/levitate_busy_agent.zip', label: 'Download ZIP' },
-                null,
-                { n: '2', title: 'Download Config', sub: 'Pre-filled with your site URL', btn: true, href: '/api/business/integrations/busy/agent-config', label: 'Download config.json' },
-                null,
-                { n: '3', title: 'Run setup.bat', sub: 'Installs driver + starts syncing', btn: false, href: '', label: '' },
-              ].map((step, i) =>
-                step === null ? (
-                  <div key={i} style={{ textAlign: 'center', color: '#86EFAC', fontSize: 20, padding: '0 6px' }}>→</div>
-                ) : (
-                  <div key={i} style={{ background: 'white', borderRadius: 12, padding: '14px 12px', border: '1px solid #BBF7D0', textAlign: 'center' }}>
-                    <div style={{ width: 26, height: 26, borderRadius: 8, background: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: 'white' }}>{step.n}</span>
-                    </div>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: '#14532D', margin: 0 }}>{step.title}</p>
-                    <p style={{ fontSize: 11, color: '#6B7280', margin: '3px 0 10px', lineHeight: 1.4 }}>{step.sub}</p>
-                    {step.btn ? (
-                      <a href={step.href} download style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7, background: '#111827', color: 'white', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
-                        <Download size={11} />{step.label}
-                      </a>
-                    ) : (
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7, background: '#F3F4F6', color: '#374151', fontSize: 12, fontWeight: 600 }}>
-                        <Terminal size={11} /> Double-click it
-                      </div>
-                    )}
+                ['Installs Python 3.12', 'Downloads and installs silently if not already on the machine.'],
+                ['Downloads the sync agent', 'Pulls the latest agent files from LEVITATE servers.'],
+                ['Installs Access ODBC driver', 'Required to read Busy .bds database files directly.'],
+                ['Detects your Busy folder', 'Scans common Busy paths automatically — no folder browsing needed.'],
+                ['Saves your config', 'Writes config.json with your API key, site URL, and Busy path.'],
+                ['Adds to Windows startup', 'Creates a startup entry so it syncs automatically after every login.'],
+                ['Runs first sync', 'Pushes your Busy customers to CRM immediately.'],
+              ].map(([title, desc], i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ width: 22, height: 22, borderRadius: 6, background: '#F3F4F6', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#374151' }}>{i + 1}</span>
                   </div>
-                )
-              )}
-            </div>
-            <p style={{ fontSize: 11, color: '#16A34A', margin: '12px 0 0', fontWeight: 600 }}>
-              ✓ Free Python 3.10+ required &nbsp;·&nbsp; ✓ Works with all Busy versions &nbsp;·&nbsp; ✓ Syncs every hour by default
-            </p>
-          </div>
-
-          {/* API key note */}
-          <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 12, padding: '14px 18px', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <span style={{ fontSize: 18, flexShrink: 0 }}>🔑</span>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#1E40AF', margin: '0 0 4px' }}>Set your full API key in config.json</p>
-              <p style={{ fontSize: 12, color: '#1E3A8A', margin: 0, lineHeight: 1.6 }}>
-                The downloaded config.json shows only your key prefix. Before running setup.bat, open config.json and replace <code style={{ background: 'rgba(30,58,138,0.1)', padding: '0 4px', borderRadius: 3 }}>levitate_api_key</code> with your full key from{' '}
-                <a href="/business/dashboard/api-keys" style={{ color: '#2563EB', fontWeight: 600 }}>API Keys →</a>
-                {' '}(if you don&apos;t have one yet, generate it there first).
-              </p>
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{title}</span>
+                    <span style={{ fontSize: 12, color: '#6B7280' }}> — {desc}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* What it syncs */}
-          <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24, marginBottom: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 16px' }}>What the agent syncs</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, padding: '20px 24px' }}>
+            <h3 style={{ fontSize: 13, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 14px' }}>What gets synced</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
-                ['Customers / Parties', 'Appears as new leads in your CRM with GSTIN, address, city, balance.', '👥'],
-                ['Sales Invoices', 'Invoice amounts and dates stored for reference and analysis.', '📄'],
-                ['Auto Dedup', 'Leads with matching email are updated, not duplicated.', '♻️'],
-                ['Scheduled Sync', 'Runs every hour in background — no manual steps needed.', '⏱️'],
+                ['Customers / Parties', 'Name, mobile, email, city, GSTIN, balance — all as CRM leads.', '👥'],
+                ['Sales Invoices', 'Bill numbers, amounts, and dates stored for reference.', '📄'],
+                ['Smart dedup', 'Same customer synced again? Skipped — not duplicated.', '♻️'],
+                ['Every hour, automatically', 'Runs in the background. No manual steps ever.', '⏱️'],
               ].map(([title, desc, emoji]) => (
                 <div key={title} style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 10, padding: '14px 16px' }}>
-                  <p style={{ fontSize: 20, margin: '0 0 8px' }}>{emoji}</p>
+                  <p style={{ fontSize: 18, margin: '0 0 6px' }}>{emoji}</p>
                   <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', margin: 0 }}>{title}</p>
                   <p style={{ fontSize: 12, color: '#6B7280', margin: '4px 0 0', lineHeight: 1.5 }}>{desc}</p>
                 </div>
@@ -244,16 +247,6 @@ export default function BusinessIntegrationsPage() {
             </div>
           </div>
 
-          {/* Task scheduler tip */}
-          <div style={{ background: '#FFFBF5', border: '1px solid #FDE68A', borderRadius: 12, padding: '16px 20px' }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: '#92400E', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Clock size={14} /> Run automatically at Windows startup
-            </p>
-            <p style={{ fontSize: 12, color: '#78350F', margin: 0, lineHeight: 1.7 }}>
-              Open <strong>Task Scheduler</strong> → Create Basic Task → At Startup → point to <code style={{ background: 'rgba(120,53,15,0.1)', padding: '0 4px', borderRadius: 3 }}>levitate_busy_agent.exe</code> with argument <code style={{ background: 'rgba(120,53,15,0.1)', padding: '0 4px', borderRadius: 3 }}>--once</code>.
-              Or just leave <strong>run.bat</strong> open in the background.
-            </p>
-          </div>
         </div>
       )}
 

@@ -257,6 +257,74 @@ def run_sync(cfg: dict, config_path: Path):
     except Exception as e:
         log.error(f"Push failed: {e}")
 
+# ─── Auto-config (one-click installer) ───────────────────────────────────────
+
+BUSY_SEARCH_PATHS = [
+    r"C:\BusyWin\DATA\COMP0001",
+    r"C:\BusyWin\DATA\COMP0002",
+    r"C:\BusyWin\DATA\COMP0003",
+    r"D:\BusyWin\DATA\COMP0001",
+    r"D:\BusyWin\DATA\COMP0002",
+    r"C:\BusyWin\DATA",
+    r"D:\BusyWin\DATA",
+    r"C:\Busy\DATA\COMP0001",
+    r"C:\Program Files\Busy\DATA\COMP0001",
+    r"C:\Program Files (x86)\Busy\DATA\COMP0001",
+]
+
+def auto_detect_busy_dir() -> str:
+    """Scan common Busy paths and return the first one that contains .bds files."""
+    for path_str in BUSY_SEARCH_PATHS:
+        p = Path(path_str)
+        if not p.exists():
+            continue
+        if any(p.glob("*.bds")):
+            return str(p)
+        # Check one level deeper (e.g. C:\BusyWin\DATA has COMP0001, COMP0002 subdirs)
+        for sub in sorted(p.iterdir()):
+            if sub.is_dir() and any(sub.glob("*.bds")):
+                return str(sub)
+
+    # Try Windows registry for custom Busy install path
+    try:
+        import winreg
+        for reg_path in [r"SOFTWARE\Busy\BusyWin", r"SOFTWARE\WOW6432Node\Busy\BusyWin"]:
+            try:
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path) as key:
+                    install_path, _ = winreg.QueryValueEx(key, "InstallPath")
+                    data_path = Path(install_path) / "DATA" / "COMP0001"
+                    if data_path.exists():
+                        return str(data_path)
+            except OSError:
+                pass
+    except ImportError:
+        pass  # winreg only on Windows — handled at runtime
+
+    return r"C:\BusyWin\DATA\COMP0001"  # safe default
+
+def run_auto_config(config_path: Path, api_key: str, api_url: str):
+    """Write config.json non-interactively. Used by the one-click installer."""
+    if not api_key:
+        print("[ERROR] --api-key is required for --auto-config")
+        sys.exit(1)
+
+    busy_dir = auto_detect_busy_dir()
+    log.info(f"Auto-detected Busy directory: {busy_dir}")
+
+    cfg = DEFAULT_CONFIG.copy()
+    cfg["levitate_api_url"] = api_url.rstrip("/") if api_url else "https://levitatelabs.online"
+    cfg["levitate_api_key"] = api_key.strip()
+    cfg["busy_data_dir"] = busy_dir
+    cfg["financial_year"] = "auto"
+    cfg["sync_customers"] = True
+    cfg["sync_invoices"] = True
+    cfg["sync_interval_minutes"] = 60
+
+    save_config(cfg, config_path)
+    print(f"  Busy data directory : {busy_dir}")
+    print(f"  Config saved to     : {config_path}")
+    print(f"  To change settings  : edit config.json in {config_path.parent}")
+
 # ─── Setup wizard ─────────────────────────────────────────────────────────────
 
 def run_setup(config_path: Path):
@@ -284,10 +352,17 @@ def main():
     parser = argparse.ArgumentParser(description="LEVITATE Sync Agent for Busy Accounting")
     parser.add_argument("--config", default="config.json", help="Path to config.json")
     parser.add_argument("--setup", action="store_true", help="Run interactive setup wizard")
-    parser.add_argument("--once", action="store_true", help="Sync once and exit (ignores sync_interval_minutes)")
+    parser.add_argument("--once", action="store_true", help="Sync once and exit")
+    parser.add_argument("--auto-config", action="store_true", help="Non-interactive setup for installer")
+    parser.add_argument("--api-key", default="", help="LEVITATE API key (used with --auto-config)")
+    parser.add_argument("--api-url", default="", help="LEVITATE site URL (used with --auto-config)")
     args = parser.parse_args()
 
     config_path = Path(args.config)
+
+    if args.auto_config:
+        run_auto_config(config_path, args.api_key, args.api_url)
+        return
 
     if args.setup:
         run_setup(config_path)
