@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { Fragment, useState, useRef } from 'react';
 import { Bot, Upload, Download, Terminal, Check, ChevronRight, FileSpreadsheet, X, Settings, Clock, Zap, RefreshCw } from 'lucide-react';
 import { useCompanyPortalState } from '@/hooks/useCompanyPortalState';
 import BusinessPortalLocked from '@/components/business/BusinessPortalLocked';
@@ -299,18 +299,17 @@ export default function BusinessIntegrationsPage() {
                   <span />
                   <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase' }}>Field</span>
                   {csvHeaders.map(h => (
-                    <>
-                      <div key={`h-${h}`} style={{ padding: '7px 10px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 7, fontSize: 12, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h}</div>
-                      <ChevronRight key={`a-${h}`} size={12} color="#D1D5DB" />
+                    <Fragment key={h}>
+                      <div style={{ padding: '7px 10px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 7, fontSize: 12, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h}</div>
+                      <ChevronRight size={12} color="#D1D5DB" />
                       <select
-                        key={`s-${h}`}
                         value={csvMapping[h] ?? ''}
                         onChange={e => setCsvMapping(m => ({ ...m, [h]: e.target.value }))}
                         style={{ padding: '7px 10px', border: '1px solid #E5E7EB', borderRadius: 7, fontSize: 12, background: 'white' }}
                       >
                         {CSV_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                       </select>
-                    </>
+                    </Fragment>
                   ))}
                 </div>
 

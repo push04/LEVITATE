@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { getServiceSupabase } from '@/lib/supabase'
 import { getWorkspaceUrl } from '@/lib/onboarding'
 
@@ -13,14 +12,45 @@ export default async function CompanyWorkspacePage({
   const { companySlug } = await params
   const supabase = getServiceSupabase()
 
-  const { data: subscription } = await supabase
+  // Search by slug fields first, then fall back to company_name slug match
+  let { data: subscription } = await supabase
     .from('onboarding_subscriptions')
     .select('*')
     .or(`workspace_slug.eq.${companySlug},subdomain_slug.eq.${companySlug}`)
     .maybeSingle()
 
+  // Fallback: try matching against company_name (slugified)
   if (!subscription) {
-    notFound()
+    const { data: all } = await supabase
+      .from('onboarding_subscriptions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200)
+
+    subscription = (all ?? []).find(s => {
+      const slug = (s.company_name ?? '')
+        .toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      return slug === companySlug
+    }) ?? null
+  }
+
+  // Soft 404 — show a friendly "not set up yet" screen instead of hard 404
+  if (!subscription) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#0c0c0b] px-4 text-[#f5f1ea]">
+        <div className="text-center">
+          <div className="text-4xl mb-6">🏢</div>
+          <h1 className="text-2xl font-semibold mb-3">Workspace not found</h1>
+          <p className="text-white/60 mb-8 max-w-md">
+            This workspace URL hasn&apos;t been set up yet, or may have moved.
+            If you&apos;re a LEVITATE customer, log in to access your dashboard.
+          </p>
+          <Link href="/business/login" className="inline-flex items-center justify-center rounded-full bg-[#d9c59b] px-6 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-[#e5d0a8]">
+            Business login →
+          </Link>
+        </div>
+      </main>
+    )
   }
 
   const { data: plan } = await supabase

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase'
-import { headers } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,10 +10,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET() {
   const supabase = getServiceSupabase()
-  const headersList = await headers()
-  const host = headersList.get('host') ?? ''
-  const proto = headersList.get('x-forwarded-proto') ?? 'https'
-  const siteUrl = `${proto}://${host}`
+  // Always use the canonical domain — never the subdomain or request host
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? 'https://levitatelabs.online'
 
   // Pick first active API key
   const { data: keyRow } = await supabase

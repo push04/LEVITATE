@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { headers } from 'next/headers'
 import { getServiceSupabase } from '@/lib/supabase'
 import { getSupabasePublishableKey, getSupabaseUrl } from '@/lib/supabase-env'
 
@@ -14,10 +13,8 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET() {
   const cookieStore = await cookies()
-  const headersList = await headers()
-  const host = headersList.get('host') ?? ''
-  const proto = headersList.get('x-forwarded-proto') ?? 'https'
-  const siteUrl = `${proto}://${host}`
+  // Always use the canonical domain so the agent pushes to the right URL
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? 'https://levitatelabs.online'
 
   // Get authenticated user
   const authSupabase = createServerClient(
