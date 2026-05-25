@@ -22,12 +22,12 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('company_whatsapp_config')
-    .select('id, connected, ai_agent_enabled, ai_agent_name, ai_agent_tone, ai_agent_system_prompt, ai_agent_faq, ai_agent_escalation_keywords, ai_agent_escalation_email, phone_number_id, verify_token')
+    .select('id, connected, ai_agent_enabled, ai_agent_name, ai_agent_tone, ai_agent_system_prompt, ai_agent_faq, ai_agent_escalation_keywords, ai_agent_escalation_email, phone_number_id, verify_token, qr_code, daemon_last_ping, whatsapp_number')
     .eq('company_id', companyId)
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ config: data ?? null });
+  return NextResponse.json({ config: data ?? null, company_id: companyId });
 }
 
 export async function POST(req: NextRequest) {

@@ -1,16 +1,32 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCompanyPortalState } from '@/hooks/useCompanyPortalState';
 import BusinessPortalLocked from '@/components/business/BusinessPortalLocked';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, Send, Clock, CheckCircle2, XCircle,
   RefreshCw, X, Plus, Megaphone, FileText, Wifi, WifiOff,
-  RotateCcw, Activity, Users, ChevronRight, Trash2,
+  Activity, Users, ChevronRight, Trash2, Bot, Terminal,
+  QrCode, Copy, ChevronDown, ChevronUp, MessageCircle,
 } from 'lucide-react';
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────
+interface WaConfig {
+  id?: string;
+  connected: boolean;
+  ai_agent_enabled: boolean;
+  ai_agent_name: string;
+  ai_agent_tone: string;
+  ai_agent_system_prompt: string | null;
+  ai_agent_faq: Array<{ q: string; a: string }>;
+  ai_agent_escalation_keywords: string[];
+  ai_agent_escalation_email: string | null;
+  qr_code: string | null;
+  daemon_last_ping: string | null;
+  whatsapp_number: string | null;
+}
+
 interface QueueMsg {
   id: string;
   to_number: string;
@@ -44,14 +60,27 @@ interface Template {
   created_at: string;
 }
 
-const TABS = ['Overview', 'Send', 'Campaigns', 'Templates'] as const;
-type Tab = typeof TABS[number];
+interface ConvMessage {
+  id: string;
+  direction: 'inbound' | 'outbound';
+  from_number: string | null;
+  to_number: string | null;
+  message: string;
+  is_ai_response: boolean;
+  status: string;
+  created_at: string;
+}
 
-const STATUS_PILL: Record<string, string> = {
-  sent:    'bg-green-50 text-green-700 border-green-200',
-  pending: 'bg-amber-50 text-amber-700 border-amber-200',
-  failed:  'bg-red-50 text-red-700 border-red-200',
-};
+interface Conversation {
+  contact: string;
+  messages: ConvMessage[];
+  last_message: string;
+  last_at: string;
+  unread: number;
+}
+
+const TABS = ['Connect', 'Conversations', 'AI Agent', 'Send', 'Campaigns', 'Templates'] as const;
+type Tab = typeof TABS[number];
 
 const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
   draft:     '#9CA3AF',
@@ -61,15 +90,23 @@ const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
   failed:    '#f87171',
 };
 
-// ─── Component ─────────────────────────────────────────────────────────────────
+function isDaemonOnline(ping: string | null): boolean {
+  if (!ping) return false;
+  return Date.now() - new Date(ping).getTime() < 90_000; // 90s grace (daemon pings every 30s)
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
 export default function WhatsAppPage() {
   const portal = useCompanyPortalState();
-  const [tab, setTab] = useState<Tab>('Overview');
+  const [tab, setTab] = useState<Tab>('Connect');
+  const [config, setConfig] = useState<WaConfig | null>(null);
+  const [companyId, setCompanyId] = useState<string>('');
   const [queue, setQueue] = useState<QueueMsg[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConv, setActiveConv] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [daemonOnline, setDaemonOnline] = useState<boolean | null>(null);
   const [error, setError] = useState('');
 
   // Send form
@@ -81,11 +118,7 @@ export default function WhatsAppPage() {
 
   // Campaign builder
   const [showCampaignForm, setShowCampaignForm] = useState(false);
-  const [newCampaign, setNewCampaign] = useState({
-    name: '', custom_message: '',
-    target_type: 'manual' as 'manual' | 'leads',
-    target_manual_numbers: '',
-  });
+  const [newCampaign, setNewCampaign] = useState({ name: '', custom_message: '', target_type: 'manual' as 'manual' | 'leads', target_manual_numbers: '' });
   const [campaignSaving, setCampaignSaving] = useState(false);
   const [launchingId, setLaunchingId] = useState<string | null>(null);
 
@@ -94,68 +127,103 @@ export default function WhatsAppPage() {
   const [newTemplate, setNewTemplate] = useState({ name: '', body: '', category: 'outreach' });
   const [templateSaving, setTemplateSaving] = useState(false);
 
+  // AI Agent form
+  const [agentForm, setAgentForm] = useState({
+    ai_agent_enabled: false,
+    ai_agent_name: 'Assistant',
+    ai_agent_tone: 'professional',
+    ai_agent_system_prompt: '',
+    ai_agent_faq: [] as Array<{ q: string; a: string }>,
+    ai_agent_escalation_keywords: '',
+    ai_agent_escalation_email: '',
+  });
+  const [agentSaving, setAgentSaving] = useState(false);
+  const [agentSaved, setAgentSaved] = useState(false);
+
+  // Connect tab
+  const [copied, setCopied] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const qrPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const stats = {
     pending: queue.filter(m => m.status === 'pending').length,
     sent:    queue.filter(m => m.status === 'sent').length,
     failed:  queue.filter(m => m.status === 'failed').length,
   };
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadConfig = useCallback(async () => {
     try {
-      const [qRes, cRes, tRes] = await Promise.all([
+      const res = await fetch('/api/business/whatsapp/config');
+      const data = await res.json();
+      setConfig(data.config ?? null);
+      setCompanyId(data.company_id ?? '');
+      if (data.config) {
+        setAgentForm({
+          ai_agent_enabled: data.config.ai_agent_enabled ?? false,
+          ai_agent_name: data.config.ai_agent_name ?? 'Assistant',
+          ai_agent_tone: data.config.ai_agent_tone ?? 'professional',
+          ai_agent_system_prompt: data.config.ai_agent_system_prompt ?? '',
+          ai_agent_faq: data.config.ai_agent_faq ?? [],
+          ai_agent_escalation_keywords: (data.config.ai_agent_escalation_keywords ?? []).join(', '),
+          ai_agent_escalation_email: data.config.ai_agent_escalation_email ?? '',
+        });
+      }
+    } catch { /* silent */ }
+  }, []);
+
+  const loadQueueAndMore = useCallback(async () => {
+    try {
+      const [qRes, cRes, tRes, cvRes] = await Promise.all([
         fetch('/api/business/whatsapp/queue'),
         fetch('/api/business/whatsapp/campaigns'),
         fetch('/api/business/whatsapp/templates'),
+        fetch('/api/business/whatsapp/conversations'),
       ]);
-      const [qData, cData, tData] = await Promise.all([qRes.json(), cRes.json(), tRes.json()]);
+      const [qData, cData, tData, cvData] = await Promise.all([qRes.json(), cRes.json(), tRes.json(), cvRes.json()]);
       setQueue(qData.queue ?? []);
       setCampaigns(cData.campaigns ?? []);
       setTemplates(tData.templates ?? []);
+      setConversations(cvData.conversations ?? []);
     } catch {
       setError('Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const checkDaemon = useCallback(async () => {
-    try {
-      const res = await fetch('http://localhost:3005/api/status', { signal: AbortSignal.timeout(3000) });
-      setDaemonOnline(res.ok);
-    } catch {
-      setDaemonOnline(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData();
-    checkDaemon();
-  }, [loadData, checkDaemon]);
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([loadConfig(), loadQueueAndMore()]);
+      setLoading(false);
+    };
+    init();
+  }, [loadConfig, loadQueueAndMore]);
+
+  // Poll QR every 5s when on Connect tab and not connected
+  useEffect(() => {
+    if (tab !== 'Connect') {
+      if (qrPollRef.current) { clearInterval(qrPollRef.current); qrPollRef.current = null; }
+      return;
+    }
+    if (config?.connected) return;
+    qrPollRef.current = setInterval(loadConfig, 5000);
+    return () => { if (qrPollRef.current) clearInterval(qrPollRef.current); };
+  }, [tab, config?.connected, loadConfig]);
 
   const handleSend = async () => {
     if (!sendNumber.trim() || !sendMessage.trim()) return;
-    setSending(true);
-    setSendResult(null);
+    setSending(true); setSendResult(null);
     try {
       const res = await fetch('/api/business/whatsapp/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to_number: sendNumber.trim(), message: sendMessage.trim(), contact_name: sendName.trim() || null }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      setSendResult('success');
-      setSendNumber('');
-      setSendMessage('');
-      setSendName('');
-      loadData();
+      setSendResult('success'); setSendNumber(''); setSendMessage(''); setSendName('');
+      loadQueueAndMore();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Send failed');
-      setSendResult('error');
-    } finally {
-      setSending(false);
-    }
+      setError(e instanceof Error ? e.message : 'Send failed'); setSendResult('error');
+    } finally { setSending(false); }
   };
 
   const handleCreateCampaign = async () => {
@@ -164,43 +232,30 @@ export default function WhatsAppPage() {
     try {
       const numbers = newCampaign.target_manual_numbers.split('\n').map(n => n.trim()).filter(Boolean);
       const res = await fetch('/api/business/whatsapp/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newCampaign.name,
-          custom_message: newCampaign.custom_message,
-          target_type: newCampaign.target_type,
-          target_manual_numbers: newCampaign.target_type === 'manual' ? numbers : [],
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCampaign.name, custom_message: newCampaign.custom_message, target_type: newCampaign.target_type, target_manual_numbers: newCampaign.target_type === 'manual' ? numbers : [] }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setCampaigns(prev => [data.campaign, ...prev]);
       setShowCampaignForm(false);
       setNewCampaign({ name: '', custom_message: '', target_type: 'manual', target_manual_numbers: '' });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create campaign');
-    } finally {
-      setCampaignSaving(false);
-    }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to create campaign'); }
+    finally { setCampaignSaving(false); }
   };
 
   const handleLaunchCampaign = async (id: string) => {
     setLaunchingId(id);
     try {
       const res = await fetch('/api/business/whatsapp/campaigns/launch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ campaign_id: id }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      loadData();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Launch failed');
-    } finally {
-      setLaunchingId(null);
-    }
+      loadQueueAndMore();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Launch failed'); }
+    finally { setLaunchingId(null); }
   };
 
   const handleCreateTemplate = async () => {
@@ -209,8 +264,7 @@ export default function WhatsAppPage() {
     try {
       const vars = (newTemplate.body.match(/\{\{(\w+)\}\}/g) ?? []).map(v => v.replace(/[{}]/g, ''));
       const res = await fetch('/api/business/whatsapp/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...newTemplate, variables: vars }),
       });
       const data = await res.json();
@@ -218,47 +272,87 @@ export default function WhatsAppPage() {
       setTemplates(prev => [data.template, ...prev]);
       setShowTemplateForm(false);
       setNewTemplate({ name: '', body: '', category: 'outreach' });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create template');
-    } finally {
-      setTemplateSaving(false);
-    }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to create template'); }
+    finally { setTemplateSaving(false); }
   };
 
   const deleteTemplate = async (id: string) => {
-    await fetch('/api/business/whatsapp/templates', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
+    await fetch('/api/business/whatsapp/templates', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
     setTemplates(prev => prev.filter(t => t.id !== id));
   };
 
+  const handleSaveAgent = async () => {
+    setAgentSaving(true); setAgentSaved(false);
+    try {
+      const keywords = agentForm.ai_agent_escalation_keywords.split(',').map(k => k.trim()).filter(Boolean);
+      const res = await fetch('/api/business/whatsapp/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ai_agent_enabled: agentForm.ai_agent_enabled,
+          ai_agent_name: agentForm.ai_agent_name,
+          ai_agent_tone: agentForm.ai_agent_tone,
+          ai_agent_system_prompt: agentForm.ai_agent_system_prompt,
+          ai_agent_faq: agentForm.ai_agent_faq,
+          ai_agent_escalation_keywords: keywords,
+          ai_agent_escalation_email: agentForm.ai_agent_escalation_email || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setAgentSaved(true);
+      setTimeout(() => setAgentSaved(false), 3000);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to save'); }
+    finally { setAgentSaving(false); }
+  };
+
+  const addFaqRow = () => setAgentForm(p => ({ ...p, ai_agent_faq: [...p.ai_agent_faq, { q: '', a: '' }] }));
+  const removeFaqRow = (i: number) => setAgentForm(p => ({ ...p, ai_agent_faq: p.ai_agent_faq.filter((_, idx) => idx !== i) }));
+  const updateFaqRow = (i: number, field: 'q' | 'a', val: string) => setAgentForm(p => ({
+    ...p, ai_agent_faq: p.ai_agent_faq.map((r, idx) => idx === i ? { ...r, [field]: val } : r)
+  }));
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
+
   if (!portal.loading && !portal.featureAccess.whatsapp) {
-    return <BusinessPortalLocked featureName="WhatsApp" />;
+    return <BusinessPortalLocked title="WhatsApp Automation" description="Upgrade your plan to access WhatsApp campaigns, AI agent, and conversation inbox." />;
   }
+
+  const daemonOnline = isDaemonOnline(config?.daemon_last_ping ?? null);
+  const activeThread = conversations.find(c => c.contact === activeConv);
+
+  const tabIcons: Record<Tab, React.ReactNode> = {
+    Connect: <QrCode size={13} />,
+    Conversations: <MessageCircle size={13} />,
+    'AI Agent': <Bot size={13} />,
+    Send: <Send size={13} />,
+    Campaigns: <Megaphone size={13} />,
+    Templates: <FileText size={13} />,
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <style>{`@keyframes wa-spin{to{transform:rotate(360deg)}}`}</style>
 
       {/* Header */}
       <div style={{ background: '#fff', borderBottom: '1px solid #E5E7EB', padding: '20px 28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F0FDF4', border: '1px solid #BBF7D0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <MessageSquare size={18} color="#16a34a" />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: 19, fontWeight: 700, color: '#111' }}>WhatsApp Outreach</h1>
-            <p style={{ margin: 0, fontSize: 12, color: '#6B7280' }}>Campaigns and messaging via shared admin bridge</p>
+            <h1 style={{ margin: 0, fontSize: 19, fontWeight: 700, color: '#111' }}>WhatsApp</h1>
+            <p style={{ margin: 0, fontSize: 12, color: '#6B7280' }}>Connect your number, run campaigns, and automate conversations with AI</p>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: daemonOnline === null ? '#F9FAFB' : daemonOnline ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${daemonOnline ? '#BBF7D0' : daemonOnline === null ? '#E5E7EB' : '#FECACA'}`, borderRadius: 99, padding: '4px 12px' }}>
-              {daemonOnline ? <Wifi size={12} color="#16a34a" /> : <WifiOff size={12} color={daemonOnline === null ? '#9CA3AF' : '#DC2626'} />}
-              <span style={{ fontSize: 12, fontWeight: 600, color: daemonOnline ? '#16a34a' : daemonOnline === null ? '#9CA3AF' : '#DC2626' }}>
-                {daemonOnline === null ? 'Checking…' : daemonOnline ? 'Bridge online' : 'Bridge offline'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: config?.connected ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${config?.connected ? '#BBF7D0' : '#FECACA'}`, borderRadius: 99, padding: '4px 12px' }}>
+              {config?.connected && daemonOnline ? <Wifi size={12} color="#16a34a" /> : <WifiOff size={12} color="#DC2626" />}
+              <span style={{ fontSize: 12, fontWeight: 600, color: config?.connected && daemonOnline ? '#16a34a' : '#DC2626' }}>
+                {!config ? 'Not connected' : config.connected && daemonOnline ? `Connected${config.whatsapp_number ? ` · +${config.whatsapp_number}` : ''}` : config.connected ? 'Daemon offline' : 'Not connected'}
               </span>
             </div>
-            <button onClick={() => { loadData(); checkDaemon(); }} style={{ padding: '6px', borderRadius: 8, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <button onClick={() => { loadConfig(); loadQueueAndMore(); }} style={{ padding: 6, borderRadius: 8, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', display: 'flex' }}>
               <RefreshCw size={14} color="#6B7280" />
             </button>
           </div>
@@ -275,122 +369,330 @@ export default function WhatsAppPage() {
 
       {/* Tabs */}
       <div style={{ background: '#fff', borderBottom: '1px solid #E5E7EB', padding: '0 28px', display: 'flex', gap: 0 }}>
-        {TABS.map(t => {
-          const icons: Record<Tab, React.ReactNode> = {
-            Overview: <Activity size={13} />,
-            Send: <Send size={13} />,
-            Campaigns: <Megaphone size={13} />,
-            Templates: <FileText size={13} />,
-          };
-          return (
-            <button key={t} onClick={() => setTab(t)}
-              style={{ padding: '12px 18px', background: 'none', border: 'none', borderBottom: `2px solid ${tab === t ? '#16a34a' : 'transparent'}`, color: tab === t ? '#15803d' : '#6B7280', fontWeight: tab === t ? 700 : 500, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
-              {icons[t]}{t}
-            </button>
-          );
-        })}
+        {TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: '12px 16px', background: 'none', border: 'none', borderBottom: `2px solid ${tab === t ? '#16a34a' : 'transparent'}`, color: tab === t ? '#15803d' : '#6B7280', fontWeight: tab === t ? 700 : 500, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {tabIcons[t]}{t}
+          </button>
+        ))}
       </div>
 
       {loading ? (
         <div style={{ padding: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, color: '#9CA3AF' }}>
           <div style={{ width: 20, height: 20, border: '2px solid #E5E7EB', borderTopColor: '#16a34a', borderRadius: '50%', animation: 'wa-spin 0.8s linear infinite' }} />
-          <style>{`@keyframes wa-spin{to{transform:rotate(360deg)}}`}</style>
           Loading…
         </div>
       ) : (
         <AnimatePresence mode="wait">
-          <motion.div key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-            style={{ padding: '28px' }}>
+          <motion.div key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} style={{ padding: '28px' }}>
 
-            {/* ── OVERVIEW ────────────────────────────────────────── */}
-            {tab === 'Overview' && (
-              <div style={{ maxWidth: 860 }}>
-                {/* Stats */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
-                  {[
-                    { label: 'Pending', value: stats.pending, cls: '#92400e', bg: '#FEF3C7', border: '#FDE68A' },
-                    { label: 'Sent',    value: stats.sent,    cls: '#166534', bg: '#F0FDF4', border: '#BBF7D0' },
-                    { label: 'Failed',  value: stats.failed,  cls: '#991B1B', bg: '#FEF2F2', border: '#FECACA' },
-                  ].map(s => (
-                    <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 12, padding: '18px 20px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 28, fontWeight: 800, color: s.cls, tabularNums: true } as React.CSSProperties}>{s.value}</div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: s.cls, opacity: 0.7, marginTop: 2 }}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Daemon status */}
-                {!daemonOnline && (
-                  <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                      <WifiOff size={18} color="#D97706" style={{ marginTop: 1, flexShrink: 0 }} />
+            {/* ── CONNECT ─────────────────────────────────────────── */}
+            {tab === 'Connect' && (
+              <div style={{ maxWidth: 680 }}>
+                {config?.connected && daemonOnline ? (
+                  /* Connected state */
+                  <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: '28px 32px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CheckCircle2 size={24} color="#16a34a" />
+                      </div>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: '#92400e', marginBottom: 4 }}>WhatsApp bridge is offline</div>
-                        <div style={{ fontSize: 13, color: '#78350f', lineHeight: 1.6 }}>
-                          Messages are queued and will be sent automatically when the admin starts the local daemon.
-                          Contact your admin if urgent.
+                        <div style={{ fontWeight: 700, fontSize: 17, color: '#166534' }}>WhatsApp connected</div>
+                        <div style={{ fontSize: 13, color: '#15803d', marginTop: 2 }}>
+                          {config.whatsapp_number ? `+${config.whatsapp_number}` : 'Number active'}
+                          {' · '}Daemon online
                         </div>
                       </div>
                     </div>
+                    <div style={{ fontSize: 13, color: '#166534', lineHeight: 1.7 }}>
+                      Your WhatsApp daemon is running and connected. Messages from the Send tab and campaigns will be delivered via your connected number.
+                      To reconnect with a different number, restart the daemon without the saved session.
+                    </div>
+                  </div>
+                ) : (
+                  /* Not connected state */
+                  <div>
+                    {/* QR section */}
+                    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '28px', marginBottom: 20 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <QrCode size={20} color="#374151" />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 15 }}>Scan QR to connect your WhatsApp</div>
+                          <div style={{ fontSize: 12, color: '#6B7280', marginTop: 1 }}>Start your daemon, then scan the QR that appears below</div>
+                        </div>
+                      </div>
+
+                      {config?.qr_code ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={config.qr_code} alt="WhatsApp QR Code" style={{ width: 220, height: 220, border: '2px solid #E5E7EB', borderRadius: 12 }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B7280' }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', animation: 'wa-spin 2s linear infinite' }} />
+                            QR refreshes automatically · Polling every 5 seconds
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ background: '#F9FAFB', border: '2px dashed #E5E7EB', borderRadius: 12, padding: '48px 20px', textAlign: 'center' }}>
+                          <QrCode size={48} color="#D1D5DB" style={{ margin: '0 auto 12px' }} />
+                          <div style={{ fontWeight: 600, fontSize: 14, color: '#374151', marginBottom: 6 }}>No QR code yet</div>
+                          <div style={{ fontSize: 13, color: '#9CA3AF' }}>Start your WhatsApp daemon below. The QR will appear here automatically.</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Your Company ID */}
+                    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '20px 24px', marginBottom: 20 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Your Company ID</div>
+                      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>You need this when starting your WhatsApp daemon.</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <code style={{ flex: 1, background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'monospace', wordBreak: 'break-all', color: '#1F2937' }}>
+                          {companyId || '…loading'}
+                        </code>
+                        <button onClick={() => copyToClipboard(companyId)} disabled={!companyId}
+                          style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #D1D5DB', background: copied ? '#F0FDF4' : '#fff', color: copied ? '#15803d' : '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                          <Copy size={13} />
+                          {copied ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Setup instructions */}
+                    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, overflow: 'hidden' }}>
+                      <button onClick={() => setShowInstructions(p => !p)}
+                        style={{ width: '100%', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit' }}>
+                        <Terminal size={16} color="#374151" />
+                        <span style={{ fontWeight: 700, fontSize: 14, color: '#111' }}>How to start your daemon</span>
+                        <span style={{ marginLeft: 'auto', color: '#9CA3AF' }}>{showInstructions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
+                      </button>
+                      {showInstructions && (
+                        <div style={{ padding: '0 24px 24px', borderTop: '1px solid #F3F4F6' }}>
+                          <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.8 }}>
+                            <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>1. Download the daemon files from your admin</p>
+                            <p style={{ margin: '0 0 12px', color: '#6B7280' }}>
+                              You need <code style={{ background: '#F3F4F6', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace' }}>whatsapp-host.mjs</code>,{' '}
+                              <code style={{ background: '#F3F4F6', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace' }}>package.json</code>,{' '}
+                              and a <code style={{ background: '#F3F4F6', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace' }}>.env</code> file with Supabase credentials.
+                            </p>
+                            <p style={{ marginBottom: 8, fontWeight: 600 }}>2. Add your Company ID to the .env file</p>
+                            <pre style={{ background: '#1F2937', color: '#D1FAE5', padding: '12px 16px', borderRadius: 8, fontSize: 12, fontFamily: 'monospace', margin: '0 0 12px', overflowX: 'auto' }}>
+{`COMPANY_ID=${companyId || '<your-company-id>'}
+NEXT_APP_URL=https://your-levitate-domain.com
+DAEMON_SECRET=levitate-daemon-secret`}
+                            </pre>
+                            <p style={{ marginBottom: 8, fontWeight: 600 }}>3. Install and run</p>
+                            <pre style={{ background: '#1F2937', color: '#D1FAE5', padding: '12px 16px', borderRadius: 8, fontSize: 12, fontFamily: 'monospace', margin: 0, overflowX: 'auto' }}>
+{`npm install
+node whatsapp-host.mjs`}
+                            </pre>
+                            <p style={{ marginTop: 12, marginBottom: 0, color: '#6B7280' }}>
+                              A QR code will appear in your terminal AND sync to this dashboard. Scan it with your WhatsApp to connect.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
+              </div>
+            )}
 
-                {/* Queue list */}
-                <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, overflow: 'hidden' }}>
-                  <div style={{ padding: '14px 20px', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>Your message queue</span>
-                    <span style={{ background: '#F3F4F6', color: '#6B7280', borderRadius: 99, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>{queue.length}</span>
-                    <button onClick={loadData} style={{ marginLeft: 'auto', padding: 6, borderRadius: 8, border: '1px solid #E5E7EB', background: '#fff', cursor: 'pointer', display: 'flex' }}>
-                      <RefreshCw size={13} color="#6B7280" />
-                    </button>
+            {/* ── CONVERSATIONS ────────────────────────────────────── */}
+            {tab === 'Conversations' && (
+              <div style={{ maxWidth: 960, display: 'flex', gap: 16, height: '70vh' }}>
+                {/* Thread list */}
+                <div style={{ width: 280, flexShrink: 0, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '14px 16px', borderBottom: '1px solid #E5E7EB', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Users size={14} color="#6B7280" />
+                    Conversations
+                    <span style={{ background: '#F3F4F6', color: '#6B7280', borderRadius: 99, padding: '1px 7px', fontSize: 11, fontWeight: 700, marginLeft: 'auto' }}>{conversations.length}</span>
                   </div>
-                  {queue.length === 0 ? (
-                    <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>
-                      No messages queued yet. Use the Send tab or launch a campaign.
+                  <div style={{ flex: 1, overflowY: 'auto' }}>
+                    {conversations.length === 0 ? (
+                      <div style={{ padding: 24, textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>
+                        No conversations yet. Connect your WhatsApp and customers will appear here.
+                      </div>
+                    ) : conversations.map(conv => (
+                      <button key={conv.contact} onClick={() => setActiveConv(conv.contact)}
+                        style={{ width: '100%', padding: '12px 16px', background: activeConv === conv.contact ? '#F0FDF4' : 'none', border: 'none', borderBottom: '1px solid #F3F4F6', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14, fontWeight: 700, color: '#374151' }}>
+                            {conv.contact.slice(-2)}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontWeight: 600, fontSize: 13, color: '#111' }}>+{conv.contact}</span>
+                              {conv.unread > 0 && <span style={{ background: '#16a34a', color: '#fff', borderRadius: 99, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{conv.unread}</span>}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{conv.last_message}</div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Message pane */}
+                <div style={{ flex: 1, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  {!activeThread ? (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10, color: '#9CA3AF' }}>
+                      <MessageCircle size={40} />
+                      <div style={{ fontSize: 14 }}>Select a conversation to view messages</div>
                     </div>
                   ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid #E5E7EB', background: '#F9FAFB' }}>
-                            {['Number', 'Contact', 'Message', 'Status', 'Queued'].map(h => (
-                              <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {queue.map((m, i) => (
-                            <tr key={m.id} style={{ borderBottom: i < queue.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
-                              <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: 12 }}>{m.to_number}</td>
-                              <td style={{ padding: '10px 16px', color: '#374151' }}>{m.contact_name ?? '—'}</td>
-                              <td style={{ padding: '10px 16px', color: '#6B7280', maxWidth: 240 }}>
-                                <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={m.message}>{m.message}</span>
-                                {m.error && <span style={{ display: 'block', color: '#DC2626', fontSize: 11 }}>{m.error}</span>}
-                              </td>
-                              <td style={{ padding: '10px 16px' }}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 99, fontSize: 11, fontWeight: 700, border: '1px solid', ...(() => {
-                                  const c: Record<string, { background: string; color: string; borderColor: string }> = {
-                                    sent:    { background: '#F0FDF4', color: '#15803d', borderColor: '#BBF7D0' },
-                                    pending: { background: '#FFFBEB', color: '#92400e', borderColor: '#FDE68A' },
-                                    failed:  { background: '#FEF2F2', color: '#991b1b', borderColor: '#FECACA' },
-                                  };
-                                  return c[m.status] ?? c.pending;
-                                })() }}>
-                                  {m.status === 'sent' && <CheckCircle2 size={10} />}
-                                  {m.status === 'pending' && <Clock size={10} />}
-                                  {m.status === 'failed' && <XCircle size={10} />}
-                                  {m.status.charAt(0).toUpperCase() + m.status.slice(1)}
+                    <>
+                      <div style={{ padding: '14px 20px', borderBottom: '1px solid #E5E7EB', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+                          {activeThread.contact.slice(-2)}
+                        </div>
+                        +{activeThread.contact}
+                        <button onClick={() => { setSendNumber('+' + activeThread.contact); setTab('Send'); }}
+                          style={{ marginLeft: 'auto', padding: '6px 12px', borderRadius: 7, border: '1px solid #D1D5DB', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Send size={12} />Reply
+                        </button>
+                      </div>
+                      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {activeThread.messages.map(msg => (
+                          <div key={msg.id} style={{ display: 'flex', justifyContent: msg.direction === 'outbound' ? 'flex-end' : 'flex-start' }}>
+                            <div style={{ maxWidth: '72%' }}>
+                              <div style={{
+                                padding: '10px 14px', borderRadius: msg.direction === 'outbound' ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
+                                background: msg.direction === 'outbound' ? '#16a34a' : '#F3F4F6',
+                                color: msg.direction === 'outbound' ? '#fff' : '#111',
+                                fontSize: 13, lineHeight: 1.5,
+                              }}>
+                                {msg.message}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, justifyContent: msg.direction === 'outbound' ? 'flex-end' : 'flex-start' }}>
+                                {msg.is_ai_response && <span style={{ fontSize: 10, color: '#9CA3AF', display: 'flex', alignItems: 'center', gap: 3 }}><Bot size={10} />AI</span>}
+                                <span style={{ fontSize: 10, color: '#9CA3AF' }}>
+                                  {new Date(msg.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                                 </span>
-                              </td>
-                              <td style={{ padding: '10px 16px', color: '#9CA3AF', fontSize: 11, whiteSpace: 'nowrap' }}>
-                                {new Date(m.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* ── AI AGENT ────────────────────────────────────────── */}
+            {tab === 'AI Agent' && (
+              <div style={{ maxWidth: 660 }}>
+                <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '28px 32px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Bot size={20} color="#6366f1" />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 15 }}>AI Agent configuration</div>
+                      <div style={{ fontSize: 12, color: '#6B7280', marginTop: 1 }}>Configure the Groq AI agent that auto-replies to customer messages</div>
+                    </div>
+                    {/* Enable toggle */}
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Enable AI</span>
+                      <button onClick={() => setAgentForm(p => ({ ...p, ai_agent_enabled: !p.ai_agent_enabled }))}
+                        style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: agentForm.ai_agent_enabled ? '#16a34a' : '#D1D5DB', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: agentForm.ai_agent_enabled ? 23 : 3, transition: 'left 0.2s' }} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20, opacity: agentForm.ai_agent_enabled ? 1 : 0.5, pointerEvents: agentForm.ai_agent_enabled ? 'auto' : 'none' }}>
+                    {/* Agent Name */}
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Agent name</span>
+                      <input value={agentForm.ai_agent_name} onChange={e => setAgentForm(p => ({ ...p, ai_agent_name: e.target.value }))}
+                        placeholder="e.g. Aria"
+                        style={{ padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 9, fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
+                    </label>
+
+                    {/* Tone */}
+                    <div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tone</span>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                        {(['professional', 'friendly', 'casual'] as const).map(tone => (
+                          <button key={tone} onClick={() => setAgentForm(p => ({ ...p, ai_agent_tone: tone }))}
+                            style={{ flex: 1, padding: '8px', borderRadius: 8, border: `1.5px solid ${agentForm.ai_agent_tone === tone ? '#6366f1' : '#D1D5DB'}`, background: agentForm.ai_agent_tone === tone ? '#EEF2FF' : '#fff', color: agentForm.ai_agent_tone === tone ? '#4f46e5' : '#6B7280', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize' }}>
+                            {tone}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* System prompt */}
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>System prompt</span>
+                      <textarea value={agentForm.ai_agent_system_prompt} onChange={e => setAgentForm(p => ({ ...p, ai_agent_system_prompt: e.target.value }))}
+                        placeholder="You are a helpful assistant for [business name]. You help customers with inquiries about our services…"
+                        rows={5}
+                        style={{ padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 9, fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'vertical', lineHeight: 1.6 }} />
+                    </label>
+
+                    {/* FAQ */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>FAQ knowledge base</span>
+                        <button onClick={addFaqRow}
+                          style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid #D1D5DB', background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <Plus size={12} />Add Q&amp;A
+                        </button>
+                      </div>
+                      {agentForm.ai_agent_faq.length === 0 ? (
+                        <div style={{ background: '#F9FAFB', border: '1px dashed #E5E7EB', borderRadius: 9, padding: '20px', textAlign: 'center', fontSize: 13, color: '#9CA3AF' }}>
+                          Add Q&amp;A pairs to help the AI answer common questions accurately
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {agentForm.ai_agent_faq.map((row, i) => (
+                            <div key={i} style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 9, padding: '12px 14px', display: 'flex', gap: 10 }}>
+                              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <input value={row.q} onChange={e => updateFaqRow(i, 'q', e.target.value)}
+                                  placeholder="Question" style={{ padding: '7px 10px', border: '1px solid #D1D5DB', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', outline: 'none' }} />
+                                <textarea value={row.a} onChange={e => updateFaqRow(i, 'a', e.target.value)}
+                                  placeholder="Answer" rows={2} style={{ padding: '7px 10px', border: '1px solid #D1D5DB', borderRadius: 7, fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'vertical' }} />
+                              </div>
+                              <button onClick={() => removeFaqRow(i)} style={{ padding: 6, borderRadius: 7, border: '1px solid #FECACA', background: '#FEF2F2', color: '#DC2626', cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-start' }}>
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Escalation */}
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Escalation keywords</span>
+                      <span style={{ fontSize: 11, color: '#6B7280' }}>Comma-separated. AI will transfer to human when these are detected.</span>
+                      <input value={agentForm.ai_agent_escalation_keywords} onChange={e => setAgentForm(p => ({ ...p, ai_agent_escalation_keywords: e.target.value }))}
+                        placeholder="refund, complaint, human, urgent"
+                        style={{ padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 9, fontSize: 13, fontFamily: 'inherit', outline: 'none' }} />
+                    </label>
+
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Escalation email</span>
+                      <input type="email" value={agentForm.ai_agent_escalation_email} onChange={e => setAgentForm(p => ({ ...p, ai_agent_escalation_email: e.target.value }))}
+                        placeholder="support@yourcompany.com"
+                        style={{ padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 9, fontSize: 13, fontFamily: 'inherit', outline: 'none' }} />
+                    </label>
+                  </div>
+
+                  <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button onClick={handleSaveAgent} disabled={agentSaving}
+                      style={{ padding: '11px 24px', borderRadius: 9, border: 'none', background: '#6366f1', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', opacity: agentSaving ? 0.6 : 1 }}>
+                      {agentSaving ? 'Saving…' : 'Save configuration'}
+                    </button>
+                    {agentSaved && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#16a34a', fontSize: 13 }}>
+                        <CheckCircle2 size={15} />Saved
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -405,46 +707,38 @@ export default function WhatsAppPage() {
                     </div>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 15 }}>Send message</div>
-                      <div style={{ fontSize: 12, color: '#6B7280' }}>Queued via shared admin bridge</div>
+                      <div style={{ fontSize: 12, color: '#6B7280' }}>Queued via your connected number</div>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone number</span>
-                      <input value={sendNumber} onChange={e => setSendNumber(e.target.value)}
-                        placeholder="+919999999999"
+                      <input value={sendNumber} onChange={e => setSendNumber(e.target.value)} placeholder="+919999999999"
                         style={{ padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 9, fontSize: 14, fontFamily: 'monospace', outline: 'none' }} />
                     </label>
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Contact name <span style={{ color: '#9CA3AF', fontWeight: 400, textTransform: 'none' }}>(optional)</span></span>
-                      <input value={sendName} onChange={e => setSendName(e.target.value)}
-                        placeholder="John Doe"
+                      <input value={sendName} onChange={e => setSendName(e.target.value)} placeholder="John Doe"
                         style={{ padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 9, fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
                     </label>
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Message</span>
-                      <textarea value={sendMessage} onChange={e => setSendMessage(e.target.value)} rows={5}
-                        placeholder="Type your message…"
+                      <textarea value={sendMessage} onChange={e => setSendMessage(e.target.value)} rows={5} placeholder="Type your message…"
                         style={{ padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 9, fontSize: 14, fontFamily: 'inherit', outline: 'none', resize: 'vertical' }} />
                     </label>
-
                     {sendResult === 'success' && (
                       <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 9, padding: '10px 14px', fontSize: 13, color: '#15803d', display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <CheckCircle2 size={14} />
-                        Message queued successfully
+                        <CheckCircle2 size={14} />Message queued successfully
                       </div>
                     )}
-
                     <button onClick={handleSend} disabled={sending || !sendNumber.trim() || !sendMessage.trim()}
                       style={{ padding: '12px 20px', borderRadius: 9, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: (sending || !sendNumber.trim() || !sendMessage.trim()) ? 0.55 : 1, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      <Send size={15} />
-                      {sending ? 'Queuing…' : 'Queue message'}
+                      <Send size={15} />{sending ? 'Queuing…' : 'Queue message'}
                     </button>
                   </div>
                 </div>
 
-                {/* Templates shortcut */}
                 {templates.length > 0 && (
                   <div style={{ marginTop: 20 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Use a template</div>
@@ -459,6 +753,25 @@ export default function WhatsAppPage() {
                           </div>
                           <ChevronRight size={14} color="#D1D5DB" />
                         </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Queue summary */}
+                {queue.length > 0 && (
+                  <div style={{ marginTop: 20 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Queue status</div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      {[
+                        { label: 'Pending', value: stats.pending, color: '#92400e', bg: '#FEF3C7' },
+                        { label: 'Sent', value: stats.sent, color: '#166534', bg: '#F0FDF4' },
+                        { label: 'Failed', value: stats.failed, color: '#991B1B', bg: '#FEF2F2' },
+                      ].map(s => (
+                        <div key={s.label} style={{ flex: 1, background: s.bg, borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                          <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: s.color, opacity: 0.7 }}>{s.label}</div>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -504,10 +817,7 @@ export default function WhatsAppPage() {
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: 20, flexShrink: 0 }}>
-                          {[
-                            { l: 'Recipients', v: c.total_recipients },
-                            { l: 'Sent', v: c.sent_count },
-                          ].map(s => (
+                          {[{ l: 'Recipients', v: c.total_recipients }, { l: 'Sent', v: c.sent_count }].map(s => (
                             <div key={s.l} style={{ textAlign: 'center' }}>
                               <div style={{ fontWeight: 800, fontSize: 17 }}>{s.v}</div>
                               <div style={{ fontSize: 11, color: '#9CA3AF' }}>{s.l}</div>
@@ -517,7 +827,7 @@ export default function WhatsAppPage() {
                         <span style={{ background: CAMPAIGN_STATUS_COLORS[c.status] + '22', color: CAMPAIGN_STATUS_COLORS[c.status], borderRadius: 99, padding: '4px 12px', fontSize: 11, fontWeight: 700, textTransform: 'capitalize', flexShrink: 0 }}>
                           {c.status}
                         </span>
-                        {(c.status === 'draft') && (
+                        {c.status === 'draft' && (
                           <button onClick={() => handleLaunchCampaign(c.id)} disabled={launchingId === c.id}
                             style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', opacity: launchingId === c.id ? 0.6 : 1 }}>
                             {launchingId === c.id ? 'Launching…' : 'Launch'}
@@ -528,7 +838,6 @@ export default function WhatsAppPage() {
                   </div>
                 )}
 
-                {/* Campaign form modal */}
                 <AnimatePresence>
                   {showCampaignForm && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -545,8 +854,7 @@ export default function WhatsAppPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                           <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                             <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Campaign name</span>
-                            <input value={newCampaign.name} onChange={e => setNewCampaign(p => ({ ...p, name: e.target.value }))}
-                              placeholder="e.g. March follow-up"
+                            <input value={newCampaign.name} onChange={e => setNewCampaign(p => ({ ...p, name: e.target.value }))} placeholder="e.g. March follow-up"
                               style={{ padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 9, fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
                           </label>
                           <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -611,7 +919,7 @@ export default function WhatsAppPage() {
                   <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '48px 20px', textAlign: 'center' }}>
                     <FileText size={32} color="#D1D5DB" style={{ margin: '0 auto 12px' }} />
                     <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>No templates yet</div>
-                    <div style={{ color: '#6B7280', fontSize: 13 }}>Create reusable message templates to speed up your campaigns</div>
+                    <div style={{ color: '#6B7280', fontSize: 13 }}>Create reusable message templates to speed up campaigns</div>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -644,7 +952,6 @@ export default function WhatsAppPage() {
                   </div>
                 )}
 
-                {/* Template form modal */}
                 <AnimatePresence>
                   {showTemplateForm && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -661,8 +968,7 @@ export default function WhatsAppPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                           <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                             <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</span>
-                            <input value={newTemplate.name} onChange={e => setNewTemplate(p => ({ ...p, name: e.target.value }))}
-                              placeholder="e.g. Initial outreach"
+                            <input value={newTemplate.name} onChange={e => setNewTemplate(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Initial outreach"
                               style={{ padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 9, fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
                           </label>
                           <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -678,7 +984,7 @@ export default function WhatsAppPage() {
                             <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Message body</span>
                             <span style={{ fontSize: 11, color: '#6B7280' }}>Use {'{{'} name {'}}'}, {'{{'} company {'}}'} for dynamic variables</span>
                             <textarea value={newTemplate.body} onChange={e => setNewTemplate(p => ({ ...p, body: e.target.value }))}
-                              placeholder="Hi, hope you're doing well…" rows={6}
+                              placeholder="Hi, hope you are doing well…" rows={6}
                               style={{ padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 9, fontSize: 14, fontFamily: 'inherit', outline: 'none', resize: 'vertical' }} />
                           </label>
                         </div>
