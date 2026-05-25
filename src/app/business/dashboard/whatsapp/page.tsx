@@ -251,7 +251,7 @@ export default function WhatsAppDashboard() {
 
   // ─── Guard ──────────────────────────────────────────────────────────────────
   if (!portal.loading && !portal.featureAccess.whatsapp) {
-    return <BusinessPortalLocked featureName="WhatsApp" />;
+    return <BusinessPortalLocked title="WhatsApp Automation Locked" description="Upgrade to a compatible plan to unlock WhatsApp outreach campaigns and the AI responder agent." />;
   }
 
   const S: React.CSSProperties = { fontFamily: 'Inter, system-ui, sans-serif' };
