@@ -51,6 +51,17 @@ export default function MailboxPage() {
         'pushpal@levitatelabs.online'
     ];
 
+    const getSenderName = (email: string) => {
+        switch (email) {
+            case 'founder@levitatelabs.online': return 'Founder | Levitate Labs';
+            case 'support@levitatelabs.online': return 'Support | Levitate Labs';
+            case 'gurleen@levitatelabs.online': return 'Gurleen Bhatia';
+            case 'harsh@levitatelabs.online': return 'Harsh Srivastava';
+            case 'pushpal@levitatelabs.online': return 'Pushpal Sanyal';
+            default: return 'Levitate Labs';
+        }
+    };
+
     useEffect(() => {
         fetchEmails();
         
@@ -163,7 +174,7 @@ export default function MailboxPage() {
                     subject,
                     body: replyText,
                     fromEmail: fromAddress,
-                    fromName: 'Levitate Labs'
+                    fromName: getSenderName(fromAddress)
                 })
             });
 
@@ -193,7 +204,7 @@ export default function MailboxPage() {
                     subject: composeSubject,
                     body: composeBody,
                     fromEmail: fromAddress,
-                    fromName: 'Levitate Labs'
+                    fromName: getSenderName(fromAddress)
                 })
             });
 
