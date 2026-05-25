@@ -83,7 +83,7 @@ export async function POST(request: Request) {
         subject: cleanSubject,
         body: bodyHtml,
         direction: 'outbound',
-        status: 'queued',
+        status: 'sent',
         created_at: new Date().toISOString(),
       })
       .select('id')
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     await supabase
       .from('agent_emails')
       .update({
-        status: (info.accepted?.length ?? 0) > 0 ? 'accepted' : 'sent',
+        status: 'sent',
         body: bodyHtml,
       })
       .eq('id', queuedLogId);
