@@ -41,8 +41,15 @@ export default function MailboxPage() {
     const [composeBody, setComposeBody] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [filterTab, setFilterTab] = useState<'all' | 'inbound' | 'outbound'>('all');
+    const [fromAddress, setFromAddress] = useState('founder@levitatelabs.online');
 
-    const fromAddress = 'founder@levitatelabs.online';
+    const FROM_EMAILS = [
+        'founder@levitatelabs.online',
+        'support@levitatelabs.online',
+        'gurleen@levitatelabs.online',
+        'harsh@levitatelabs.online',
+        'pushpal@levitatelabs.online'
+    ];
 
     useEffect(() => {
         fetchEmails();
@@ -220,6 +227,18 @@ export default function MailboxPage() {
                         </div>
                         <div className="p-6 space-y-4 overflow-y-auto flex-1">
                             <div className="space-y-1">
+                                <label className="text-xs font-medium text-[var(--muted)] uppercase">From</label>
+                                <select
+                                    value={fromAddress}
+                                    onChange={(e) => setFromAddress(e.target.value)}
+                                    className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                                >
+                                    {FROM_EMAILS.map(email => (
+                                        <option key={email} value={email}>{email}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="space-y-1">
                                 <label className="text-xs font-medium text-[var(--muted)] uppercase">To</label>
                                 <input
                                     type="email"
@@ -375,6 +394,18 @@ export default function MailboxPage() {
                         </div>
 
                         <div className="p-4 border-t border-[var(--border)] bg-[var(--surface)]">
+                            <div className="mb-3 flex items-center gap-2">
+                                <label className="text-xs font-medium text-[var(--muted)] uppercase">Reply As:</label>
+                                <select
+                                    value={fromAddress}
+                                    onChange={(e) => setFromAddress(e.target.value)}
+                                    className="bg-[var(--background)] border border-[var(--border)] rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                                >
+                                    {FROM_EMAILS.map(email => (
+                                        <option key={email} value={email}>{email}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <div className="flex gap-2">
                                 <textarea
                                     value={replyText}
