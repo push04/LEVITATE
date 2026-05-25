@@ -175,5 +175,5 @@ echo   !LEVITATE_URL!/business/dashboard/leads
 echo  ============================================================
 echo.
 pause
-\`
+`
 }
