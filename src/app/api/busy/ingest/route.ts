@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase'
 
@@ -106,14 +107,23 @@ export async function POST(req: NextRequest) {
     const withoutEmail = leads.filter(l => !l.email)
 
     if (withEmail.length) {
-      const { data, error } = await supabase
+      // Check which emails already exist for THIS company only (not globally)
+      // This avoids cross-company email collisions where Business B loses leads
+      // that happen to share an email with Business A
+      const emailsToCheck = withEmail.map(l => l.email as string)
+      const { data: existing } = await supabase
         .from('leads')
-        .upsert(withEmail, { onConflict: 'email', ignoreDuplicates: true })
-        .select('id')
-      if (error) custFailed += withEmail.length
-      else {
-        custImported += data?.length ?? 0
-        custSkipped += withEmail.length - (data?.length ?? 0)
+        .select('email')
+        .eq('company_id', companyId ?? '')
+        .in('email', emailsToCheck)
+      const existingSet = new Set((existing ?? []).map(r => r.email as string))
+      const newLeads = withEmail.filter(l => !existingSet.has(l.email as string))
+      custSkipped += withEmail.length - newLeads.length
+
+      if (newLeads.length) {
+        const { data, error } = await supabase.from('leads').insert(newLeads).select('id')
+        if (error) custFailed += newLeads.length
+        else custImported += data?.length ?? 0
       }
     }
 
@@ -129,7 +139,7 @@ export async function POST(req: NextRequest) {
     const rows = invoices
       .filter(inv => inv.bill_no)
       .map(inv => ({
-        key: `busy_agent_inv_${inv.bill_no}_${inv.party_name ?? 'unknown'}`.slice(0, 200),
+        key: `busy_inv_${keyRow.user_id}_${inv.bill_no}_${inv.party_name ?? 'x'}`.slice(0, 200),
         value: inv,
       }))
 
@@ -159,6 +169,8 @@ export async function POST(req: NextRequest) {
       synced_at: body.synced_at ?? null,
       customers_total: customers.length,
       invoices_total: invoices.length,
+      user_id: keyRow.user_id,
+      company_id: companyId,
     },
     created_at: new Date().toISOString(),
   })
@@ -171,6 +183,5 @@ export async function POST(req: NextRequest) {
 }
 
 function hashApiKey(key: string): string {
-  const crypto = require('crypto') as typeof import('crypto')
-  return crypto.createHash('sha256').update(key).digest('hex')
+  return createHash('sha256').update(key).digest('hex')
 }

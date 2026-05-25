@@ -184,7 +184,16 @@ def read_invoices(conn) -> list[dict]:
 # ─── Payload helpers ─────────────────────────────────────────────────────────
 
 def data_hash(customers: list, invoices: list) -> str:
-    payload = json.dumps({"c": len(customers), "i": len(invoices)}, sort_keys=True)
+    # Hash actual record content so changes in existing records are detected.
+    # Using first 20 + last record as a fingerprint to avoid hashing huge payloads.
+    sample_c = [c.get("party_name", "") + str(c.get("mobile", "")) for c in (customers[:20] + customers[-1:])]
+    sample_i = [str(i.get("bill_no", "")) + str(i.get("net_amount", "")) for i in (invoices[:20] + invoices[-1:])]
+    payload = json.dumps({
+        "c_count": len(customers),
+        "i_count": len(invoices),
+        "c_sample": sample_c,
+        "i_sample": sample_i,
+    }, sort_keys=True)
     return hashlib.md5(payload.encode()).hexdigest()
 
 def push_to_levitate(cfg: dict, customers: list, invoices: list) -> dict:

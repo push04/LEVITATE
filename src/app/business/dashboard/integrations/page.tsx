@@ -208,7 +208,7 @@ export default function BusinessIntegrationsPage() {
               )}
             </div>
             <p style={{ fontSize: 11, color: '#16A34A', margin: '12px 0 0', fontWeight: 600 }}>
-              ✓ No Python needed &nbsp;·&nbsp; ✓ Works with all Busy versions &nbsp;·&nbsp; ✓ Syncs every hour by default
+              ✓ Free Python 3.10+ required &nbsp;·&nbsp; ✓ Works with all Busy versions &nbsp;·&nbsp; ✓ Syncs every hour by default
             </p>
           </div>
 
