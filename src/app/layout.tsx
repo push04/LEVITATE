@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
@@ -6,6 +6,11 @@ import LayoutShell from '@/components/LayoutShell';
 import JsonLd from '@/components/JsonLd';
 
 const inter = Inter({ subsets: ['latin'], weight: ['300', '400', '500', '600'] });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   title: 'Levitate Labs — Agentic AI for Indian Businesses',

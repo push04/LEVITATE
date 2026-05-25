@@ -307,7 +307,7 @@ function MetricCounter({ metric }: { metric: typeof METRICS[0] }) {
   }, [metric]);
 
   return (
-    <div ref={elRef} style={{ flex: '1 1 160px', padding: '20px 24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, textAlign: 'center' }}>
+    <div ref={elRef} className="dev-metric" style={{ flex: '1 1 160px', padding: '20px 24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, textAlign: 'center' }}>
       <div style={{ fontFamily: 'Instrument Serif, serif', fontSize: 'clamp(1.5rem,2.5vw,2rem)', fontWeight: 400, color: '#C9A96E', lineHeight: 1, marginBottom: 6 }}>
         {metric.prefix}{count.toFixed(metric.decimals)}{metric.suffix}
       </div>
@@ -330,14 +330,25 @@ export default function HomeDeveloper() {
         @keyframes devGridDrift { 0%{transform:perspective(800px) rotateX(6deg) translateY(0)} 100%{transform:perspective(800px) rotateX(6deg) translateY(-40px)} }
         @keyframes devShimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
         @keyframes devFadeUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
+        @media (max-width:768px) {
+          .dev-orb { display:none; }
+          .dev-terminal-grid { grid-template-columns:1fr !important; }
+          .dev-features-grid { grid-template-columns:1fr !important; }
+          .dev-pricing-grid { grid-template-columns:1fr !important; }
+          .dev-cta-bar { flex-direction:column; padding:20px !important; }
+          .dev-metric { flex:1 1 calc(50% - 6px) !important; min-width:0 !important; }
+        }
+        @media (max-width:480px) {
+          .dev-metric { flex:1 1 100% !important; }
+        }
       `}</style>
 
       {/* Background grid */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px)', backgroundSize: '48px 48px', transform: 'perspective(900px) rotateX(6deg)', transformOrigin: 'top center', animation: 'devGridDrift 20s linear infinite', maskImage: 'linear-gradient(to bottom,rgba(0,0,0,0.3) 0%,rgba(0,0,0,0.06) 60%,transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom,rgba(0,0,0,0.3) 0%,rgba(0,0,0,0.06) 60%,transparent 100%)' }} />
 
       {/* Orbs */}
-      <div style={{ position: 'absolute', top: '-20%', right: '-10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(201,169,110,0.09) 0%,transparent 65%)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle,rgba(88,166,255,0.05) 0%,transparent 65%)', pointerEvents: 'none', zIndex: 0 }} />
+      <div className="dev-orb" style={{ position: 'absolute', top: '-20%', right: '-10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle,rgba(201,169,110,0.09) 0%,transparent 65%)', pointerEvents: 'none', zIndex: 0 }} />
+      <div className="dev-orb" style={{ position: 'absolute', bottom: '-15%', left: '-8%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle,rgba(88,166,255,0.05) 0%,transparent 65%)', pointerEvents: 'none', zIndex: 0 }} />
 
       <div className={s.container} style={{ position: 'relative', zIndex: 1 }}>
 
@@ -355,11 +366,11 @@ export default function HomeDeveloper() {
         </div>
 
         {/* Terminal + Features grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,0.85fr)', gap: 'clamp(24px,4vw,56px)', alignItems: 'start', marginBottom: 'clamp(48px,7vw,80px)', animation: 'devFadeUp 0.7s ease 0.1s both' }}>
+        <div className="dev-terminal-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(0,0.85fr)', gap: 'clamp(24px,4vw,56px)', alignItems: 'start', marginBottom: 'clamp(48px,7vw,80px)', animation: 'devFadeUp 0.7s ease 0.1s both' }}>
           <CodeTerminal />
 
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="dev-features-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {FEATURES.map((f, i) => (
                 <div
                   key={i}
@@ -407,7 +418,7 @@ export default function HomeDeveloper() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 20 }}>
+          <div className="dev-pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 20 }}>
             {TIERS.map((tier, i) => (
               <div
                 key={i}
@@ -451,7 +462,7 @@ export default function HomeDeveloper() {
         </div>
 
         {/* CTA bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20, background: 'rgba(201,169,110,0.06)', border: '1px solid rgba(201,169,110,0.2)', borderRadius: 16, padding: '28px 36px', animation: 'devFadeUp 0.7s ease 0.4s both' }}>
+        <div className="dev-cta-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20, background: 'rgba(201,169,110,0.06)', border: '1px solid rgba(201,169,110,0.2)', borderRadius: 16, padding: '28px 36px', animation: 'devFadeUp 0.7s ease 0.4s both' }}>
           <div>
             <p style={{ fontFamily: 'Instrument Serif, serif', fontSize: 'clamp(1.2rem,2vw,1.5rem)', color: 'rgba(255,255,255,0.9)', margin: '0 0 6px', fontWeight: 400 }}>
               Ready to start building?
