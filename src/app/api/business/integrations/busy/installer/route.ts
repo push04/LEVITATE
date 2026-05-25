@@ -61,21 +61,17 @@ echo  [1/5] Checking for Python...
 python --version >nul 2>&1
 if not errorlevel 1 goto :python_ok
 
-echo        Python not found. Downloading Python 3.12 (free, ~25 MB)...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://www.python.org/ftp/python/3.12.4/python-3.12.4-amd64.exe'; Invoke-WebRequest -Uri $u -OutFile \"$env:TEMP\\py_install.exe\" -UseBasicParsing"
-if not exist "%TEMP%\\py_install.exe" (
-    echo [ERROR] Could not download Python. Check your internet connection and re-run.
-    pause
-    exit /b 1
-)
-echo        Installing Python silently (takes ~30 seconds)...
-"%TEMP%\\py_install.exe" /quiet InstallAllUsers=0 PrependPath=1 Include_test=0 Include_launcher=0
-del "%TEMP%\\py_install.exe" >nul 2>&1
-set "PATH=%LOCALAPPDATA%\\Programs\\Python\\Python312;%LOCALAPPDATA%\\Programs\\Python\\Python312\\Scripts;%PATH%"
+echo        Python not found. 
+echo        Opening Python download page. Please install Python 3.12 (Check "Add python.exe to PATH" during install).
+timeout /t 3 >nul
+start https://www.python.org/downloads/
+echo.
+echo        Press any key AFTER you have finished installing Python...
+pause >nul
 
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Python install failed. Please install Python 3.10+ from python.org and re-run.
+    echo [ERROR] Python is still not detected. Please install Python 3.10+ from python.org, ensure it is added to PATH, and re-run this script.
     pause
     exit /b 1
 )
@@ -91,23 +87,20 @@ REM ─── Step 2: Download agent ──────────────�
 echo.
 echo  [2/5] Downloading LEVITATE Sync Agent...
 if not exist "!INSTALL_DIR!" mkdir "!INSTALL_DIR!"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='!LEVITATE_URL!/downloads/levitate_busy_agent.zip'; Invoke-WebRequest -Uri $u -OutFile \"$env:TEMP\\agent.zip\" -UseBasicParsing"
+curl -s -L -o "%TEMP%\\agent.zip" "!LEVITATE_URL!/downloads/levitate_busy_agent.zip"
 if not exist "%TEMP%\\agent.zip" (
     echo [ERROR] Could not download agent files. Check your internet and try again.
     pause
     exit /b 1
 )
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path \"$env:TEMP\\agent.zip\" -DestinationPath \"!INSTALL_DIR!\" -Force"
+tar -xf "%TEMP%\\agent.zip" -C "!INSTALL_DIR!"
 del "%TEMP%\\agent.zip" >nul 2>&1
 echo        Files saved to !INSTALL_DIR!
 
 REM ─── Step 3: Python packages ───────────────────────────────────────────────
 echo.
 echo  [3/5] Installing required Python packages...
-pip install pyodbc requests --quiet --user >nul 2>&1
-if errorlevel 1 (
-    python -m pip install pyodbc requests --quiet --user >nul 2>&1
-)
+python -m pip install pyodbc requests --quiet --user >nul 2>&1
 echo        Packages ready.
 
 REM ─── Step 4: Microsoft Access ODBC driver ─────────────────────────────────
@@ -124,17 +117,14 @@ if not errorlevel 1 (
     goto :driver_done
 )
 
-echo        Driver not found. Downloading (~55 MB)...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$u='https://download.microsoft.com/download/3/5/C/35C84C36-661A-44E3-BE3B-7A97CEF8D24D/accessdatabaseengine_X64.exe'; Invoke-WebRequest -Uri $u -OutFile \"$env:TEMP\\acedriver.exe\" -UseBasicParsing"
-if exist "%TEMP%\\acedriver.exe" (
-    echo        Installing driver (may need admin rights)...
-    "%TEMP%\\acedriver.exe" /quiet /passive
-    del "%TEMP%\\acedriver.exe" >nul 2>&1
-    echo        Driver installed.
-) else (
-    echo [WARN]  Driver download failed. Sync may not work for Busy .bds files.
-    echo         To fix: download and install manually from microsoft.com/download/details.aspx?id=54920
-)
+echo        Driver not found. 
+echo        Opening Microsoft Access Database Engine 2016 download page.
+echo        Please download the 64-bit version (accessdatabaseengine_X64.exe) and install it.
+timeout /t 3 >nul
+start https://www.microsoft.com/en-us/download/details.aspx?id=54920
+echo.
+echo        Press any key AFTER you have finished installing the driver...
+pause >nul
 
 :driver_done
 
@@ -148,13 +138,22 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM ─── Add to Windows startup ────────────────────────────────────────────────
+REM ─── Add to Windows startup (Safe Method via LNK) ──────────────────────────
 set "STARTUP=%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"
-(
-    echo @echo off
-    echo cd /d "!INSTALL_DIR!"
-    echo start /min "" python busy_levitate_agent.py --config config.json
-) > "!STARTUP!\\LEVITATE_Sync.bat"
+set "SHORTCUT=%STARTUP%\\LEVITATE_Sync.lnk"
+
+echo Set oWS = WScript.CreateObject("WScript.Shell") > "%TEMP%\\CreateShortcut.vbs"
+echo sLinkFile = "%SHORTCUT%" >> "%TEMP%\\CreateShortcut.vbs"
+echo Set oLink = oWS.CreateShortcut(sLinkFile) >> "%TEMP%\\CreateShortcut.vbs"
+echo oLink.TargetPath = "python.exe" >> "%TEMP%\\CreateShortcut.vbs"
+echo oLink.Arguments = "busy_levitate_agent.py --config config.json" >> "%TEMP%\\CreateShortcut.vbs"
+echo oLink.WorkingDirectory = "!INSTALL_DIR!" >> "%TEMP%\\CreateShortcut.vbs"
+echo oLink.WindowStyle = 7 >> "%TEMP%\\CreateShortcut.vbs"
+echo oLink.Save >> "%TEMP%\\CreateShortcut.vbs"
+
+cscript /nologo "%TEMP%\\CreateShortcut.vbs"
+del "%TEMP%\\CreateShortcut.vbs" >nul 2>&1
+
 echo.
 echo  Added to Windows startup. Agent will run automatically when you log in.
 
@@ -176,5 +175,5 @@ echo   !LEVITATE_URL!/business/dashboard/leads
 echo  ============================================================
 echo.
 pause
-`
+\`
 }
