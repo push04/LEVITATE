@@ -6,17 +6,23 @@
 
 import { getServiceSupabase } from '../supabase'
 
-export async function sendWhatsApp(to: string, message: string): Promise<boolean> {
+export async function sendWhatsApp(
+  to: string,
+  message: string,
+  opts?: { company_id?: string; campaign_id?: string; contact_name?: string }
+): Promise<boolean> {
   const supabase = getServiceSupabase()
 
-  // Normalize phone number (whatsapp-web.js format typically needs country code without + or just raw digits, but we will store normalized)
   const normalized = to.replace(/[^0-9]/g, '')
 
   try {
     const { error } = await supabase.from('whatsapp_queue').insert({
       to_number: normalized,
       message: message,
-      status: 'pending'
+      status: 'pending',
+      company_id: opts?.company_id ?? null,
+      campaign_id: opts?.campaign_id ?? null,
+      contact_name: opts?.contact_name ?? null,
     })
 
     if (error) {
@@ -33,7 +39,6 @@ export async function sendWhatsApp(to: string, message: string): Promise<boolean
 }
 
 export function extractWhatsAppMessage(body: unknown): { from: string; text: string; messageId: string } | null {
-  // Not needed for local WA right now but keeping signature
   return null
 }
 

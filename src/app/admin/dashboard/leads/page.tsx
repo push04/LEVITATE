@@ -114,6 +114,10 @@ export default function LeadsPage() {
     const dropRef = useRef<HTMLDivElement>(null);
 
     const handleCsvFile = (file: File) => {
+        if (file.size > 50 * 1024 * 1024) {
+            setCsvError('File too large. Maximum 50 MB.');
+            return;
+        }
         setCsvFile(file); setCsvResult(null); setCsvError('');
         const reader = new FileReader();
         reader.onload = e => {
@@ -134,14 +138,30 @@ export default function LeadsPage() {
             }
             return out;
         });
-        const res = await fetch('/api/admin/leads/import', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ leads: mapped, source: 'csv_import' }),
-        });
-        const json = await res.json();
+        // Chunk into 300-row batches to avoid request body size limits for large CSVs
+        const CHUNK = 300;
+        let totalImported = 0, totalSkipped = 0, totalFailed = 0;
+        for (let i = 0; i < mapped.length; i += CHUNK) {
+            const chunk = mapped.slice(i, i + CHUNK);
+            try {
+                const res = await fetch('/api/admin/leads/import', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ leads: chunk, source: 'csv_import' }),
+                });
+                const json = await res.json();
+                if (!json.error) {
+                    totalImported += json.imported ?? 0;
+                    totalSkipped  += json.skipped  ?? 0;
+                    totalFailed   += json.failed   ?? 0;
+                } else {
+                    totalFailed += chunk.length;
+                }
+            } catch {
+                totalFailed += chunk.length;
+            }
+        }
         setCsvImporting(false);
-        if (json.error) { setCsvError(json.error); return; }
-        setCsvResult({ imported: json.imported, skipped: json.skipped, failed: json.failed });
+        setCsvResult({ imported: totalImported, skipped: totalSkipped, failed: totalFailed });
         fetchLeads();
     };
 

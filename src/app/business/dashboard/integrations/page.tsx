@@ -73,6 +73,7 @@ export default function BusinessIntegrationsPage() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
   const handleFile = (file: File) => {
+    if (file.size > 50 * 1024 * 1024) { showToast('File too large. Maximum 50 MB.'); return; }
     setCsvFile(file); setCsvResult(null);
     const reader = new FileReader();
     reader.onload = e => {
@@ -90,18 +91,26 @@ export default function BusinessIntegrationsPage() {
       for (const [col, field] of Object.entries(csvMapping)) { if (field && row[col]) out[field] = row[col]; }
       return out;
     });
-    const res = await fetch('/api/business/leads/import', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ leads: mapped, company_id: portal.companyId }),
-    });
-    const json = await res.json();
-    setCsvUploading(false);
-    if (json.success) {
-      setCsvResult({ imported: json.imported, skipped: json.skipped ?? 0, failed: json.failed ?? 0 });
-      showToast(`Imported ${json.imported} leads`);
-    } else {
-      showToast('Import failed: ' + (json.error ?? 'Unknown error'));
+    const CHUNK = 300;
+    let totalImported = 0, totalSkipped = 0, totalFailed = 0;
+    for (let i = 0; i < mapped.length; i += CHUNK) {
+      const chunk = mapped.slice(i, i + CHUNK);
+      try {
+        const res = await fetch('/api/business/leads/import', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ leads: chunk, company_id: portal.companyId }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          totalImported += json.imported ?? 0;
+          totalSkipped  += json.skipped  ?? 0;
+          totalFailed   += json.failed   ?? 0;
+        } else { totalFailed += chunk.length; }
+      } catch { totalFailed += chunk.length; }
     }
+    setCsvUploading(false);
+    setCsvResult({ imported: totalImported, skipped: totalSkipped, failed: totalFailed });
+    showToast(`Imported ${totalImported} leads${totalSkipped ? `, ${totalSkipped} skipped` : ''}`);
   };
 
   if (portal.loading) return null;
