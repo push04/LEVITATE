@@ -77,14 +77,17 @@ export default function MailboxPage() {
 
     const fetchEmails = async () => {
         setIsLoading(true);
-        const { data } = await supabase
-            .from('agent_emails')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(500);
-
-        if (data) setRawEmails(data as AgentEmail[]);
-        setIsLoading(false);
+        try {
+            const res = await fetch('/api/admin/mailbox/emails');
+            if (res.ok) {
+                const data = await res.json();
+                setRawEmails(data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch emails', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // Group emails by the external contact's email address
