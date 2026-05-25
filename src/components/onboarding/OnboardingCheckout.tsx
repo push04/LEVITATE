@@ -7,48 +7,7 @@ import { useRouter } from 'next/navigation';
 import styles from '@/components/business/ui/DashboardPrimitives.module.css';
 import { BillingCycle, OnboardingContent, OnboardingPlan, getPlanPrice } from '@/lib/onboarding';
 
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayCheckoutOptions) => RazorpayCheckoutInstance;
-  }
-}
-
-type RazorpayCheckoutInstance = {
-  open: () => void;
-  on?: (event: 'payment.failed', callback: (payload: RazorpayPaymentFailedPayload) => void) => void;
-};
-
-type RazorpayCheckoutOptions = {
-  key: string;
-  subscription_id: string;
-  name: string;
-  description: string;
-  prefill: {
-    name: string;
-    email?: string;
-    contact?: string;
-  };
-  notes: Record<string, string>;
-  theme: {
-    color: string;
-  };
-  handler: (response: RazorpaySubscriptionSuccessPayload) => Promise<void> | void;
-  modal: {
-    ondismiss: () => void;
-  };
-};
-
-type RazorpaySubscriptionSuccessPayload = {
-  razorpay_payment_id: string;
-  razorpay_subscription_id: string;
-  razorpay_signature: string;
-};
-
-type RazorpayPaymentFailedPayload = {
-  error?: {
-    description?: string;
-  };
-};
+// Razorpay types are globally declared in src/types/declarations.d.ts
 
 type AppliedCoupon = {
   id: string;
