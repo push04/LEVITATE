@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useCompanyPortalState } from '@/hooks/useCompanyPortalState';
 import BusinessPortalLocked from '@/components/business/BusinessPortalLocked';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MessageSquare, Plug, Megaphone, Bot, ArrowUpRight, ArrowDownLeft, Check } from 'lucide-react';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface WaConfig {
@@ -262,7 +263,7 @@ export default function WhatsAppDashboard() {
       <div style={{ background: '#fff', borderBottom: '1px solid #E5E7EB', padding: '20px 28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#25D366,#128C7E)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 18 }}>💬</span>
+            <MessageSquare size={20} color="#fff" />
           </div>
           <div>
             <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#111' }}>WhatsApp Automation</h1>
@@ -290,10 +291,10 @@ export default function WhatsAppDashboard() {
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
               style={{ padding: '12px 20px', background: 'none', border: 'none', borderBottom: tab === t ? '2px solid #25D366' : '2px solid transparent', color: tab === t ? '#15803d' : '#6B7280', fontWeight: tab === t ? 700 : 500, fontSize: 14, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit' }}>
-              {t === 'Connect' && '🔌 '}
-              {t === 'Campaigns' && '📢 '}
-              {t === 'AI Agent' && '🤖 '}
-              {t === 'Inbox' && '💬 '}
+              {t === 'Connect' && <Plug size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'text-bottom' }} />}
+              {t === 'Campaigns' && <Megaphone size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'text-bottom' }} />}
+              {t === 'AI Agent' && <Bot size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'text-bottom' }} />}
+              {t === 'Inbox' && <MessageSquare size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'text-bottom' }} />}
               {t}
               {t === 'Inbox' && inboxConversations.filter(c => c.unread > 0).length > 0 && (
                 <span style={{ marginLeft: 6, background: '#25D366', color: '#fff', borderRadius: '9999px', padding: '1px 6px', fontSize: 11, fontWeight: 700 }}>
@@ -321,7 +322,7 @@ export default function WhatsAppDashboard() {
               <div style={{ maxWidth: 700 }}>
                 <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '24px 28px', marginBottom: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                    <span style={{ fontSize: 22 }}>🔌</span>
+                    <Plug size={22} color="#374151" />
                     <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Meta Cloud API Connection</h2>
                     {config.connected && <span style={{ marginLeft: 'auto', background: '#DCFCE7', color: '#15803d', borderRadius: 99, padding: '3px 10px', fontSize: 12, fontWeight: 700 }}>● Connected</span>}
                   </div>
@@ -374,16 +375,16 @@ export default function WhatsAppDashboard() {
                       style={{ padding: '10px 22px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
                       {saving ? 'Saving…' : 'Save Connection'}
                     </button>
-                    {saveMsg && <span style={{ alignSelf: 'center', color: '#16a34a', fontSize: 13, fontWeight: 600 }}>✓ {saveMsg}</span>}
+                    {saveMsg && <span style={{ alignSelf: 'center', color: '#16a34a', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Check size={14} /> {saveMsg}</span>}
                   </div>
                 </div>
 
                 {/* Stats */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
                   {[
-                    { label: 'Campaigns', value: campaigns.length, icon: '📢' },
-                    { label: 'Messages Sent', value: inbox.filter(m => m.direction === 'outbound').length, icon: '↗' },
-                    { label: 'Inbound', value: inbox.filter(m => m.direction === 'inbound').length, icon: '↙' },
+                    { label: 'Campaigns', value: campaigns.length, icon: <Megaphone size={22} color="#374151" /> },
+                    { label: 'Messages Sent', value: inbox.filter(m => m.direction === 'outbound').length, icon: <ArrowUpRight size={22} color="#374151" /> },
+                    { label: 'Inbound', value: inbox.filter(m => m.direction === 'inbound').length, icon: <ArrowDownLeft size={22} color="#374151" /> },
                   ].map(s => (
                     <div key={s.label} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, padding: '18px 20px' }}>
                       <div style={{ fontSize: 22, marginBottom: 4 }}>{s.icon}</div>
@@ -443,7 +444,7 @@ export default function WhatsAppDashboard() {
                 {/* Campaigns list */}
                 {campaigns.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB' }}>
-                    <div style={{ fontSize: 48, marginBottom: 12 }}>📢</div>
+                    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}><Megaphone size={48} color="#9CA3AF" /></div>
                     <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>No campaigns yet</div>
                     <div style={{ color: '#6B7280', fontSize: 13, marginBottom: 20 }}>Create your first WhatsApp outreach campaign to reach your leads</div>
                     <button onClick={() => setShowCampaignBuilder(true)}
@@ -599,7 +600,7 @@ export default function WhatsAppDashboard() {
               <div style={{ maxWidth: 700 }}>
                 <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '24px 28px', marginBottom: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                    <span style={{ fontSize: 22 }}>🤖</span>
+                    <Bot size={22} color="#374151" />
                     <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>AI Responder</h2>
                     <div onClick={() => setConfig(p => ({ ...p, ai_agent_enabled: !p.ai_agent_enabled }))}
                       style={{ marginLeft: 'auto', width: 44, height: 24, borderRadius: 99, background: config.ai_agent_enabled ? '#25D366' : '#D1D5DB', position: 'relative', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0 }}>
@@ -691,13 +692,13 @@ export default function WhatsAppDashboard() {
                       style={{ padding: '10px 22px', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontWeight: 700, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'inherit' }}>
                       {saving ? 'Saving…' : 'Save Agent Config'}
                     </button>
-                    {saveMsg && <span style={{ alignSelf: 'center', color: '#16a34a', fontSize: 13, fontWeight: 600 }}>✓ {saveMsg}</span>}
+                    {saveMsg && <span style={{ alignSelf: 'center', color: '#16a34a', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Check size={14} /> {saveMsg}</span>}
                   </div>
                 </div>
 
                 {/* How it works */}
                 <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: '18px 22px' }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: '#15803d', marginBottom: 10 }}>🤖 How the AI Agent works</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#15803d', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}><Bot size={18} /> How the AI Agent works</div>
                   {[
                     'Customer sends a WhatsApp message to your business number',
                     'LEVITATE receives it via your Meta webhook and passes it to the AI',
@@ -719,7 +720,7 @@ export default function WhatsAppDashboard() {
               <div style={{ maxWidth: 900 }}>
                 {inbox.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: 14, border: '1px solid #E5E7EB' }}>
-                    <div style={{ fontSize: 48, marginBottom: 12 }}>💬</div>
+                    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}><MessageSquare size={48} color="#9CA3AF" /></div>
                     <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>No messages yet</div>
                     <div style={{ color: '#6B7280', fontSize: 13 }}>Messages from your WhatsApp campaigns and AI agent conversations will appear here</div>
                   </div>
