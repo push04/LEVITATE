@@ -65,4 +65,6 @@ docs/
 .codex-verify/
 eslint_remaining.txt
 eslint_final.txt
-build_error.txt
+build_error.txtlevitate-agent/node_modules/
+levitate-agent/dist/
+levitate-agent/release/

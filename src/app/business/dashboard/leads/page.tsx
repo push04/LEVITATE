@@ -1,7 +1,8 @@
 'use client';
 
-import { Fragment, useMemo, useRef, useState } from 'react';
-import { ClipboardList, Copy, Filter, Sparkles, Upload, X, ChevronRight, FileSpreadsheet, Check } from 'lucide-react';
+import { useMemo, useState, useCallback } from 'react';
+import { ClipboardList, Copy, Filter, Sparkles, Upload, Search, Brain, Plus, CheckCircle2, Loader2, ChevronDown } from 'lucide-react';
+import ImportModal from '@/components/import/ImportModal';
 import BusinessPortalLocked from '@/components/business/BusinessPortalLocked';
 import LeadCard from '@/components/business/ui/LeadCard';
 import SearchInput from '@/components/business/ui/SearchInput';
@@ -13,54 +14,21 @@ import { useCompanyPortalState } from '@/hooks/useCompanyPortalState';
 import { useCompanyCrmLeads } from '@/hooks/useCompanyCrmLeads';
 import { type BusinessLeadRecord, useBusinessLeadRecords } from '@/hooks/useBusinessLeadRecords';
 
+type PageTab = 'my-leads' | 'find-leads';
 type LeadFilter = 'all' | 'new' | 'engaged' | 'closed';
-type CsvRow = Record<string, string>;
+type FindMode = 'manual' | 'ai';
 
-function parseCsvText(text: string): { headers: string[]; rows: CsvRow[] } {
-  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
-  if (!lines.length) return { headers: [], rows: [] };
-  function splitLine(line: string): string[] {
-    const out: string[] = []; let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
-      else if (c === ',' && !inQ) { out.push(cur.trim()); cur = ''; }
-      else cur += c;
-    }
-    out.push(cur.trim()); return out;
-  }
-  const headers = splitLine(lines[0]);
-  return { headers, rows: lines.slice(1).map(l => { const v = splitLine(l); return Object.fromEntries(headers.map((h,i) => [h, v[i] ?? ''])); }) };
-}
-
-const CSV_FIELDS = [
-  { value: '', label: '— Skip —' },
-  { value: 'business_name', label: 'Business Name' },
-  { value: 'name', label: 'Contact Name' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'city', label: 'City' },
-  { value: 'service_category', label: 'Category' },
-  { value: 'budget', label: 'Budget' },
-  { value: 'notes', label: 'Notes' },
-  { value: 'status', label: 'Status' },
-];
-
-const CSV_AUTO_MAP: Record<string, string> = {
-  'name': 'business_name', 'account name': 'business_name', 'party name': 'business_name', 'company': 'business_name', 'business name': 'business_name',
-  'contact name': 'name', 'contact': 'name',
-  'email': 'email', 'email id': 'email', 'e-mail': 'email',
-  'phone': 'phone', 'mobile': 'phone', 'mobile no': 'phone', 'mobile no.': 'phone', 'phone no': 'phone',
-  'city': 'city', 'location': 'city',
-  'category': 'service_category', 'service category': 'service_category', 'account group': 'service_category', 'group': 'service_category',
-  'budget': 'budget', 'opening balance': 'budget', 'balance': 'budget',
-  'notes': 'notes', 'remark': 'notes', 'remarks': 'notes',
-};
-
-function autoMapHeaders(headers: string[]): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const h of headers) { const m = CSV_AUTO_MAP[h.toLowerCase().trim()]; if (m) result[h] = m; }
-  return result;
+interface ScrapedResult {
+  business_name: string;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  city?: string | null;
+  category?: string | null;
+  ai_score?: number | null;
+  source?: string | null;
+  raw_data?: Record<string, unknown> | null;
 }
 
 const FILTER_LABELS: Record<LeadFilter, string> = {
@@ -122,15 +90,86 @@ export default function BusinessLeadsPage() {
   const [toastMessage, setToastMessage] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
 
-  // CSV import state
-  const [csvOpen, setCsvOpen] = useState(false);
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
-  const [csvRows, setCsvRows] = useState<CsvRow[]>([]);
-  const [csvMapping, setCsvMapping] = useState<Record<string, string>>({});
-  const [csvUploading, setCsvUploading] = useState(false);
-  const [csvResult, setCsvResult] = useState<{ imported: number; skipped: number; failed: number } | null>(null);
-  const csvDropRef = useRef<HTMLDivElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [pageTab, setPageTab] = useState<PageTab>('my-leads');
+
+  // Find Leads state
+  const [findMode, setFindMode] = useState<FindMode>('manual');
+  const [findCity, setFindCity] = useState('');
+  const [findCategory, setFindCategory] = useState('');
+  const [findQuery, setFindQuery] = useState('');
+  const [findLoading, setFindLoading] = useState(false);
+  const [findResults, setFindResults] = useState<ScrapedResult[]>([]);
+  const [findError, setFindError] = useState('');
+  const [findSearched, setFindSearched] = useState(false);
+  const [crmAddState, setCrmAddState] = useState<Record<string, 'idle' | 'adding' | 'added'>>({});
+  const [citiesList, setCitiesList] = useState<string[]>([]);
+  const [categoriesList, setCategoriesList] = useState<string[]>([]);
+
+  const loadSelects = useCallback(async () => {
+    if (citiesList.length > 0) return;
+    try {
+      const r = await fetch('/api/business/leads/search');
+      if (r.ok) {
+        const d = await r.json() as { cities: string[]; categories: string[] };
+        setCitiesList(d.cities ?? []);
+        setCategoriesList(d.categories ?? []);
+      }
+    } catch { /* ignore */ }
+  }, [citiesList.length]);
+
+  const handleFindLeads = async () => {
+    setFindError('');
+    setFindResults([]);
+    setFindSearched(false);
+    setFindLoading(true);
+    try {
+      const payload =
+        findMode === 'ai'
+          ? { mode: 'ai', query: findQuery, limit: 10 }
+          : { mode: 'manual', city: findCity, category: findCategory, limit: 10 };
+      const r = await fetch('/api/business/leads/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json() as { success: boolean; leads?: ScrapedResult[]; error?: string; city?: string; category?: string };
+      if (!d.success) {
+        setFindError(d.error ?? 'Search failed');
+      } else {
+        setFindResults(d.leads ?? []);
+        if (d.city && !findCity) setFindCity(d.city);
+        if (d.category && !findCategory) setFindCategory(d.category);
+      }
+    } catch {
+      setFindError('Network error. Try again.');
+    } finally {
+      setFindLoading(false);
+      setFindSearched(true);
+    }
+  };
+
+  const handleAddToCrm = async (lead: ScrapedResult, key: string) => {
+    setCrmAddState(prev => ({ ...prev, [key]: 'adding' }));
+    try {
+      const r = await fetch('/api/business/leads/search/add-to-crm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead }),
+      });
+      const d = await r.json() as { success: boolean; error?: string };
+      if (!d.success) {
+        triggerToast(d.error ?? 'Failed to add to CRM');
+        setCrmAddState(prev => ({ ...prev, [key]: 'idle' }));
+      } else {
+        setCrmAddState(prev => ({ ...prev, [key]: 'added' }));
+        triggerToast(`${lead.business_name} added to your CRM`);
+      }
+    } catch {
+      triggerToast('Network error');
+      setCrmAddState(prev => ({ ...prev, [key]: 'idle' }));
+    }
+  };
 
   const filteredRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -179,55 +218,6 @@ export default function BusinessLeadsPage() {
       filteredRecords.reduce((sum, record) => sum + (typeof record.deal_value === 'number' ? record.deal_value : 0), 0),
     [filteredRecords]
   );
-
-  const handleCsvFile = (file: File) => {
-    if (file.size > 50 * 1024 * 1024) {
-      triggerToast('File too large. Maximum 50 MB.');
-      return;
-    }
-    setCsvFile(file); setCsvResult(null);
-    const reader = new FileReader();
-    reader.onload = e => {
-      const { headers, rows } = parseCsvText(e.target?.result as string);
-      setCsvHeaders(headers); setCsvRows(rows); setCsvMapping(autoMapHeaders(headers));
-    };
-    reader.readAsText(file);
-  };
-
-  const uploadCsv = async () => {
-    if (!csvRows.length || !portal.companyId) return;
-    setCsvUploading(true); setCsvResult(null);
-    const mapped = csvRows.map(row => {
-      const out: CsvRow = {};
-      for (const [col, field] of Object.entries(csvMapping)) { if (field && row[col]) out[field] = row[col]; }
-      return out;
-    });
-    // Chunk into 300-row batches to avoid request body size limits
-    const CHUNK = 300;
-    let totalImported = 0, totalSkipped = 0, totalFailed = 0;
-    for (let i = 0; i < mapped.length; i += CHUNK) {
-      const chunk = mapped.slice(i, i + CHUNK);
-      try {
-        const res = await fetch('/api/business/leads/import', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ leads: chunk, company_id: portal.companyId }),
-        });
-        const json = await res.json();
-        if (json.success) {
-          totalImported += json.imported ?? 0;
-          totalSkipped  += json.skipped  ?? 0;
-          totalFailed   += json.failed   ?? 0;
-        } else {
-          totalFailed += chunk.length;
-        }
-      } catch {
-        totalFailed += chunk.length;
-      }
-    }
-    setCsvUploading(false);
-    setCsvResult({ imported: totalImported, skipped: totalSkipped, failed: totalFailed });
-    triggerToast(`Imported ${totalImported} leads${totalSkipped ? `, ${totalSkipped} skipped` : ''}`);
-  };
 
   const triggerToast = (message: string) => {
     setToastMessage(message);
@@ -346,6 +336,209 @@ export default function BusinessLeadsPage() {
 
   return (
     <>
+      {/* Tab switcher */}
+      <div className="mb-6 flex gap-2">
+        {(['my-leads', 'find-leads'] as PageTab[]).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => {
+              setPageTab(tab);
+              if (tab === 'find-leads') loadSelects();
+            }}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+              pageTab === tab
+                ? 'border-[var(--border-strong)] bg-[var(--gold-glow)] text-[var(--gold-bright)]'
+                : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {tab === 'my-leads' ? <ClipboardList className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+            {tab === 'my-leads' ? 'My Leads' : 'Find New Leads'}
+          </button>
+        ))}
+      </div>
+
+      {/* ── FIND NEW LEADS TAB ────────────────────────────────────── */}
+      {pageTab === 'find-leads' && (
+        <div className="space-y-6">
+          <section className={`${styles.panel} p-6 md:p-8`}>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-strong)] bg-[var(--gold-glow)] px-3 py-1 text-xs font-semibold uppercase tracking-widest text-[var(--gold-bright)]">
+              <Brain className="h-3.5 w-3.5" />
+              Advanced Lead Search
+            </div>
+            <h2 className="mt-4 text-2xl font-semibold text-[var(--text-primary)]">
+              Find new business leads
+            </h2>
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">
+              Scrape fresh leads from Nominatim, Bing, Sulekha, Zomato, and Practo. Results appear instantly — add any lead to your CRM with one click.
+            </p>
+
+            {/* Mode toggle */}
+            <div className="mt-6 flex gap-2">
+              {(['manual', 'ai'] as FindMode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setFindMode(m)}
+                  className={`inline-flex items-center gap-2 rounded-[10px] border px-4 py-2 text-sm font-medium transition-colors ${
+                    findMode === m
+                      ? 'border-[var(--gold-base)] bg-[var(--gold-glow)] text-[var(--gold-bright)]'
+                      : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]'
+                  }`}
+                >
+                  {m === 'manual' ? <Filter className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {m === 'manual' ? 'Manual (city + category)' : 'AI (describe what you need)'}
+                </button>
+              ))}
+            </div>
+
+            {/* Search form */}
+            <div className="mt-5">
+              {findMode === 'manual' ? (
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div className="flex flex-col gap-1 min-w-[180px]">
+                    <label className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">City</label>
+                    <div className="relative">
+                      <select
+                        value={findCity}
+                        onChange={e => setFindCity(e.target.value)}
+                        className="w-full appearance-none rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 pr-8 text-sm text-[var(--text-primary)] focus:border-[var(--gold-base)] focus:outline-none"
+                      >
+                        <option value="">Select city</option>
+                        {citiesList.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2 top-3 h-4 w-4 text-[var(--text-tertiary)]" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1 min-w-[220px]">
+                    <label className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">Category</label>
+                    <div className="relative">
+                      <select
+                        value={findCategory}
+                        onChange={e => setFindCategory(e.target.value)}
+                        className="w-full appearance-none rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 pr-8 text-sm text-[var(--text-primary)] focus:border-[var(--gold-base)] focus:outline-none"
+                      >
+                        <option value="">Select category</option>
+                        {categoriesList.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2 top-3 h-4 w-4 text-[var(--text-tertiary)]" />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleFindLeads}
+                    disabled={findLoading || !findCity || !findCategory}
+                    className="inline-flex items-center gap-2 rounded-[10px] bg-[linear-gradient(135deg,var(--gold-base),var(--gold-muted))] px-5 py-2.5 text-sm font-semibold text-[var(--text-inverse)] shadow-[0_4px_16px_rgba(201,165,90,0.3)] transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {findLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    {findLoading ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div className="flex flex-col gap-1 flex-1 min-w-[280px]">
+                    <label className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">Describe what you need</label>
+                    <input
+                      type="text"
+                      value={findQuery}
+                      onChange={e => setFindQuery(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && findQuery.trim()) handleFindLeads(); }}
+                      placeholder="e.g. dental clinics in Pune, or gym owners in Delhi"
+                      className="rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--gold-base)] focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleFindLeads}
+                    disabled={findLoading || !findQuery.trim()}
+                    className="inline-flex items-center gap-2 rounded-[10px] bg-[linear-gradient(135deg,var(--gold-base),var(--gold-muted))] px-5 py-2.5 text-sm font-semibold text-[var(--text-inverse)] shadow-[0_4px_16px_rgba(201,165,90,0.3)] transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {findLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
+                    {findLoading ? 'Searching...' : 'Find with AI'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Results */}
+          {findError && (
+            <div className={`${styles.panel} p-5 border-l-4 border-l-red-400`}>
+              <p className="text-sm text-red-400">{findError}</p>
+            </div>
+          )}
+
+          {findSearched && !findError && findResults.length === 0 && (
+            <div className={`${styles.panel} p-12 text-center`}>
+              <Search className="mx-auto h-12 w-12 text-[var(--text-tertiary)]" />
+              <p className="mt-4 text-[var(--text-secondary)]">No leads found for this search. Try a different city or category.</p>
+            </div>
+          )}
+
+          {findResults.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs text-[var(--text-tertiary)] uppercase tracking-wider font-medium px-1">
+                {findResults.length} result{findResults.length !== 1 ? 's' : ''} — {findCity} / {findCategory}
+              </p>
+              {findResults.map((lead, i) => {
+                const key = `${lead.business_name}-${i}`;
+                const addState = crmAddState[key] ?? 'idle';
+                return (
+                  <div key={key} className={`${styles.panel} flex items-start justify-between gap-4 p-4`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-[var(--text-primary)] truncate">{lead.business_name}</span>
+                        {lead.ai_score != null && lead.ai_score > 0 && (
+                          <span className="rounded-full bg-[var(--gold-glow)] px-2 py-0.5 text-[10px] font-semibold text-[var(--gold-bright)]">
+                            Score {lead.ai_score}
+                          </span>
+                        )}
+                        {lead.source && (
+                          <span className="rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[10px] text-[var(--text-tertiary)]">
+                            {lead.source}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-[var(--text-secondary)]">
+                        {lead.address && <span className="truncate max-w-[280px]">{lead.address}</span>}
+                        {lead.phone && <span>{lead.phone}</span>}
+                        {lead.email && <span>{lead.email}</span>}
+                        {lead.website && (
+                          <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-[var(--gold-base)] underline truncate max-w-[200px]">
+                            {lead.website.replace(/^https?:\/\//, '')}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddToCrm(lead, key)}
+                      disabled={addState !== 'idle'}
+                      className={`shrink-0 inline-flex items-center gap-1.5 rounded-[8px] border px-3 py-2 text-xs font-semibold transition-colors ${
+                        addState === 'added'
+                          ? 'border-green-400/30 bg-green-400/10 text-green-400'
+                          : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--gold-base)] hover:text-[var(--gold-base)] disabled:opacity-60'
+                      }`}
+                    >
+                      {addState === 'adding' ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : addState === 'added' ? (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      ) : (
+                        <Plus className="h-3.5 w-3.5" />
+                      )}
+                      {addState === 'added' ? 'In CRM' : addState === 'adding' ? 'Adding...' : 'Add to CRM'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── MY LEADS TAB ─────────────────────────────────────────── */}
+      {pageTab === 'my-leads' && (
       <div className="space-y-6">
         <section className={`${styles.panel} overflow-hidden p-6 md:p-8`}>
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_320px] xl:items-start">
@@ -378,11 +571,11 @@ export default function BusinessLeadsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setCsvOpen(true); setCsvResult(null); }}
+                  onClick={() => setImportOpen(true)}
                   className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-5 py-3 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-overlay)]"
                 >
                   <Upload className="h-4 w-4" />
-                  Import CSV
+                  Import contacts
                 </button>
               </div>
             </div>
@@ -522,103 +715,19 @@ export default function BusinessLeadsPage() {
           )}
         </section>
       </div>
+      )}
 
       <Toast visible={toastVisible} message={toastMessage} />
 
-      {/* CSV Import Modal */}
-      {csvOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 620, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.25)', fontFamily: 'Inter, sans-serif' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #F3F4F6' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Upload size={16} color="#B08D57" />
-                <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>Import Leads from CSV</span>
-              </div>
-              <button onClick={() => setCsvOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4 }}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div style={{ padding: '20px 24px' }}>
-              {/* Drop zone */}
-              <div
-                ref={csvDropRef}
-                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.name.endsWith('.csv')) handleCsvFile(f); }}
-                onDragOver={e => e.preventDefault()}
-                onClick={() => document.getElementById('biz-csv-input')?.click()}
-                style={{ border: '2px dashed #D1D5DB', borderRadius: 12, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: csvFile ? '#F0FDF4' : '#F9FAFB', marginBottom: 20 }}
-              >
-                <FileSpreadsheet size={28} color={csvFile ? '#059669' : '#9CA3AF'} style={{ margin: '0 auto 8px', display: 'block' }} />
-                {csvFile ? (
-                  <>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: '#059669', margin: 0 }}>{csvFile.name}</p>
-                    <p style={{ fontSize: 12, color: '#6B7280', margin: '4px 0 0' }}>{csvRows.length} rows · Click to change</p>
-                  </>
-                ) : (
-                  <>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: '#374151', margin: 0 }}>Drop your CSV file here</p>
-                    <p style={{ fontSize: 12, color: '#9CA3AF', margin: '4px 0 0' }}>or click to browse · .csv files only</p>
-                  </>
-                )}
-                <input id="biz-csv-input" type="file" accept=".csv" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleCsvFile(e.target.files[0])} />
-              </div>
-
-              {/* Column mapper */}
-              {csvHeaders.length > 0 && (
-                <>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 12 }}>Map CSV Columns to Lead Fields</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 14px 1fr', gap: '8px 10px', alignItems: 'center', marginBottom: 16 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase' }}>CSV Column</span>
-                    <span />
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase' }}>Field</span>
-                    {csvHeaders.map(h => (
-                      <Fragment key={h}>
-                        <div style={{ padding: '7px 10px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 7, fontSize: 12, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h}</div>
-                        <ChevronRight size={12} color="#D1D5DB" />
-                        <select
-                          value={csvMapping[h] ?? ''}
-                          onChange={e => setCsvMapping(m => ({ ...m, [h]: e.target.value }))}
-                          style={{ padding: '7px 10px', border: '1px solid #E5E7EB', borderRadius: 7, fontSize: 12, background: 'white' }}
-                        >
-                          {CSV_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                        </select>
-                      </Fragment>
-                    ))}
-                  </div>
-
-                  {/* Preview */}
-                  <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Preview (first 3 rows)</p>
-                  <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #E5E7EB', marginBottom: 16 }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead><tr style={{ background: '#F9FAFB' }}>{csvHeaders.map(h => <th key={h} style={{ padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#6B7280', textAlign: 'left', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
-                      <tbody>{csvRows.slice(0, 3).map((row, i) => <tr key={i}>{csvHeaders.map(h => <td key={h} style={{ padding: '8px 10px', fontSize: 12, color: '#374151', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', borderBottom: '1px solid #F9FAFB' }}>{row[h]}</td>)}</tr>)}</tbody>
-                    </table>
-                  </div>
-
-                  {csvResult && (
-                    <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 16px', marginBottom: 14, display: 'flex', gap: 20, alignItems: 'center' }}>
-                      <Check size={14} color="#059669" />
-                      <span style={{ fontSize: 13, color: '#059669', fontWeight: 700 }}>{csvResult.imported} imported</span>
-                      {csvResult.skipped > 0 && <span style={{ fontSize: 13, color: '#D97706', fontWeight: 600 }}>{csvResult.skipped} skipped</span>}
-                      {csvResult.failed > 0 && <span style={{ fontSize: 13, color: '#DC2626', fontWeight: 600 }}>{csvResult.failed} failed</span>}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={uploadCsv}
-                    disabled={csvUploading}
-                    style={{ width: '100%', padding: '12px 0', borderRadius: 8, border: 'none', background: '#B08D57', color: 'white', fontSize: 14, fontWeight: 600, cursor: csvUploading ? 'not-allowed' : 'pointer', opacity: csvUploading ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                  >
-                    <Upload size={14} />
-                    {csvUploading ? 'Importing...' : `Import ${csvRows.length} Leads`}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <ImportModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        apiEndpoint="/api/business/leads/import"
+        extraPayload={{ company_id: portal.companyId }}
+        enableWhatsApp={true}
+        sourceLabel="file_import"
+        onSuccess={(r) => triggerToast(`Imported ${r.imported} leads${r.skipped ? `, ${r.skipped} skipped` : ''}`)}
+      />
     </>
   );
 }

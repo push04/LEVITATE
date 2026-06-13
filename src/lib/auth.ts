@@ -5,7 +5,7 @@ import { getSupabasePublishableKey, getSupabaseUrl } from '@/lib/supabase-env'
 import { getServiceSupabase } from '@/lib/supabase'
 import { isAdminRole } from '@/lib/roles'
 
-export async function checkAdminAuth(_request?: NextRequest): Promise<{ isAuthenticated: boolean }> {
+export async function checkAdminAuth(_request?: NextRequest): Promise<{ isAuthenticated: boolean; userId?: string; role?: string }> {
     void _request
 
     const cookieStore = await cookies()
@@ -45,5 +45,5 @@ export async function checkAdminAuth(_request?: NextRequest): Promise<{ isAuthen
         return { isAuthenticated: false }
     }
 
-    return { isAuthenticated: true }
+    return { isAuthenticated: true, userId: user.id, role: profile.role }
 }

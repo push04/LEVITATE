@@ -42,6 +42,7 @@
     "**/*.sql",
     "netlify",
     "supabase",
-    ".next"
+    ".next",
+    "levitate-agent"
   ]
 }

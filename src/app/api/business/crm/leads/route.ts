@@ -154,7 +154,7 @@ export async function POST(request: Request) {
       name: sourceLead.name,
       email: sourceLead.email,
       phone: sourceLead.phone,
-      whatsapp: sourceLead.phone,
+      whatsapp: sourceLead.whatsapp ?? sourceLead.phone,
       company_name: sourceLead.business_name ?? null,
       title: null,
       city: sourceLead.city,
