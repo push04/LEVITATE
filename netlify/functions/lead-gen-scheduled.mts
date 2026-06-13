@@ -92,7 +92,6 @@ export default async (): Promise<Response> => {
         business_name: l.business_name,
         address: l.address,
         phone: l.phone,
-        email: l.email ?? null,
         website: l.website,
         city: l.city,
         category: l.category,
