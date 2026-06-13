@@ -1355,7 +1355,22 @@ export async function fetchBingLeads(city: string, category: string, limit: numb
         const html = await res.text()
 
         // Each Bing result is in <li class="b_algo">
-        const GENERIC_TITLE = /^(what|how|why|when|where|is are|can|best|top \d|list of|find|get|free|download|video|image|news|about|home|contact|login|sign|faq|blog|review|google|facebook|youtube|instagram|twitter|wikipedia|amazon|flipkart)|\.{3}$|\bsays?\b.*\b(trump|biden|modi|court|police|minister)\b/i
+        // Reject non-business titles: generic web pages, news, foreign content, major brands
+        const GENERIC_TITLE = new RegExp(
+          // Starts with question/listicle words
+          '^(what|how|why|when|where|is |are |can |best |top \\d|list of|find |get |free |download|video|image|news|about|home|contact|login|sign |faq|blog|review|compare|comparativa|tipos|tabla|guia|guide|todo|all |les |la |le |un |une |nouveau|nouvelle|tarif|prix|avis)' +
+          // Major global brands (not Indian local businesses)
+          '|^(toyota|honda|suzuki|hyundai|ford|bmw|mercedes|audi|volkswagen|kia|tesla|apple|samsung|google|microsoft|amazon|facebook|meta|netflix|uber|ola|zomato|swiggy|flipkart|myntra|paytm|phonepe)' +
+          // News/political keywords anywhere in title
+          '|\\b(trump|biden|modi|court|police|minister|election|parliament|verdict|congress|bjp|aap|rupee|sensex|nifty|stock market|inflation|rbi|budget)\\b' +
+          // Ends with ellipsis or is clearly a nav item
+          '|\\.{3}$' +
+          // Non-ASCII (foreign language — French, Spanish, German, etc.)
+          '|[àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿœ€£¥]' +
+          // Clearly article/review titles
+          '|\\b(review|vs\\.|versus|comparison|difference|alternative|price|cost|specification|spec|model \\d|generation|facelift|launch|release|unveiled|announced|rumour|leak)\\b',
+          'i'
+        )
         const resultBlocks = [...html.matchAll(/<li[^>]+b_algo[^>]*>([\s\S]*?)<\/li>/g)]
         for (const m of resultBlocks.slice(0, 12)) {
           const block = m[1]
