@@ -1355,7 +1355,7 @@ export async function fetchBingLeads(city: string, category: string, limit: numb
         const html = await res.text()
 
         // Each Bing result is in <li class="b_algo">
-        const GENERIC_TITLE = /^(what|how|why|when|where|is are|can|best|top \d|list of|find|get|free|download|video|image|news|about|home|contact|login|sign|faq|blog|review)/i
+        const GENERIC_TITLE = /^(what|how|why|when|where|is are|can|best|top \d|list of|find|get|free|download|video|image|news|about|home|contact|login|sign|faq|blog|review|google|facebook|youtube|instagram|twitter|wikipedia|amazon|flipkart)/i
         const resultBlocks = [...html.matchAll(/<li[^>]+b_algo[^>]*>([\s\S]*?)<\/li>/g)]
         for (const m of resultBlocks.slice(0, 12)) {
           const block = m[1]
