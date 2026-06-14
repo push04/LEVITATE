@@ -27,15 +27,18 @@ export async function POST() {
       try {
         const body = await callAI(
           `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara, Gujarat.
-Write a short genuine cold email to a local Indian business owner about building them a website.
+Levitate Labs helps Indian businesses grow using AI and automation - things like auto-responding to leads, following up with customers automatically, generating content, and getting more inquiries without extra staff.
+
+Write a short genuine cold email to a local Indian business owner.
 
 STRICT RULES:
 - Under 90 words in the body
-- NO greetings like "Hello sir" or "Dear sir" - use their business name or just "Hi"
-- NO em dashes, NO exclamation marks, NO corporate buzzwords
-- Subject line: MUST mention their specific business type, 4-7 words max. Examples: "Quick question about your restaurant", "Website idea for your salon", "Found your medical clinic online". NEVER use generic subjects like "Hello" or "Quick question" alone.
-- Body: mention one specific problem their business type faces without a website
-- Offer a free mockup, no strings attached
+- NO greetings like "Hello sir" or "Dear sir" - use "Hi" or their business name
+- NO em dashes, NO exclamation marks, NO corporate buzzwords like "leverage" or "cutting-edge"
+- Subject line: 4-7 words, mention their specific business type. Examples: "Quick idea for your restaurant", "Helping salons get more bookings", "Auto-follow-up for your clinic". NEVER use generic subjects.
+- Body: mention ONE specific manual/repetitive problem their type of business has (missed calls, slow follow-ups, no online presence, losing customers to competitors)
+- Mention that AI can handle it automatically - give one concrete example relevant to their category
+- Offer a free 15-min call or demo, no strings
 - End with one simple yes/no question
 - Sign: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
 - Return JSON only: {"subject": "...", "body": "..."}`,

@@ -42,18 +42,19 @@ export async function POST() {
       if (count === 1 && days >= 3) {
         const body = await callAI(
           `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara.
-Write a short follow-up email (2nd contact, sent 3 days after first email).
+Levitate Labs helps Indian businesses grow using AI and automation - auto-responding to leads, customer follow-ups, getting more inquiries without extra staff.
+
+Write a short follow-up email (2nd contact, 3 days after first).
 
 RULES:
-- NO em dashes or fancy punctuation
 - Under 70 words
-- Acknowledge you messaged before - don't pretend it's a fresh email
-- Try a slightly different angle - maybe mention a specific result or a free offer
-- Keep it light, zero pressure
-- End with a soft question like "Would this be useful for you?"
+- NO em dashes, NO exclamation marks, NO "sir"
+- Acknowledge you messaged before briefly
+- Try a different angle - mention a specific result like "one of our clients gets 3x more inquiries now" or offer something concrete (free audit, demo)
+- Zero pressure, light tone
+- End with one soft question
 - Sign: "Pushpal Sanyal | Levitate Labs | levitatelabs.online"
-- Return JSON: {"subject": "...", "body": "..."}
-- Write like a genuine person checking in, not a sales sequence`,
+- Return JSON: {"subject": "...", "body": "..."}`,
           JSON.stringify({ business_name: lead.name, category: lead.service_category }),
           250,
           'followup'
@@ -82,14 +83,14 @@ RULES:
 Write a final follow-up email (3rd and last contact).
 
 RULES:
-- NO em dashes or fancy punctuation
-- Under 55 words - very short
-- Be completely honest that this is the last message, no pressure at all
-- Leave the door open warmly - if they ever need help they can reach out
-- No offer, no pitch - just a genuine sign-off
+- Under 55 words - keep it very short
+- NO em dashes, NO exclamation marks, NO "sir"
+- Be honest this is the last message - no pressure
+- Mention briefly what you do (AI/automation to grow businesses) in case timing was off
+- Leave the door open warmly
+- No hard pitch
 - Sign: "Pushpal Sanyal | Levitate Labs | levitatelabs.online"
-- Return JSON: {"subject": "...", "body": "..."}
-- Make it feel like a real human gracefully bowing out`,
+- Return JSON: {"subject": "...", "body": "..."}`,
           JSON.stringify({ business_name: lead.name }),
           200,
           'followup'
