@@ -3,6 +3,8 @@ import { callAI } from '@/lib/ai/router'
 import { getBusinessApiContext } from '@/lib/business-intelligence-server'
 import { getServiceSupabase } from '@/lib/supabase'
 
+interface NumericStat { min: number; max: number; mean: number; sum: number; count: number }
+
 interface DataStats {
   validPhones: number
   invalidPhones: number
@@ -10,6 +12,10 @@ interface DataStats {
   topCities: [string, number][]
   topCategories: [string, number][]
   columnCompleteness: { column: string; filled: number; pct: number }[]
+  columnTypes: Record<string, string>
+  numericStats: Record<string, NumericStat>
+  categoricalDistributions: Record<string, [string, number][]>
+  dateRange: { column: string; earliest: string; latest: string } | null
 }
 
 function cleanText(s: string): string {
@@ -75,38 +81,117 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { fileName, totalRows, headers, stats, sampleRows, userQuestion } = body
-  if (!fileName || !totalRows || !headers?.length || !stats) {
+  const { fileName, totalRows, headers: rawHeaders, stats, sampleRows, userQuestion } = body
+  if (!fileName || !totalRows || !rawHeaders?.length || !stats) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
-  const cityLines = stats.topCities.slice(0, 10).map(([c, n]) => `  ${c}: ${n}`).join('\n')
-  const catLines = stats.topCategories.slice(0, 8).map(([c, n]) => `  ${c}: ${n}`).join('\n')
-  const incompleteCols = stats.columnCompleteness
-    .filter(c => c.pct < 90)
-    .sort((a, b) => a.pct - b.pct)
-    .slice(0, 6)
-    .map(c => `  ${c.column}: ${c.pct}% filled`)
-    .join('\n')
-  const sampleText = (sampleRows ?? []).slice(0, 8).map((row, i) =>
-    `Row ${i + 1}: ` + headers.slice(0, 8).map(h => `${h}=${row[h] ?? ''}`).join(' | ')
-  ).join('\n')
+  // Strip Excel artifact empty columns
+  const headers = rawHeaders.filter(h => h && h.trim() && !h.startsWith('__EMPTY') && !h.startsWith('_EMPTY'))
 
-  const focus = userQuestion?.trim() ? `\nFocus: ${userQuestion.trim()}` : ''
+  const pct = (n: number) => `${((n / totalRows) * 100).toFixed(1)}%`
 
-  const system = 'You are a senior business data analyst. Respond ONLY with valid JSON. No markdown, no extra text.'
-  const prompt = [
-    `Dataset: "${fileName}" — ${totalRows.toLocaleString()} rows, ${headers.length} columns`,
-    `Columns: ${headers.join(', ')}`,
-    `Phone data: ${stats.validPhones} valid, ${stats.invalidPhones} invalid, ${stats.duplicatePhones} duplicates`,
-    stats.topCities.length ? `City distribution:\n${cityLines}` : '',
-    stats.topCategories.length ? `Category distribution:\n${catLines}` : '',
-    incompleteCols ? `Incomplete columns:\n${incompleteCols}` : '',
-    sampleText ? `Sample rows:\n${sampleText}` : '',
-    focus,
-    `Return JSON: {"executiveSummary":"...","keyFindings":["...","...","..."],"recommendations":["...","...","..."],"dataQuality":"..."}`,
-    `Keep each item under 25 words. Plain text only — no dashes at start, no arrows, no special characters.`,
-  ].filter(Boolean).join('\n\n')
+  // Build verified stats block — AI must treat these as ground truth
+  const parts: string[] = []
+
+  parts.push(`DATASET: "${fileName}" — ${totalRows.toLocaleString()} rows, ${headers.length} columns`)
+  parts.push(`Column types: ${headers.map(h => `${h}(${stats.columnTypes?.[h] ?? 'text'})`).join(', ')}`)
+
+  // Phone stats
+  if (stats.validPhones > 0 || stats.invalidPhones > 0) {
+    parts.push(
+      `PHONE COVERAGE (verified from all ${totalRows.toLocaleString()} rows):\n` +
+      `  Valid unique numbers: ${stats.validPhones.toLocaleString()} (${pct(stats.validPhones)})\n` +
+      `  Invalid numbers: ${stats.invalidPhones}\n` +
+      `  Duplicates removed: ${stats.duplicatePhones}`
+    )
+  }
+
+  // City distribution
+  if (stats.topCities.length) {
+    const cityTotal = stats.topCities.reduce((s, [, n]) => s + n, 0)
+    parts.push(
+      `CITY DISTRIBUTION (all ${totalRows.toLocaleString()} rows):\n` +
+      stats.topCities.slice(0, 12).map(([c, n]) => `  ${c}: ${n} (${pct(n)})`).join('\n') +
+      (stats.topCities.length > 12 ? `\n  ...${stats.topCities.length - 12} more cities` : '') +
+      `\n  Total rows with city: ${cityTotal.toLocaleString()}`
+    )
+  }
+
+  // Category distribution
+  if (stats.topCategories.length) {
+    parts.push(
+      `CATEGORY DISTRIBUTION (all ${totalRows.toLocaleString()} rows):\n` +
+      stats.topCategories.slice(0, 10).map(([c, n]) => `  ${c}: ${n} (${pct(n)})`).join('\n')
+    )
+  }
+
+  // Other categorical columns (status, stage, etc.)
+  const catDist = stats.categoricalDistributions ?? {}
+  const extraCatCols = Object.keys(catDist).filter(h =>
+    !stats.topCategories.length || !headers.some(hh => hh === h && stats.columnTypes?.[hh] === 'category')
+  ).slice(0, 3)
+  for (const col of extraCatCols) {
+    const dist = catDist[col]
+    if (dist?.length) {
+      parts.push(
+        `"${col}" DISTRIBUTION:\n` +
+        dist.slice(0, 10).map(([v, n]) => `  ${v}: ${n} (${pct(n)})`).join('\n')
+      )
+    }
+  }
+
+  // Numeric column stats
+  const numStats = stats.numericStats ?? {}
+  const numCols = Object.keys(numStats).slice(0, 4)
+  if (numCols.length) {
+    const numLines = numCols.map(col => {
+      const s = numStats[col]
+      return `  "${col}": sum=${s.sum.toLocaleString()}, mean=${s.mean.toLocaleString()}, min=${s.min.toLocaleString()}, max=${s.max.toLocaleString()}, filled=${s.count.toLocaleString()} rows`
+    })
+    parts.push(`NUMERIC COLUMNS:\n${numLines.join('\n')}`)
+  }
+
+  // Date range
+  if (stats.dateRange) {
+    parts.push(`DATE RANGE ("${stats.dateRange.column}"): ${stats.dateRange.earliest} to ${stats.dateRange.latest}`)
+  }
+
+  // Data completeness — show incomplete real columns only (skip Excel empty artifacts)
+  const incomplete = stats.columnCompleteness
+    .filter(c => c.pct < 95 && c.column && !c.column.startsWith('__EMPTY') && !c.column.startsWith('_EMPTY') && c.column.trim())
+    .sort((a, b) => a.pct - b.pct).slice(0, 8)
+  if (incomplete.length) {
+    parts.push(
+      `DATA COMPLETENESS (incomplete columns only):\n` +
+      incomplete.map(c => `  ${c.column}: ${c.pct}% (${c.filled.toLocaleString()} of ${totalRows.toLocaleString()} rows filled)`).join('\n')
+    )
+  }
+
+  // Stratified sample — only real columns
+  const sample = (sampleRows ?? []).slice(0, 20)
+  if (sample.length) {
+    const sampleLines = sample.map((row, i) =>
+      `  [${i + 1}] ` + headers.slice(0, 10).map(h => `${h}: ${row[h]?.trim() || '-'}`).join(' | ')
+    )
+    parts.push(`REPRESENTATIVE SAMPLE (${sample.length} rows, one from each major group):\n${sampleLines.join('\n')}`)
+  }
+
+  const focus = userQuestion?.trim() ? `FOCUS QUESTION: ${userQuestion.trim()}` : ''
+  if (focus) parts.push(focus)
+
+  parts.push(
+    `TASK: Based ONLY on the verified statistics above, return this exact JSON:\n` +
+    `{"executiveSummary":"...","keyFindings":["...","...","..."],"recommendations":["...","...","..."],"dataQuality":"..."}\n` +
+    `Rules:\n` +
+    `- Every number you state must come from VERIFIED STATISTICS above — do not estimate, round differently, or invent\n` +
+    `- If something is not in the stats, do not mention it\n` +
+    `- Keep each keyFinding and recommendation under 25 words\n` +
+    `- Plain text only — no dashes at line start, no arrows, no markdown`
+  )
+
+  const system = 'You are a senior business data analyst. Respond ONLY with valid JSON matching the requested structure. No markdown, no extra text outside the JSON.'
+  const prompt = parts.join('\n\n')
 
   try {
     const raw = await callAI(system, prompt, 600, 'data-analyzer')

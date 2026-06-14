@@ -13,6 +13,8 @@ type Phase = 'idle' | 'ready' | 'analyzing' | 'done';
 
 interface AnalyzeStep { label: string; done: boolean }
 
+interface NumericStat { min: number; max: number; mean: number; sum: number; count: number }
+
 interface DataStats {
   validPhones: number;
   invalidPhones: number;
@@ -20,6 +22,10 @@ interface DataStats {
   topCities: [string, number][];
   topCategories: [string, number][];
   columnCompleteness: { column: string; filled: number; pct: number }[];
+  columnTypes: Record<string, string>;
+  numericStats: Record<string, NumericStat>;
+  categoricalDistributions: Record<string, [string, number][]>;
+  dateRange: { column: string; earliest: string; latest: string } | null;
 }
 
 interface FinalResult {
@@ -127,69 +133,188 @@ export default function AnalyzePage() {
     setSteps([
       { label: 'Parsing rows and columns', done: false },
       { label: 'Validating phone numbers', done: false },
-      { label: 'Mapping city distribution', done: false },
-      { label: 'Measuring data quality', done: false },
+      { label: 'Computing distributions and value stats', done: false },
+      { label: 'Building representative sample', done: false },
       { label: 'AI generating insights', done: false },
     ]);
 
-    const { rows, headers, fileName, rowCount } = parsedFile;
+    const { rows, fileName, rowCount } = parsedFile;
+    // Strip Excel artifact empty column headers before any processing
+    const headers = parsedFile.headers.filter(h => h && h.trim() && !h.startsWith('__EMPTY') && !h.startsWith('_EMPTY'));
     const markDone = (i: number) => setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, done: true } : s));
+    const n = rows.length;
 
     setStatusMsg(`Processing ${rowCount.toLocaleString()} rows...`);
-
-    // Step 1 — row/col parsing (already done by parseFile, just show it)
     await tick();
     markDone(0);
 
-    // Step 2 — phone validation
+    // ── Step 2: phone validation ──────────────────────────────────────────
     setStatusMsg('Validating phone numbers...');
     await tick();
-    const phoneCol = headers.find(h => /phone|mobile|whatsapp|contact/i.test(h));
-    const cityCols = headers.filter(h => /city|location|district|area/i.test(h));
-    const catCols = headers.filter(h => /category|type|industry|sector|service/i.test(h));
+
+    const phoneCol = headers.find(h => /phone|mobile|whatsapp|contact|ph\b|cell/i.test(h));
+    const cityCols = headers.filter(h => /city|location|district|area|region|place|town|zone|state|taluka|mandal|tehsil|village|pincode|pin\b/i.test(h));
+    const catCols  = headers.filter(h => /category|type|industry|sector|service|segment|product|group|class/i.test(h));
+
     let validPhones = 0, invalidPhones = 0, duplicatePhones = 0;
     const phoneSeen = new Set<string>();
     for (const row of rows) {
-      if (phoneCol) {
-        const v = (row[phoneCol] ?? '').replace(/[\s\-\(\)\+]/g, '');
-        if (v) {
-          const norm = v.startsWith('91') && v.length === 12 ? v.slice(2) : v;
-          if (/^[6-9]\d{9}$/.test(norm)) { if (phoneSeen.has(norm)) duplicatePhones++; else { phoneSeen.add(norm); validPhones++; } }
-          else invalidPhones++;
-        }
-      }
+      if (!phoneCol) break;
+      const v = (row[phoneCol] ?? '').replace(/[\s\-\(\)\+]/g, '');
+      if (!v) continue;
+      const norm = v.startsWith('91') && v.length === 12 ? v.slice(2) : v;
+      if (/^[6-9]\d{9}$/.test(norm)) {
+        if (phoneSeen.has(norm)) duplicatePhones++;
+        else { phoneSeen.add(norm); validPhones++; }
+      } else { invalidPhones++; }
     }
     markDone(1);
 
-    // Step 3 — city mapping
-    setStatusMsg('Mapping cities...');
+    // ── Step 3: distributions + numeric + date stats ──────────────────────
+    setStatusMsg('Computing distributions and statistics...');
     await tick();
-    const cityCount: Record<string, number> = {};
-    const catCount: Record<string, number> = {};
-    const colFill: Record<string, number> = {};
-    for (const h of headers) colFill[h] = 0;
-    for (const row of rows) {
-      for (const h of headers) if (row[h]?.trim()) colFill[h]++;
-      for (const col of cityCols) { const city = row[col]?.trim(); if (city) cityCount[city] = (cityCount[city] ?? 0) + 1; }
-      for (const col of catCols) { const cat = row[col]?.trim(); if (cat) catCount[cat] = (catCount[cat] ?? 0) + 1; }
-    }
-    markDone(2);
 
-    // Step 4 — data quality
-    setStatusMsg('Measuring data quality...');
-    await tick();
+    // Detect column type for each header
+    const columnTypes: Record<string, string> = {};
+    for (const h of headers) {
+      const hl = h.toLowerCase();
+      if (/phone|mobile|whatsapp|contact|tel|ph\b|cell/.test(hl))    columnTypes[h] = 'phone';
+      else if (/city|location|district|area|state|region|place|town|zone|taluka|mandal|tehsil|village|pincode/.test(hl)) columnTypes[h] = 'city';
+      else if (/category|type|industry|sector|service|segment|product|group|class/.test(hl)) columnTypes[h] = 'category';
+      else if (/amount|balance|revenue|value|price|cost|total|sum|fee|charge/.test(hl)) columnTypes[h] = 'value';
+      else if (/date|time|created|joined|when|dob|birth/.test(hl))   columnTypes[h] = 'date';
+      else if (/name|company|business|firm|customer|client|party/.test(hl)) columnTypes[h] = 'name';
+      else if (/email|mail/.test(hl))                                columnTypes[h] = 'email';
+      else if (/status|stage|pipeline|state|flag/.test(hl))          columnTypes[h] = 'status';
+      else                                                            columnTypes[h] = 'text';
+    }
+
+    const cityCount: Record<string, number> = {};
+    const catCount:  Record<string, number> = {};
+    const colFill:   Record<string, number> = {};
+    // For unique-value detection (categorical stats)
+    const colValues: Record<string, Map<string, number>> = {};
+    // For numeric stats
+    const colNums:   Record<string, number[]> = {};
+    // For date stats
+    const colDates:  Record<string, Date[]> = {};
+
+    for (const h of headers) {
+      colFill[h] = 0;
+      const t = columnTypes[h];
+      if (t === 'value') colNums[h] = [];
+      if (t === 'date')  colDates[h] = [];
+      if (['category', 'status', 'text'].includes(t)) colValues[h] = new Map();
+    }
+
+    for (const row of rows) {
+      for (const h of headers) {
+        const v = row[h]?.trim() ?? '';
+        if (v) {
+          colFill[h]++;
+          const t = columnTypes[h];
+          if (t === 'value') {
+            const num = Number(v.replace(/[,₹$\s]/g, ''));
+            if (!isNaN(num) && num > 0) colNums[h].push(num);
+          }
+          if (t === 'date') {
+            const d = new Date(v);
+            if (!isNaN(d.getTime())) colDates[h].push(d);
+          }
+          if (colValues[h]) {
+            colValues[h].set(v, (colValues[h].get(v) ?? 0) + 1);
+          }
+        }
+      }
+      for (const col of cityCols) { const c = row[col]?.trim(); if (c) cityCount[c] = (cityCount[c] ?? 0) + 1; }
+      for (const col of catCols)  { const c = row[col]?.trim(); if (c) catCount[c]  = (catCount[c]  ?? 0) + 1; }
+    }
+
+    // Numeric stats per value column
+    const numericStats: Record<string, NumericStat> = {};
+    for (const [h, nums] of Object.entries(colNums)) {
+      if (!nums.length) continue;
+      const sum = nums.reduce((a, b) => a + b, 0);
+      numericStats[h] = {
+        min: Math.min(...nums),
+        max: Math.max(...nums),
+        mean: Math.round(sum / nums.length),
+        sum: Math.round(sum),
+        count: nums.length,
+      };
+    }
+
+    // Categorical distributions: columns with 2–30 unique values
+    const categoricalDistributions: Record<string, [string, number][]> = {};
+    for (const [h, valMap] of Object.entries(colValues)) {
+      if (valMap.size >= 2 && valMap.size <= 30) {
+        categoricalDistributions[h] = Array.from(valMap.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 15) as [string, number][];
+      }
+    }
+
+    // Date range: pick the date column with most entries
+    let dateRange: DataStats['dateRange'] = null;
+    for (const [h, dates] of Object.entries(colDates)) {
+      if (dates.length < 2) continue;
+      dates.sort((a, b) => a.getTime() - b.getTime());
+      dateRange = {
+        column: h,
+        earliest: dates[0].toLocaleDateString('en-IN'),
+        latest: dates[dates.length - 1].toLocaleDateString('en-IN'),
+      };
+      break;
+    }
+
     const stats: DataStats = {
       validPhones, invalidPhones, duplicatePhones,
       topCities: Object.entries(cityCount).sort((a, b) => b[1] - a[1]).slice(0, 15) as [string, number][],
       topCategories: Object.entries(catCount).sort((a, b) => b[1] - a[1]).slice(0, 10) as [string, number][],
-      columnCompleteness: headers.map(h => ({ column: h, filled: colFill[h], pct: rows.length > 0 ? Math.round(colFill[h] / rows.length * 100) : 0 })),
+      columnCompleteness: headers.map(h => ({ column: h, filled: colFill[h], pct: n > 0 ? Math.round(colFill[h] / n * 100) : 0 })),
+      columnTypes,
+      numericStats,
+      categoricalDistributions,
+      dateRange,
     };
     setDataStats(stats);
+    markDone(2);
+
+    // ── Step 4: stratified sample ─────────────────────────────────────────
+    setStatusMsg('Building representative sample...');
+    await tick();
+
+    // Group rows by top city or category; pick 2 from each group (max 20 rows)
+    const groupCol = cityCols[0] ?? catCols[0];
+    let sampleRows: Record<string, string>[];
+
+    if (groupCol) {
+      const groups: Record<string, Record<string, string>[]> = {};
+      for (const row of rows) {
+        const g = row[groupCol]?.trim() || '__other__';
+        if (!groups[g]) groups[g] = [];
+        groups[g].push(row);
+      }
+      const topGroups = Object.entries(groups)
+        .sort((a, b) => b[1].length - a[1].length)
+        .slice(0, 10);
+      sampleRows = [];
+      for (const [, grpRows] of topGroups) {
+        sampleRows.push(grpRows[0]);
+        if (grpRows.length > 1) sampleRows.push(grpRows[Math.floor(grpRows.length / 2)]);
+        if (sampleRows.length >= 20) break;
+      }
+      // Fill remaining slots from start
+      if (sampleRows.length < 10) sampleRows.push(...rows.slice(0, 10 - sampleRows.length));
+    } else {
+      sampleRows = rows.slice(0, 20);
+    }
+
     markDone(3);
 
     if (abortRef.current) { setPhase('done'); return; }
 
-    // Step 5 — AI (single call, ~5-10s)
+    // ── Step 5: single AI call ────────────────────────────────────────────
     setStatusMsg('AI generating insights — keep this tab open...');
 
     const doRequest = () => fetch('/api/business/analyze', {
@@ -201,7 +326,7 @@ export default function AnalyzePage() {
         totalRows: rowCount,
         headers,
         stats,
-        sampleRows: rows.slice(0, 15),
+        sampleRows,
         userQuestion: question.trim() || undefined,
       }),
     });
