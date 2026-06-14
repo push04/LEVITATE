@@ -1,27 +1,46 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Upload, FileSpreadsheet, Sparkles, ChevronRight,
-  X, Download, AlertCircle, CheckCircle2, BarChart3, MessageCircle, Send,
+  X, Download, AlertCircle, CheckCircle2, BarChart3, MessageCircle, Send, Clock, Phone, MapPin,
 } from 'lucide-react';
 import { useCompanyPortalState } from '@/hooks/useCompanyPortalState';
 import BusinessPortalLocked from '@/components/business/BusinessPortalLocked';
 import { parseFile, extractPhones, type ParsedFile } from '@/lib/import/fileParser';
 
-const CHUNK_SIZE = 50;
-const CHUNK_DELAY_MS = 2000;
-const MAX_RETRY = 3;
-
 type Phase = 'idle' | 'ready' | 'analyzing' | 'done';
 
-interface ChunkResult { chunkIndex: number; chunkSummary?: string; notableItems?: string[] }
+interface AnalyzeStep { label: string; done: boolean }
+
+interface DataStats {
+  validPhones: number;
+  invalidPhones: number;
+  duplicatePhones: number;
+  topCities: [string, number][];
+  topCategories: [string, number][];
+  columnCompleteness: { column: string; filled: number; pct: number }[];
+}
+
 interface FinalResult {
   executiveSummary: string;
   keyFindings: string[];
   recommendations: string[];
   dataQuality: string;
   metrics: { totalRows: number; columnsAnalyzed: number };
+}
+
+interface SavedAnalysis {
+  id: string;
+  file_name: string;
+  total_rows: number;
+  valid_phones: number;
+  executive_summary: string | null;
+  key_findings: string[];
+  recommendations: string[];
+  data_quality: string | null;
+  user_question: string | null;
+  created_at: string;
 }
 
 const SAMPLES = [
@@ -31,7 +50,6 @@ const SAMPLES = [
   'What revenue trends do you see?',
 ];
 
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 export default function AnalyzePage() {
   const portal = useCompanyPortalState();
@@ -40,18 +58,29 @@ export default function AnalyzePage() {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [parseError, setParseError] = useState('');
   const [question, setQuestion] = useState('');
-  const [progress, setProgress] = useState({ current: 0, total: 0, status: '' });
-  const [chunks, setChunks] = useState<ChunkResult[]>([]);
+  const [statusMsg, setStatusMsg] = useState('');
+  const [steps, setSteps] = useState<AnalyzeStep[]>([]);
+  const [dataStats, setDataStats] = useState<DataStats | null>(null);
   const [final, setFinal] = useState<FinalResult | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [history, setHistory] = useState<SavedAnalysis[]>([]);
+  const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
   const abortRef = useRef(false);
 
-  // WhatsApp campaign state
   const [waName, setWaName] = useState('');
   const [waMsg, setWaMsg] = useState('');
   const [waLaunching, setWaLaunching] = useState(false);
   const [waResult, setWaResult] = useState<{ queued: number } | null>(null);
   const [waError, setWaError] = useState('');
+
+  useEffect(() => {
+    if (!portal.companyId) return;
+    fetch('/api/business/analyze')
+      .then(r => r.json())
+      .then((d: { analyses?: SavedAnalysis[] }) => { if (d.analyses) setHistory(d.analyses); })
+      .catch(() => {});
+  }, [portal.companyId]);
 
   if (portal.loading) return null;
   if (!portal.hasPaidAccess) return (
@@ -65,13 +94,12 @@ export default function AnalyzePage() {
   );
 
   const handleFile = async (f: File) => {
-    setParseError(''); setParsedFile(null); setChunks([]); setFinal(null); setError('');
+    setParseError(''); setParsedFile(null); setDataStats(null); setFinal(null); setError(''); setSavedId(null);
     setWaResult(null); setWaError('');
     setPhase('ready');
     try {
       const parsed = await parseFile(f);
       setParsedFile(parsed);
-      // Auto-detect phone mapping for WA
       const phoneCol = parsed.headers.find(h => {
         const l = h.toLowerCase().trim();
         return ['phone', 'mobile', 'whatsapp', 'contact', 'tel', 'number'].some(k => l.includes(k));
@@ -90,88 +118,129 @@ export default function AnalyzePage() {
     }
   };
 
+  const tick = () => new Promise<void>(r => setTimeout(r, 0));
+
   const analyze = async () => {
     if (!parsedFile || !portal.companyId) return;
     abortRef.current = false;
-    setPhase('analyzing'); setChunks([]); setFinal(null); setError('');
+    setPhase('analyzing'); setFinal(null); setError(''); setSavedId(null);
+    setSteps([
+      { label: 'Parsing rows and columns', done: false },
+      { label: 'Validating phone numbers', done: false },
+      { label: 'Mapping city distribution', done: false },
+      { label: 'Measuring data quality', done: false },
+      { label: 'AI generating insights', done: false },
+    ]);
 
     const { rows, headers, fileName, rowCount } = parsedFile;
-    const chunkList: Record<string, string>[][] = [];
-    for (let i = 0; i < rows.length; i += CHUNK_SIZE) chunkList.push(rows.slice(i, i + CHUNK_SIZE));
-    const total = chunkList.length;
-    setProgress({ current: 0, total, status: 'Starting...' });
+    const markDone = (i: number) => setSteps(prev => prev.map((s, idx) => idx === i ? { ...s, done: true } : s));
 
-    let accumulated = '';
+    setStatusMsg(`Processing ${rowCount.toLocaleString()} rows...`);
 
-    for (let i = 0; i < total; i++) {
-      if (abortRef.current) break;
-      setProgress({ current: i + 1, total, status: `Analyzing chunk ${i + 1} of ${total}…` });
+    // Step 1 — row/col parsing (already done by parseFile, just show it)
+    await tick();
+    markDone(0);
 
-      let retries = 0;
-      while (retries < MAX_RETRY) {
-        try {
-          const res = await fetch('/api/business/analyze', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              company_id: portal.companyId,
-              fileName, headers,
-              rows: chunkList[i],
-              chunkIndex: i,
-              totalChunks: total,
-              totalRows: rowCount,
-              userQuestion: question.trim() || undefined,
-              previousInsights: accumulated || undefined,
-            }),
-          });
-
-          if (res.status === 429) {
-            const d = await res.json().catch(() => ({})) as { retryAfter?: number };
-            const wait = ((d.retryAfter ?? 5) + retries * 5) * 1000;
-            setProgress(p => ({ ...p, status: `Rate limit — waiting ${Math.round(wait / 1000)}s…` }));
-            await sleep(wait);
-            retries++;
-            continue;
-          }
-
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json() as { insights: Record<string, unknown>; isFinal: boolean };
-
-          if (data.isFinal) {
-            setFinal(data.insights as unknown as FinalResult);
-          } else {
-            const rawItems = (data.insights.notableItems as unknown[]) ?? [];
-            const r: ChunkResult = {
-              chunkIndex: i,
-              chunkSummary: typeof data.insights.chunkSummary === 'string' ? data.insights.chunkSummary : String(data.insights.chunkSummary ?? ''),
-              notableItems: rawItems.map(item => typeof item === 'string' ? item : (typeof item === 'object' && item !== null ? Object.values(item).join(' — ') : String(item))),
-            };
-            setChunks(prev => [...prev, r]);
-            if (r.chunkSummary) accumulated += `\nChunk ${i + 1}: ${r.chunkSummary}`;
-          }
-          break;
-        } catch (e) {
-          retries++;
-          if (retries >= MAX_RETRY) {
-            setError(`Failed on chunk ${i + 1}: ${e instanceof Error ? e.message : 'Unknown'}`);
-            setPhase('done');
-            return;
-          }
-          await sleep(3000 * retries);
+    // Step 2 — phone validation
+    setStatusMsg('Validating phone numbers...');
+    await tick();
+    const phoneCol = headers.find(h => /phone|mobile|whatsapp|contact/i.test(h));
+    const cityCols = headers.filter(h => /city|location|district|area/i.test(h));
+    const catCols = headers.filter(h => /category|type|industry|sector|service/i.test(h));
+    let validPhones = 0, invalidPhones = 0, duplicatePhones = 0;
+    const phoneSeen = new Set<string>();
+    for (const row of rows) {
+      if (phoneCol) {
+        const v = (row[phoneCol] ?? '').replace(/[\s\-\(\)\+]/g, '');
+        if (v) {
+          const norm = v.startsWith('91') && v.length === 12 ? v.slice(2) : v;
+          if (/^[6-9]\d{9}$/.test(norm)) { if (phoneSeen.has(norm)) duplicatePhones++; else { phoneSeen.add(norm); validPhones++; } }
+          else invalidPhones++;
         }
       }
+    }
+    markDone(1);
 
-      if (i < total - 1 && !abortRef.current) await sleep(CHUNK_DELAY_MS);
+    // Step 3 — city mapping
+    setStatusMsg('Mapping cities...');
+    await tick();
+    const cityCount: Record<string, number> = {};
+    const catCount: Record<string, number> = {};
+    const colFill: Record<string, number> = {};
+    for (const h of headers) colFill[h] = 0;
+    for (const row of rows) {
+      for (const h of headers) if (row[h]?.trim()) colFill[h]++;
+      for (const col of cityCols) { const city = row[col]?.trim(); if (city) cityCount[city] = (cityCount[city] ?? 0) + 1; }
+      for (const col of catCols) { const cat = row[col]?.trim(); if (cat) catCount[cat] = (catCount[cat] ?? 0) + 1; }
+    }
+    markDone(2);
+
+    // Step 4 — data quality
+    setStatusMsg('Measuring data quality...');
+    await tick();
+    const stats: DataStats = {
+      validPhones, invalidPhones, duplicatePhones,
+      topCities: Object.entries(cityCount).sort((a, b) => b[1] - a[1]).slice(0, 15) as [string, number][],
+      topCategories: Object.entries(catCount).sort((a, b) => b[1] - a[1]).slice(0, 10) as [string, number][],
+      columnCompleteness: headers.map(h => ({ column: h, filled: colFill[h], pct: rows.length > 0 ? Math.round(colFill[h] / rows.length * 100) : 0 })),
+    };
+    setDataStats(stats);
+    markDone(3);
+
+    if (abortRef.current) { setPhase('done'); return; }
+
+    // Step 5 — AI (single call, ~5-10s)
+    setStatusMsg('AI generating insights — keep this tab open...');
+
+    const doRequest = () => fetch('/api/business/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        company_id: portal.companyId,
+        fileName,
+        totalRows: rowCount,
+        headers,
+        stats,
+        sampleRows: rows.slice(0, 15),
+        userQuestion: question.trim() || undefined,
+      }),
+    });
+
+    try {
+      let res = await doRequest();
+
+      if (res.status === 429) {
+        const d = await res.json().catch(() => ({})) as { retryAfter?: number };
+        const wait = (d.retryAfter ?? 30) * 1000;
+        setStatusMsg(`Rate limited. Retrying in ${Math.round(wait / 1000)}s...`);
+        await new Promise(r => setTimeout(r, wait));
+        if (abortRef.current) { setPhase('done'); return; }
+        setStatusMsg('AI generating insights...');
+        res = await doRequest();
+      }
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { insights: FinalResult; analysisId?: string };
+      setFinal(data.insights);
+      markDone(4);
+      if (data.analysisId) {
+        setSavedId(data.analysisId);
+        fetch('/api/business/analyze')
+          .then(r => r.json())
+          .then((d: { analyses?: SavedAnalysis[] }) => { if (d.analyses) setHistory(d.analyses); })
+          .catch(() => {});
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Analysis failed — please try again.');
     }
 
-    setProgress(p => ({ ...p, status: 'Done!' }));
     setPhase('done');
   };
 
   const reset = () => {
     abortRef.current = true;
-    setPhase('idle'); setParsedFile(null); setChunks([]); setFinal(null);
-    setError(''); setQuestion(''); setWaResult(null); setWaError('');
+    setPhase('idle'); setParsedFile(null); setDataStats(null); setFinal(null);
+    setError(''); setQuestion(''); setSavedId(null); setWaResult(null); setWaError(''); setSteps([]);
   };
 
   const exportTxt = () => {
@@ -190,11 +259,8 @@ export default function AnalyzePage() {
     a.click();
   };
 
-  // Build per-contact data array from parsed rows for personalized WhatsApp send
   const buildContactData = () => {
     if (!parsedFile) return [];
-    const phones = extractPhones(parsedFile.rows, mapping);
-    // Map each row that has a phone to {phone, variables}
     const phoneKey = Object.entries(mapping).find(([, v]) => v === 'phone')?.[0];
     const nameKey = Object.entries(mapping).find(([, v]) => v === 'business_name' || v === 'name')?.[0];
     const cityKey = parsedFile.headers.find(h => h.toLowerCase().includes('city'));
@@ -228,13 +294,12 @@ export default function AnalyzePage() {
 
     const contacts = buildContactData();
     if (!contacts.length) {
-      setWaError('No valid phone numbers found. Check that your file has a phone/mobile column.');
+      setWaError('No valid phone numbers found. Check that your file has a phone or mobile column.');
       setWaLaunching(false);
       return;
     }
 
     try {
-      // Create campaign
       const createRes = await fetch('/api/business/whatsapp/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -248,18 +313,13 @@ export default function AnalyzePage() {
       const createData = await createRes.json() as { campaign?: { id: string }; error?: string };
       if (!createData.campaign) throw new Error(createData.error ?? 'Failed to create campaign');
 
-      // Launch with per-contact personalization
       const launchRes = await fetch('/api/business/whatsapp/campaigns/launch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaign_id: createData.campaign.id,
-          contact_data: contacts,
-        }),
+        body: JSON.stringify({ campaign_id: createData.campaign.id, contact_data: contacts }),
       });
       const launchData = await launchRes.json() as { success?: boolean; queued?: number; error?: string };
       if (!launchData.success) throw new Error(launchData.error ?? 'Launch failed');
-
       setWaResult({ queued: launchData.queued ?? contacts.length });
     } catch (e) {
       setWaError(e instanceof Error ? e.message : 'Launch failed');
@@ -268,11 +328,7 @@ export default function AnalyzePage() {
     }
   };
 
-  const pct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
-  const totalChunkCount = parsedFile ? Math.ceil(parsedFile.rowCount / CHUNK_SIZE) : 0;
-  const estMin = Math.max(1, Math.ceil(totalChunkCount * 2.5 / 60));
   const extractedPhones = phase === 'done' && parsedFile ? extractPhones(parsedFile.rows, mapping).length : 0;
-
   const card: React.CSSProperties = { background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, padding: '16px 20px' };
 
   return (
@@ -286,7 +342,7 @@ export default function AnalyzePage() {
             </div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 }}>AI Data Analyzer</h1>
           </div>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Upload any CSV or Excel → AI analyzes chunk by chunk → launch personalized WhatsApp campaign</p>
+          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>Upload any CSV or Excel file. AI analyzes your data instantly and generates actionable insights.</p>
         </div>
         {phase !== 'idle' && (
           <button onClick={reset} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid #E5E7EB', background: 'white', fontSize: 13, color: '#6B7280', cursor: 'pointer' }}>
@@ -295,7 +351,7 @@ export default function AnalyzePage() {
         )}
       </div>
 
-      {/* ── IDLE ─────────────────────────────────────────────────────────── */}
+      {/* IDLE */}
       {phase === 'idle' && (
         <div style={{ maxWidth: 600 }}>
           <div
@@ -308,7 +364,7 @@ export default function AnalyzePage() {
               <Upload size={24} color="white" />
             </div>
             <p style={{ fontSize: 16, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Drop your file here</p>
-            <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 16px' }}>or click to browse · No size limit</p>
+            <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 16px' }}>or click to browse</p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
               {['CSV', 'XLS', 'XLSX'].map(f => (
                 <span key={f} style={{ padding: '4px 12px', borderRadius: 20, border: '1px solid #E5E7EB', background: 'white', fontSize: 12, fontWeight: 600, color: '#374151' }}>{f}</span>
@@ -317,10 +373,39 @@ export default function AnalyzePage() {
             <input id="ai-file-input" type="file" accept=".csv,.xls,.xlsx" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
           </div>
           {parseError && <p style={{ marginTop: 10, fontSize: 13, color: '#DC2626' }}>{parseError}</p>}
+
+          {history.length > 0 && (
+            <div style={{ marginTop: 28 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Clock size={11} /> Recent Analyses
+              </p>
+              {history.slice(0, 5).map(a => (
+                <div key={a.id} style={{ ...card, marginBottom: 8, cursor: 'pointer', padding: '12px 16px' }} onClick={() => setExpandedHistory(expandedHistory === a.id ? null : a.id)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', margin: '0 0 2px' }}>{a.file_name}</p>
+                      <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>
+                        {a.total_rows.toLocaleString()} rows · {a.valid_phones.toLocaleString()} phones · {new Date(a.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <ChevronRight size={14} color="#9CA3AF" style={{ transform: expandedHistory === a.id ? 'rotate(90deg)' : undefined, transition: 'transform 0.2s', flexShrink: 0 }} />
+                  </div>
+                  {expandedHistory === a.id && a.executive_summary && (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #F3F4F6' }}>
+                      <p style={{ fontSize: 12, color: '#374151', margin: '0 0 8px', lineHeight: 1.6 }}>{a.executive_summary}</p>
+                      {a.key_findings?.slice(0, 3).map((f, i) => (
+                        <p key={i} style={{ fontSize: 11, color: '#6B7280', margin: '0 0 3px' }}>{i + 1}. {f}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── READY ────────────────────────────────────────────────────────── */}
+      {/* READY */}
       {phase === 'ready' && parsedFile && (
         <div style={{ maxWidth: 620 }}>
           <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
@@ -330,7 +415,7 @@ export default function AnalyzePage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{parsedFile.fileName}</p>
               <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>
-                {parsedFile.rowCount.toLocaleString()} rows · {parsedFile.headers.length} columns · {parsedFile.fileType.toUpperCase()} · ~{totalChunkCount} AI calls · ~{estMin} min
+                {parsedFile.rowCount.toLocaleString()} rows · {parsedFile.headers.length} columns · {parsedFile.fileType.toUpperCase()}
               </p>
             </div>
             <button onClick={reset} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={16} color="#9CA3AF" /></button>
@@ -369,7 +454,7 @@ export default function AnalyzePage() {
           <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <AlertCircle size={14} color="#3B82F6" style={{ flexShrink: 0, marginTop: 1 }} />
             <p style={{ fontSize: 12, color: '#1D4ED8', margin: 0, lineHeight: 1.6 }}>
-              File is parsed in your browser. Each {CHUNK_SIZE}-row chunk = one fast API call (~3s). 2s gap between chunks keeps AI rate limits happy. After analysis, launch a personalized WhatsApp campaign directly.
+              All statistics are computed instantly in your browser. One AI call generates the final report — works on any file size, no timeouts.
             </p>
           </div>
 
@@ -379,43 +464,70 @@ export default function AnalyzePage() {
         </div>
       )}
 
-      {/* ── ANALYZING ────────────────────────────────────────────────────── */}
+      {/* ANALYZING */}
       {phase === 'analyzing' && (
         <div style={{ maxWidth: 620 }}>
-          <div style={{ ...card, marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{progress.status}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#6366f1' }}>{pct}%</span>
+          <div style={{ ...card, marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+              <div style={{ width: 20, height: 20, borderRadius: '50%', border: '3px solid #6366f1', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: '0 0 1px' }}>{statusMsg}</p>
+                <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>{parsedFile?.fileName} · {parsedFile?.rowCount.toLocaleString()} rows</p>
+              </div>
+              <button onClick={() => { abortRef.current = true; setPhase('done'); }} style={{ fontSize: 11, color: '#9CA3AF', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Cancel</button>
             </div>
-            <div style={{ height: 8, background: '#F3F4F6', borderRadius: 99 }}>
-              <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', width: `${pct}%`, transition: 'width 0.4s ease' }} />
+
+            {steps.map((step, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
+                {step.done
+                  ? <CheckCircle2 size={14} color="#059669" />
+                  : <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid #E5E7EB', flexShrink: 0 }} />
+                }
+                <span style={{ fontSize: 12, color: step.done ? '#059669' : '#9CA3AF', fontWeight: step.done ? 600 : 400 }}>{step.label}</span>
+              </div>
+            ))}
+
+            <div style={{ marginTop: 12, padding: '8px 12px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, fontSize: 11, color: '#92400E' }}>
+              Keep this tab open while AI processes your data. Results are saved automatically.
             </div>
-            <p style={{ fontSize: 12, color: '#9CA3AF', margin: '6px 0 0' }}>Chunk {progress.current}/{progress.total} · {parsedFile?.rowCount.toLocaleString()} rows total</p>
-            <button onClick={() => { abortRef.current = true; setPhase('done'); }} style={{ marginTop: 8, fontSize: 12, color: '#9CA3AF', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Stop</button>
           </div>
 
-          {chunks.length > 0 && (
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Live insights</p>
-              {[...chunks].reverse().slice(0, 4).map(r => (
-                <div key={r.chunkIndex} style={{ ...card, marginBottom: 8 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', margin: '0 0 4px', textTransform: 'uppercase' }}>Chunk {r.chunkIndex + 1}</p>
-                  <p style={{ fontSize: 13, color: '#374151', margin: '0 0 6px' }}>{r.chunkSummary}</p>
-                  {r.notableItems?.length ? (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {r.notableItems.map((item, i) => (
-                        <span key={i} style={{ fontSize: 11, color: '#6366f1', background: '#EEF2FF', borderRadius: 4, padding: '2px 7px' }}>{item}</span>
-                      ))}
-                    </div>
-                  ) : null}
+          {dataStats && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
+                <div style={{ ...card, textAlign: 'center', padding: '14px 12px' }}>
+                  <Phone size={15} color="#6366f1" style={{ marginBottom: 4 }} />
+                  <p style={{ fontSize: 22, fontWeight: 800, color: '#111827', margin: '0 0 2px' }}>{dataStats.validPhones.toLocaleString()}</p>
+                  <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>Valid phones</p>
                 </div>
-              ))}
-            </div>
+                <div style={{ ...card, textAlign: 'center', padding: '14px 12px' }}>
+                  <MapPin size={15} color="#6366f1" style={{ marginBottom: 4 }} />
+                  <p style={{ fontSize: 22, fontWeight: 800, color: '#111827', margin: '0 0 2px' }}>{dataStats.topCities.length}</p>
+                  <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>Cities found</p>
+                </div>
+                <div style={{ ...card, textAlign: 'center', padding: '14px 12px' }}>
+                  <BarChart3 size={15} color="#6366f1" style={{ marginBottom: 4 }} />
+                  <p style={{ fontSize: 22, fontWeight: 800, color: '#111827', margin: '0 0 2px' }}>{dataStats.topCategories.length}</p>
+                  <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>Categories</p>
+                </div>
+              </div>
+
+              {dataStats.topCities.length > 0 && (
+                <div style={{ ...card }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px' }}>Top cities</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {dataStats.topCities.slice(0, 10).map(([c, n]) => (
+                      <span key={c} style={{ padding: '3px 9px', borderRadius: 6, background: '#EEF2FF', fontSize: 12, color: '#4F46E5', fontWeight: 500 }}>{c} ({n})</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
 
-      {/* ── DONE ─────────────────────────────────────────────────────────── */}
+      {/* DONE */}
       {phase === 'done' && (
         <div style={{ maxWidth: 720 }}>
           {error && (
@@ -428,13 +540,35 @@ export default function AnalyzePage() {
           <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '11px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
             <CheckCircle2 size={15} color="#059669" />
             <span style={{ fontSize: 13, fontWeight: 600, color: '#059669', flex: 1 }}>
-              {parsedFile?.rowCount.toLocaleString()} rows analyzed · {chunks.length + (final ? 1 : 0)} chunks
-              {extractedPhones > 0 && ` · ${extractedPhones} phone numbers found`}
+              {parsedFile?.rowCount.toLocaleString()} rows analyzed
+              {dataStats && ` · ${dataStats.validPhones.toLocaleString()} valid phones`}
+              {extractedPhones > 0 && ` · ${extractedPhones} contacts ready`}
+              {savedId && ' · Saved to history'}
             </span>
             <button onClick={exportTxt} disabled={!final} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 7, border: '1px solid #BBF7D0', background: 'white', fontSize: 12, fontWeight: 600, color: '#059669', cursor: final ? 'pointer' : 'not-allowed', opacity: final ? 1 : 0.5 }}>
               <Download size={12} /> Export
             </button>
           </div>
+
+          {dataStats && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
+              <div style={{ ...card, textAlign: 'center', padding: '14px 12px' }}>
+                <p style={{ fontSize: 22, fontWeight: 800, color: '#6366f1', margin: '0 0 2px' }}>{dataStats.validPhones.toLocaleString()}</p>
+                <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>Valid phones</p>
+                {dataStats.duplicatePhones > 0 && <p style={{ fontSize: 10, color: '#F59E0B', margin: '2px 0 0' }}>{dataStats.duplicatePhones} duplicates removed</p>}
+              </div>
+              <div style={{ ...card, textAlign: 'center', padding: '14px 12px' }}>
+                <p style={{ fontSize: 22, fontWeight: 800, color: '#6366f1', margin: '0 0 2px' }}>{dataStats.topCities.length}</p>
+                <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>Cities</p>
+                {dataStats.topCities[0] && <p style={{ fontSize: 10, color: '#6B7280', margin: '2px 0 0' }}>Top: {dataStats.topCities[0][0]}</p>}
+              </div>
+              <div style={{ ...card, textAlign: 'center', padding: '14px 12px' }}>
+                <p style={{ fontSize: 22, fontWeight: 800, color: '#6366f1', margin: '0 0 2px' }}>{dataStats.invalidPhones}</p>
+                <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>Invalid phones</p>
+                <p style={{ fontSize: 10, color: '#6B7280', margin: '2px 0 0' }}>{dataStats.columnCompleteness.length} columns scanned</p>
+              </div>
+            </div>
+          )}
 
           {final && (
             <>
@@ -478,7 +612,6 @@ export default function AnalyzePage() {
                 <p style={{ fontSize: 13, color: '#374151', margin: 0, lineHeight: 1.6 }}>{final.dataQuality}</p>
               </div>
 
-              {/* ── WhatsApp Campaign Panel ────────────────────────────────── */}
               <div style={{ background: 'white', border: '2px solid #22c55e', borderRadius: 14, padding: '20px 24px', marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
                   <div style={{ width: 32, height: 32, borderRadius: 9, background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -487,7 +620,7 @@ export default function AnalyzePage() {
                   <div>
                     <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: 0 }}>Launch WhatsApp Campaign</p>
                     <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>
-                      {extractedPhones > 0 ? `${extractedPhones} contacts with phone numbers found` : 'No phone numbers detected — add a phone/mobile column'}
+                      {extractedPhones > 0 ? `${extractedPhones} contacts with phone numbers ready` : 'No phone numbers detected - add a phone or mobile column'}
                     </p>
                   </div>
                 </div>
@@ -496,7 +629,7 @@ export default function AnalyzePage() {
                   <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
                     <CheckCircle2 size={16} color="#059669" />
                     <span style={{ fontSize: 14, fontWeight: 700, color: '#059669' }}>
-                      {waResult.queued} personalized messages queued — your WhatsApp agent will send them shortly!
+                      {waResult.queued} personalized messages queued. Your WhatsApp agent will send them shortly.
                     </span>
                   </div>
                 ) : extractedPhones > 0 ? (
@@ -513,10 +646,10 @@ export default function AnalyzePage() {
                       </div>
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 }}>
-                          Personalization: <code style={{ fontWeight: 400, background: '#F3F4F6', padding: '0 4px', borderRadius: 3, fontSize: 11 }}>{'{{name}}'}</code>{' '}
+                          Variables: <code style={{ fontWeight: 400, background: '#F3F4F6', padding: '0 4px', borderRadius: 3, fontSize: 11 }}>{'{{name}}'}</code>{' '}
                           <code style={{ fontWeight: 400, background: '#F3F4F6', padding: '0 4px', borderRadius: 3, fontSize: 11 }}>{'{{city}}'}</code>
                         </label>
-                        <div style={{ fontSize: 11, color: '#9CA3AF' }}>Auto-replaced per contact from your data</div>
+                        <div style={{ fontSize: 11, color: '#9CA3AF' }}>Auto-replaced per contact</div>
                       </div>
                     </div>
                     <div style={{ marginBottom: 12 }}>
@@ -525,23 +658,21 @@ export default function AnalyzePage() {
                         value={waMsg}
                         onChange={e => setWaMsg(e.target.value)}
                         rows={4}
-                        placeholder={`Hi {{name}}, based on our analysis of your data, we'd like to offer you a special deal. Reply YES to learn more!`}
+                        placeholder={`Hi {{name}}, we have a special offer for you. Reply YES to learn more.`}
                         style={{ width: '100%', padding: '9px 12px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 13, color: '#111827', outline: 'none', resize: 'vertical', fontFamily: 'Inter, sans-serif', boxSizing: 'border-box' }}
                       />
                       <p style={{ fontSize: 11, color: '#9CA3AF', margin: '4px 0 0' }}>
-                        {waMsg.length} chars · Variables <code>{'{{name}}'}</code> <code>{'{{city}}'}</code> <code>{'{{category}}'}</code> are replaced per contact
+                        {waMsg.length} chars
                       </p>
                     </div>
-                    {waError && (
-                      <p style={{ fontSize: 12, color: '#DC2626', margin: '0 0 10px' }}>{waError}</p>
-                    )}
+                    {waError && <p style={{ fontSize: 12, color: '#DC2626', margin: '0 0 10px' }}>{waError}</p>}
                     <button
                       onClick={launchWhatsApp}
                       disabled={waLaunching || !waMsg.trim()}
                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 10, border: 'none', background: '#22c55e', color: 'white', fontSize: 14, fontWeight: 700, cursor: waLaunching || !waMsg.trim() ? 'not-allowed' : 'pointer', opacity: waLaunching || !waMsg.trim() ? 0.6 : 1 }}
                     >
                       <Send size={15} />
-                      {waLaunching ? 'Launching…' : `Send to ${extractedPhones} contacts`}
+                      {waLaunching ? 'Launching...' : `Send to ${extractedPhones} contacts`}
                     </button>
                   </>
                 ) : (
@@ -552,24 +683,10 @@ export default function AnalyzePage() {
               </div>
             </>
           )}
-
-          {chunks.length > 0 && (
-            <details style={{ ...card, overflow: 'hidden', padding: 0 }}>
-              <summary style={{ padding: '13px 20px', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151' }}>
-                Chunk-by-chunk details ({chunks.length})
-              </summary>
-              <div style={{ borderTop: '1px solid #F3F4F6', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 400, overflowY: 'auto' }}>
-                {chunks.map(r => (
-                  <div key={r.chunkIndex} style={{ paddingBottom: 8, borderBottom: '1px solid #F9FAFB' }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', margin: '0 0 3px', textTransform: 'uppercase' }}>Chunk {r.chunkIndex + 1}</p>
-                    <p style={{ fontSize: 12, color: '#374151', margin: 0 }}>{r.chunkSummary}</p>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
         </div>
       )}
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
