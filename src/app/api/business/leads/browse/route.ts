@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBusinessApiContext } from '@/lib/business-auth'
+import { getBusinessApiContext } from '@/lib/business-intelligence-server'
 import { getServiceSupabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const { isAuthenticated } = await getBusinessApiContext()
-  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  try {
+    await getBusinessApiContext()
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const { searchParams } = req.nextUrl
   const city = searchParams.get('city') ?? ''
