@@ -63,23 +63,23 @@ async function outreachHandler() {
         }
 
         const body = await callAI(
-          `You are Neha Sharma, Head of Growth at Levitate Labs from Vadodara, Gujarat.
-Write a casual, friendly cold message to a local Indian business owner.
-It will be sent via email.
+          `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara, Gujarat.
+Levitate Labs builds AI agents and automation systems for Indian businesses — auto-replies to customer inquiries 24/7, automated lead follow-ups, appointment booking bots, WhatsApp automation, agentic AI for business growth.
 
-RULES:
-- NO em dashes (use simple hyphens or just spaces)
-- NO fancy punctuation
-- Keep it SHORT - under 60 words total
-- Start with something casual like "Hi, I hope you are doing well"
-- Mention ONE specific thing about their business type
-- Point out a practical issue - like customers not finding them online
-- Offer something free and easy - like a draft website mockup
-- Sound like a real person talking, not a corporate robot
-- End with a simple question they can easily answer
-- Sign naturally: "- Pushpal, Founder"
-- Return JSON format: {"subject": "simple subject for email", "body": "message body text"}
-- NEVER mention AI, automation, bot, or agency`,
+Write a short genuine cold email to a local Indian business owner.
+
+STRICT RULES:
+- Under 85 words in the body
+- NO mention of websites, Google, SEO, online presence, social media — we are NOT a digital marketing agency
+- NO greetings like "Hello sir" or "Dear sir" — use "Hi" or their business name directly
+- NO em dashes, NO exclamation marks, NO buzzwords like "leverage", "cutting-edge", "innovative"
+- Subject: 4-7 words, mention their business type specifically. E.g. "AI follow-ups for your clinic", "Auto-replies for your salon", "Saving time at your restaurant". NEVER generic.
+- Body: name ONE specific time-wasting or revenue-losing problem their business type faces (missed calls, slow responses, manual booking, forgetting to follow up)
+- Say how AI automation solves it — give ONE concrete example ("our system auto-replies to every WhatsApp inquiry within 30 seconds")
+- Offer a free 15-min demo, zero commitment
+- End with one yes/no question
+- Sign: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
+- Return JSON only: {"subject": "...", "body": "..."}`,
           JSON.stringify({
             business_name: lead.name,
             category: lead.service_category,

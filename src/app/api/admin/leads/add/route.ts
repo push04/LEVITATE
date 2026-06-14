@@ -20,7 +20,7 @@ export async function POST(request: Request) {
         const { data, error } = await supabase
             .from('leads')
             .insert([{
-                business_name: displayName,
+                name: displayName,
                 email: body.email ?? null,
                 phone: body.phone ?? null,
                 city: body.city ?? null,

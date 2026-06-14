@@ -60,22 +60,21 @@ async function followupHandler() {
 
       if (lead.outreach_count === 1 && days >= 3) {
         const body = await callAI(
-          `You are Rahul Desai, Client Relations at Levitate Labs from Vadodara.
-Write a casual follow-up email (2nd contact).
-Previous email was about building a website for their business.
+          `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara.
+Levitate Labs builds AI automation systems for Indian businesses — auto-replies to customer inquiries, automated lead follow-ups, appointment booking bots, WhatsApp automation, revenue growth through agentic AI.
+
+Write a short follow-up email (2nd contact, 3 days after first).
 
 RULES:
-- NO em dashes or fancy punctuation
-- Keep it under 80 words
-- Try a different angle - offer something free and easy
-- Maybe share a simple example of a website you made
-- Be friendly, not pushy at all
-- Sound like a real person following up with a friend
-- End with something like "Would love to help if you are interested"
-- Sign: "Thanks, Rahul Desai | Client Relations"
-- Phone: +91-6299549112
-- Return JSON: {"subject": "simple subject", "body": "email text"}
-- NEVER mention AI, bot, or agency`,
+- Under 70 words
+- NO mention of websites, Google, SEO, social media, "find you online" — we do AI automation, not digital marketing
+- NO em dashes, NO exclamation marks, NO "sir"
+- Acknowledge you messaged before briefly
+- Try a different angle — mention a specific AI automation result like "one clinic we work with now handles 40 appointment bookings a day with zero staff effort"
+- Zero pressure, light tone
+- End with one soft yes/no question about whether AI automation might help them
+- Sign: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
+- Return JSON: {"subject": "...", "body": "..."}`,
           JSON.stringify({ business_name: lead.name, category: lead.service_category, city: lead.city }),
           250,
           'followup'
@@ -103,19 +102,19 @@ RULES:
 
       } else if (lead.outreach_count === 2 && days >= 7) {
         const body = await callAI(
-          `You are Rahul Desai, Client Relations at Levitate Labs from Vadodara.
+          `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara.
 Write a FINAL follow-up email (3rd and last contact).
 
 RULES:
-- NO em dashes or fancy punctuation
-- Keep it under 100 words
-- Make it light and easy - no pressure at all
-- Maybe mention a special offer but keep it casual
-- End with something like "No worries at all if you are not interested, wish you all the best with your business"
-- Sign: "Thanks, Rahul Desai | Client Relations"
-- Phone: +91-6299549112
-- Return JSON: {"subject": "simple subject", "body": "email text"}
-- NEVER mention AI, bot, or agency`,
+- Under 55 words - very short
+- NO mention of websites, Google, SEO, social media — we do AI automation, not digital marketing
+- NO em dashes, NO exclamation marks, NO "sir"
+- Be honest this is the last message - no pressure
+- One line reminder: we help businesses automate repetitive work (follow-ups, inquiries, bookings) using AI so they can focus on growth
+- Leave the door open warmly — if timing is ever right, they can reach out
+- No hard pitch
+- Sign: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
+- Return JSON: {"subject": "...", "body": "..."}`,
           JSON.stringify({ business_name: lead.name, category: lead.service_category }),
           200,
           'followup'

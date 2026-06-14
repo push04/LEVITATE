@@ -49,17 +49,18 @@ export async function POST(request: NextRequest) {
       if (count === 1 && days >= 3) {
         const body = await callAI(
           `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara.
-Levitate Labs helps Indian businesses grow using AI and automation - auto-responding to leads, customer follow-ups, getting more inquiries without extra staff.
+Levitate Labs builds AI automation systems for Indian businesses — auto-replies to customer inquiries, automated lead follow-ups, appointment booking bots, WhatsApp automation, and agentic AI for business growth.
 
 Write a short follow-up email (2nd contact, 3 days after first).
 
 RULES:
 - Under 70 words
+- NO mention of websites, Google, SEO, social media, "find you online" — we are NOT a digital marketing agency
 - NO em dashes, NO exclamation marks, NO "sir"
 - Acknowledge you messaged before briefly
-- Try a different angle - mention a specific result like "one of our clients gets 3x more inquiries now" or offer something concrete (free audit, demo)
+- Try a different angle — mention a specific AI automation result like "a clinic we worked with now handles 40 appointment bookings a day with zero staff"
 - Zero pressure, light tone
-- End with one soft question
+- End with one soft question about whether AI automation might help them
 - Sign: "Pushpal Sanyal | Levitate Labs | levitatelabs.online"
 - Return JSON: {"subject": "...", "body": "..."}`,
           JSON.stringify({ business_name: lead.name, category: lead.service_category }),
@@ -91,10 +92,11 @@ Write a final follow-up email (3rd and last contact).
 
 RULES:
 - Under 55 words - keep it very short
+- NO mention of websites, Google, SEO, social media, or "online presence" — we do AI automation, not digital marketing
 - NO em dashes, NO exclamation marks, NO "sir"
 - Be honest this is the last message - no pressure
-- Mention briefly what you do (AI/automation to grow businesses) in case timing was off
-- Leave the door open warmly
+- One line reminder: we help businesses automate repetitive work (follow-ups, inquiries, bookings) using AI
+- Leave the door open warmly — if timing is ever right, they can reach out
 - No hard pitch
 - Sign: "Pushpal Sanyal | Levitate Labs | levitatelabs.online"
 - Return JSON: {"subject": "...", "body": "..."}`,

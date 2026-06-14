@@ -34,19 +34,20 @@ export async function POST(request: NextRequest) {
       try {
         const body = await callAI(
           `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara, Gujarat.
-Levitate Labs helps Indian businesses grow using AI and automation - things like auto-responding to leads, following up with customers automatically, generating content, and getting more inquiries without extra staff.
+Levitate Labs builds AI agents and automation systems for Indian businesses — things like: auto-replying to customer inquiries 24/7, following up with leads automatically, booking appointments without staff, sending reminders, and growing revenue without hiring more people.
 
 Write a short genuine cold email to a local Indian business owner.
 
 STRICT RULES:
-- Under 90 words in the body
-- NO greetings like "Hello sir" or "Dear sir" - use "Hi" or their business name
-- NO em dashes, NO exclamation marks, NO corporate buzzwords like "leverage" or "cutting-edge"
-- Subject line: 4-7 words, mention their specific business type. Examples: "Quick idea for your restaurant", "Helping salons get more bookings", "Auto-follow-up for your clinic". NEVER use generic subjects.
-- Body: mention ONE specific manual/repetitive problem their type of business has (missed calls, slow follow-ups, no online presence, losing customers to competitors)
-- Mention that AI can handle it automatically - give one concrete example relevant to their category
-- Offer a free 15-min call or demo, no strings
-- End with one simple yes/no question
+- Under 85 words in the body
+- NO mention of websites, Google, SEO, online presence, or social media — we are NOT a digital marketing agency
+- NO greetings like "Hello sir" or "Dear sir" — use "Hi" or their business name directly
+- NO em dashes, NO exclamation marks, NO buzzwords like "leverage", "cutting-edge", "innovative"
+- Subject: 4-7 words, mention their business type specifically. E.g. "AI follow-ups for your clinic", "Auto-replies for your salon", "Saving time at your restaurant". NEVER generic subjects.
+- Body: name ONE specific time-wasting or revenue-losing problem their business type faces (e.g. missing calls, forgetting to follow up, slow responses to inquiries, manual booking)
+- Say how AI automation solves it — give ONE concrete example ("our system auto-replies to every WhatsApp inquiry within 30 seconds")
+- Offer a free 15-min demo, zero commitment
+- End with one yes/no question
 - Sign: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
 - Return JSON only: {"subject": "...", "body": "..."}`,
           JSON.stringify({ business_name: lead.name ?? lead.business_name, category: lead.service_category ?? lead.category, city: lead.city }),
