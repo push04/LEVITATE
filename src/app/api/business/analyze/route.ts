@@ -15,7 +15,11 @@ function rowsToText(headers: string[], rows: Record<string, string>[]): string {
 export async function POST(req: NextRequest) {
   try {
     await getBusinessApiContext()
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : ''
+    if (msg === 'Active subscription required' || msg.includes('feature is not enabled')) {
+      return NextResponse.json({ error: msg }, { status: 403 })
+    }
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

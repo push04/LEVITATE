@@ -32,12 +32,26 @@ export default async () => {
     // Skip email if nothing happened
     if (recentActivity === 0 && newLeads === 0 && newRevenue === 0) {
       console.log('[Reporter] Nothing new in last hour, skipping email')
-      // Still log so we know reporter is running
       await supabase.from('agent_logs').insert({
         agent_name: 'reporter', action: 'status_email',
         input: { period: '1hr', had_events: false },
         output: { skipped: true }, status: 'success', credits_earned: 0
       })
+      return
+    }
+
+    // Dedup guard — skip if reporter already sent an email in the last 50 minutes
+    const dedupSince = new Date(Date.now() - 50 * 60 * 1000).toISOString()
+    const { data: recentSent } = await supabase
+      .from('agent_logs')
+      .select('id')
+      .eq('agent_name', 'reporter')
+      .eq('action', 'status_email')
+      .eq('output->>email_sent', 'true')
+      .gte('created_at', dedupSince)
+      .limit(1)
+    if (recentSent?.length) {
+      console.log('[Reporter] Already sent email in last 50 min, skipping duplicate')
       return
     }
 

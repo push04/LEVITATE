@@ -94,9 +94,10 @@ STRICT RULES:
         let messageBody = body
 
         try {
-          const parsed = JSON.parse(body)
+          const jsonMatch = body.match(/\{[\s\S]*\}/)
+          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : body)
           subject = parsed.subject ?? subject
-          messageBody = parsed.body ?? body
+          messageBody = parsed.body ?? messageBody
         } catch {}
 
         messageBody = messageBody.replace(/---/g, '-').replace(/--/g, '-')

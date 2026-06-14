@@ -20,7 +20,7 @@ async function getAuth() {
   );
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { supabase, company: null };
-  const { data: company } = await supabase.from('companies').select('id,name,industry').eq('owner_id', user.id).maybeSingle();
+  const { data: company } = await supabase.from('companies').select('id,name').eq('owner_id', user.id).maybeSingle();
   return { supabase, company };
 }
 

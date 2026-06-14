@@ -57,10 +57,11 @@ STRICT RULES:
 
         let subject = `Hi, quick question about ${lead.name}`
         let emailBody = body
-        try { 
-          const p = JSON.parse(body); 
-          subject = p.subject ?? subject; 
-          emailBody = p.body ?? body 
+        try {
+          const jsonMatch = body.match(/\{[\s\S]*\}/)
+          const p = JSON.parse(jsonMatch ? jsonMatch[0] : body)
+          subject = p.subject ?? subject
+          emailBody = p.body ?? emailBody
         } catch { }
         
         // Clean up any remaining em dashes

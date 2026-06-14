@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { getBusinessApiContext } from '@/lib/business-intelligence-server'
 import { getServiceSupabase } from '@/lib/supabase'
 
@@ -46,11 +46,14 @@ export async function GET() {
         .limit(32),
     ])
 
-    if (logsRes.error) {
+    const isMissingCol = (e: unknown) =>
+      e instanceof Error && (e.message.includes('column') && e.message.includes('does not exist') || (e as any).code === 'PGRST205')
+
+    if (logsRes.error && !isMissingCol(logsRes.error)) {
       throw logsRes.error
     }
 
-    if (emailsRes.error) {
+    if (emailsRes.error && !isMissingCol(emailsRes.error)) {
       throw emailsRes.error
     }
 
@@ -132,7 +135,7 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Unable to load business automations' },
-      { status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 500 }
+      { status: error instanceof Error && error.message === 'Unauthorized' ? 401 : error instanceof Error && (error.message === 'Active subscription required' || error.message.includes('feature is not enabled')) ? 403 : 500 }
     )
   }
 }

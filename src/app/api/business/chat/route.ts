@@ -9,7 +9,11 @@ export async function POST(req: NextRequest) {
   let context: Awaited<ReturnType<typeof getBusinessApiContext>>
   try {
     context = await getBusinessApiContext()
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : ''
+    if (msg === 'Active subscription required' || msg.includes('feature is not enabled')) {
+      return NextResponse.json({ error: msg }, { status: 403 })
+    }
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

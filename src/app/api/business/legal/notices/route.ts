@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import {
   generateLegalNoticeDraft,
   getBusinessApiContext,
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Unable to draft notice' },
-      { status: error instanceof Error && error.message === 'Unauthorized' ? 401 : 500 }
+      { status: error instanceof Error && error.message === 'Unauthorized' ? 401 : error instanceof Error && (error.message === 'Active subscription required' || error.message.includes('feature is not enabled')) ? 403 : 500 }
     )
   }
 }

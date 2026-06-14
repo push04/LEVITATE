@@ -70,10 +70,11 @@ RULES:
 
         let subject = `Following up on my earlier message - ${lead.name}`
         let emailBody = body
-        try { 
-          const p = JSON.parse(body); 
-          subject = p.subject ?? subject; 
-          emailBody = p.body ?? body 
+        try {
+          const jsonMatch = body.match(/\{[\s\S]*\}/)
+          const p = JSON.parse(jsonMatch ? jsonMatch[0] : body)
+          subject = p.subject ?? subject
+          emailBody = p.body ?? emailBody
         } catch { }
         
         emailBody = emailBody.replace(/---/g, '-').replace(/--/g, '-')
@@ -107,10 +108,11 @@ RULES:
 
         let subject = `One last try - ${lead.name}`
         let emailBody = body
-        try { 
-          const p = JSON.parse(body); 
-          subject = p.subject ?? subject; 
-          emailBody = p.body ?? body 
+        try {
+          const jsonMatch = body.match(/\{[\s\S]*\}/)
+          const p = JSON.parse(jsonMatch ? jsonMatch[0] : body)
+          subject = p.subject ?? subject
+          emailBody = p.body ?? emailBody
         } catch { }
         
         emailBody = emailBody.replace(/---/g, '-').replace(/--/g, '-')

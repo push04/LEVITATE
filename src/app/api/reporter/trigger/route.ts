@@ -12,7 +12,21 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = getServiceSupabase()
-  
+
+  // Dedup guard — block if already sent in last 10 minutes (prevents dashboard spam-clicks)
+  const dedupSince = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+  const { data: recentSent } = await supabase
+    .from('agent_logs')
+    .select('id')
+    .eq('agent_name', 'reporter')
+    .eq('action', 'status_email')
+    .eq('output->>email_sent', 'true')
+    .gte('created_at', dedupSince)
+    .limit(1)
+  if (recentSent?.length) {
+    return NextResponse.json({ success: true, skipped: true, reason: 'Email sent recently, try again in a few minutes' })
+  }
+
   try {
     const since = new Date(Date.now() - 31 * 60 * 1000).toISOString()
     const sinceDay = new Date(Date.now() - 86400000).toISOString()
