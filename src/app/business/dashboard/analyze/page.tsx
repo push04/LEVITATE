@@ -140,10 +140,11 @@ export default function AnalyzePage() {
           if (data.isFinal) {
             setFinal(data.insights as unknown as FinalResult);
           } else {
+            const rawItems = (data.insights.notableItems as unknown[]) ?? [];
             const r: ChunkResult = {
               chunkIndex: i,
-              chunkSummary: data.insights.chunkSummary as string,
-              notableItems: (data.insights.notableItems as string[]) ?? [],
+              chunkSummary: typeof data.insights.chunkSummary === 'string' ? data.insights.chunkSummary : String(data.insights.chunkSummary ?? ''),
+              notableItems: rawItems.map(item => typeof item === 'string' ? item : (typeof item === 'object' && item !== null ? Object.values(item).join(' — ') : String(item))),
             };
             setChunks(prev => [...prev, r]);
             if (r.chunkSummary) accumulated += `\nChunk ${i + 1}: ${r.chunkSummary}`;

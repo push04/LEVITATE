@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ insights, isFinal, chunkIndex })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes('rate limit') || msg.includes('429') || msg.includes('RPM')) {
+    if (msg.includes('rate limit') || msg.includes('429') || msg.includes('RPM') || msg.includes('rate limited') || msg.includes('quota')) {
       return NextResponse.json({ error: 'Rate limit', retryAfter: 5 }, { status: 429 })
     }
     return NextResponse.json({ error: 'AI failed', detail: msg.slice(0, 200) }, { status: 500 })

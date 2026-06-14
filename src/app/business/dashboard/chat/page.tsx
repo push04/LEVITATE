@@ -29,9 +29,9 @@ Ask me anything:
 What would you like to know?`;
 
 function formatMsg(text: string): string {
-  // Bold **text**
   return text
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^[\*\-] (.+)$/gm, '<span style="display:flex;gap:6px;margin:1px 0"><span style="color:#6366f1;font-weight:700">•</span><span>$1</span></span>')
     .replace(/\n/g, '<br/>');
 }
 
