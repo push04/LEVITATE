@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 import { randomBytes, createHash } from 'crypto'
 
@@ -6,6 +7,8 @@ function generateKey() { return `lv_${randomBytes(24).toString('hex')}` }
 function hashKey(key: string) { return createHash('sha256').update(key).digest('hex') }
 
 export async function GET(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const email = req.nextUrl.searchParams.get('email')?.trim().toLowerCase()
   if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 })
 
@@ -40,6 +43,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json().catch(() => null)
   const { email, full_name, plan_id, key_name } = (body ?? {}) as {
     email?: string; full_name?: string; plan_id?: string; key_name?: string

@@ -8,8 +8,10 @@ import {
   MessageSquare, Send, Clock, CheckCircle2, XCircle,
   RefreshCw, X, Plus, Megaphone, FileText, Wifi, WifiOff,
   Activity, Users, ChevronRight, Trash2, Bot, Terminal,
-  QrCode, Copy, ChevronDown, ChevronUp, MessageCircle,
+  QrCode, Copy, ChevronDown, ChevronUp, MessageCircle, Repeat2, UserCheck,
 } from 'lucide-react';
+import SequencesTab from '@/components/business/whatsapp/SequencesTab';
+import ReEngagementPanel from '@/components/business/whatsapp/ReEngagementPanel';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface WaConfig {
@@ -79,7 +81,7 @@ interface Conversation {
   unread: number;
 }
 
-const TABS = ['Connect', 'Conversations', 'AI Agent', 'Send', 'Campaigns', 'Templates'] as const;
+const TABS = ['Connect', 'Conversations', 'AI Agent', 'Send', 'Campaigns', 'Templates', 'Sequences', 'Re-engage'] as const;
 type Tab = typeof TABS[number];
 
 const CAMPAIGN_STATUS_COLORS: Record<string, string> = {
@@ -329,7 +331,71 @@ export default function WhatsAppPage() {
     Send: <Send size={13} />,
     Campaigns: <Megaphone size={13} />,
     Templates: <FileText size={13} />,
+    Sequences: <Repeat2 size={13} />,
+    'Re-engage': <UserCheck size={13} />,
   };
+
+  // ─── LinkCodeGenerator ────────────────────────────────────────────────────
+  function LinkCodeGenerator() {
+    const [code, setCode] = useState<string | null>(null);
+    const [expiresAt, setExpiresAt] = useState<string | null>(null);
+    const [generating, setGenerating] = useState(false);
+    const [codeCopied, setCodeCopied] = useState(false);
+
+    const generate = async () => {
+      setGenerating(true);
+      try {
+        const res = await fetch('/api/business/whatsapp/link-code/generate', { method: 'POST' });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        setCode(data.code);
+        setExpiresAt(data.expires_at);
+      } catch (e) { setError(e instanceof Error ? e.message : 'Failed to generate code'); }
+      finally { setGenerating(false); }
+    };
+
+    const copyCode = () => {
+      if (!code) return;
+      navigator.clipboard.writeText(code).then(() => { setCodeCopied(true); setTimeout(() => setCodeCopied(false), 2000); });
+    };
+
+    const minutesLeft = expiresAt ? Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 60000)) : 0;
+
+    if (code) {
+      return (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <code style={{ flex: 1, background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 9, padding: '14px 16px', fontSize: 24, fontFamily: 'monospace', fontWeight: 800, letterSpacing: '0.2em', color: '#111', textAlign: 'center' }}>
+              {code}
+            </code>
+            <button onClick={copyCode}
+              style={{ padding: '14px 16px', borderRadius: 9, border: '1px solid #D1D5DB', background: codeCopied ? '#F0FDF4' : '#fff', color: codeCopied ? '#15803d' : '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+              <Copy size={13} />
+              {codeCopied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+          <div style={{ fontSize: 12, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', animation: 'wa-spin 2s linear infinite' }} />
+            Expires in ~{minutesLeft} min · Enter this in the Levitate Agent app
+            <button onClick={generate} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#6366f1', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Regenerate
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <button onClick={generate} disabled={generating}
+        style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid #E5E7EB', background: generating ? '#F9FAFB' : '#fff', color: '#111', fontWeight: 700, fontSize: 13, cursor: generating ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8 }}>
+        {generating ? (
+          <><div style={{ width: 14, height: 14, border: '2px solid #E5E7EB', borderTopColor: '#16a34a', borderRadius: '50%', animation: 'wa-spin 0.8s linear infinite' }} />Generating…</>
+        ) : (
+          <><Plus size={14} />Generate Link Code</>
+        )}
+      </button>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: 'Inter, system-ui, sans-serif' }}>
@@ -400,99 +466,76 @@ export default function WhatsAppPage() {
                         <div style={{ fontWeight: 700, fontSize: 17, color: '#166534' }}>WhatsApp connected</div>
                         <div style={{ fontSize: 13, color: '#15803d', marginTop: 2 }}>
                           {config.whatsapp_number ? `+${config.whatsapp_number}` : 'Number active'}
-                          {' · '}Daemon online
+                          {' · '}Agent online
                         </div>
                       </div>
                     </div>
                     <div style={{ fontSize: 13, color: '#166534', lineHeight: 1.7 }}>
-                      Your WhatsApp daemon is running and connected. Messages from the Send tab and campaigns will be delivered via your connected number.
-                      To reconnect with a different number, restart the daemon without the saved session.
+                      Your WhatsApp agent is running and connected. Messages from the Send tab and campaigns will be delivered via your connected number.
+                      Keep the Levitate WhatsApp Agent app running in your system tray.
                     </div>
                   </div>
                 ) : (
-                  /* Not connected state */
-                  <div>
-                    {/* QR section */}
-                    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '28px', marginBottom: 20 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <QrCode size={20} color="#374151" />
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 15 }}>Scan QR to connect your WhatsApp</div>
-                          <div style={{ fontSize: 12, color: '#6B7280', marginTop: 1 }}>Start your daemon, then scan the QR that appears below</div>
+                  /* Not connected state — EXE-based flow */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                    {/* QR display (shows when agent is running but not yet scanned) */}
+                    {config?.qr_code && (
+                      <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '24px', textAlign: 'center' }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Scan this QR in WhatsApp</div>
+                        <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Open WhatsApp → Linked Devices → Link a Device</div>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={config.qr_code} alt="WhatsApp QR Code" style={{ width: 200, height: 200, border: '2px solid #E5E7EB', borderRadius: 12, display: 'block', margin: '0 auto' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, color: '#6B7280', marginTop: 12 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', animation: 'wa-spin 2s linear infinite' }} />
+                          QR refreshes automatically · Polling every 5 seconds
                         </div>
                       </div>
+                    )}
 
-                      {config?.qr_code ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={config.qr_code} alt="WhatsApp QR Code" style={{ width: 220, height: 220, border: '2px solid #E5E7EB', borderRadius: 12 }} />
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B7280' }}>
-                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', animation: 'wa-spin 2s linear infinite' }} />
-                            QR refreshes automatically · Polling every 5 seconds
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ background: '#F9FAFB', border: '2px dashed #E5E7EB', borderRadius: 12, padding: '48px 20px', textAlign: 'center' }}>
-                          <QrCode size={48} color="#D1D5DB" style={{ margin: '0 auto 12px' }} />
-                          <div style={{ fontWeight: 600, fontSize: 14, color: '#374151', marginBottom: 6 }}>No QR code yet</div>
-                          <div style={{ fontSize: 13, color: '#9CA3AF' }}>Start your WhatsApp daemon below. The QR will appear here automatically.</div>
-                        </div>
-                      )}
+                    {/* Step 1: Download */}
+                    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '22px 24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#EEF2FF', border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#4f46e5' }}>1</div>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>Download the Levitate WhatsApp Agent</div>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 14, lineHeight: 1.6 }}>
+                        A small Windows desktop app (~90MB) that connects your WhatsApp to this dashboard.
+                        It runs silently in your system tray — no Node.js or technical setup required.
+                      </div>
+                      <a
+                        href="https://github.com/levitate-labs/levitate-agent/releases/latest/download/Levitate-WhatsApp-Agent-Setup.exe"
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 9, background: '#111827', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                        ↓ Download Agent (.exe)
+                      </a>
+                      <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 8 }}>Windows 10/11 · 64-bit · No Node.js required</div>
                     </div>
 
-                    {/* Your Company ID */}
-                    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '20px 24px', marginBottom: 20 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Your Company ID</div>
-                      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>You need this when starting your WhatsApp daemon.</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <code style={{ flex: 1, background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'monospace', wordBreak: 'break-all', color: '#1F2937' }}>
-                          {companyId || '…loading'}
-                        </code>
-                        <button onClick={() => copyToClipboard(companyId)} disabled={!companyId}
-                          style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #D1D5DB', background: copied ? '#F0FDF4' : '#fff', color: copied ? '#15803d' : '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                          <Copy size={13} />
-                          {copied ? 'Copied!' : 'Copy'}
-                        </button>
+                    {/* Step 2: Link Code */}
+                    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '22px 24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#EEF2FF', border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#4f46e5' }}>2</div>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>Generate a Link Code</div>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 14, lineHeight: 1.6 }}>
+                        Click below to get a one-time 8-character code. Open the Levitate Agent app and enter this code to link it to your account. Valid for 10 minutes.
+                      </div>
+                      <LinkCodeGenerator />
+                    </div>
+
+                    {/* Step 3: Scan QR */}
+                    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: '22px 24px', opacity: 0.7 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#F0FDF4', border: '1px solid #BBF7D0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#16a34a' }}>3</div>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>Scan QR in WhatsApp</div>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6 }}>
+                        The agent will show a QR code. Open WhatsApp → <strong>⋮ Menu</strong> → <strong>Linked Devices</strong> → <strong>Link a Device</strong> and scan it.
+                        The QR will also sync to this page automatically.
                       </div>
                     </div>
 
-                    {/* Setup instructions */}
-                    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, overflow: 'hidden' }}>
-                      <button onClick={() => setShowInstructions(p => !p)}
-                        style={{ width: '100%', padding: '18px 24px', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit' }}>
-                        <Terminal size={16} color="#374151" />
-                        <span style={{ fontWeight: 700, fontSize: 14, color: '#111' }}>How to start your daemon</span>
-                        <span style={{ marginLeft: 'auto', color: '#9CA3AF' }}>{showInstructions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
-                      </button>
-                      {showInstructions && (
-                        <div style={{ padding: '0 24px 24px', borderTop: '1px solid #F3F4F6' }}>
-                          <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.8 }}>
-                            <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>1. Download the daemon files from your admin</p>
-                            <p style={{ margin: '0 0 12px', color: '#6B7280' }}>
-                              You need <code style={{ background: '#F3F4F6', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace' }}>whatsapp-host.mjs</code>,{' '}
-                              <code style={{ background: '#F3F4F6', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace' }}>package.json</code>,{' '}
-                              and a <code style={{ background: '#F3F4F6', padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace' }}>.env</code> file with Supabase credentials.
-                            </p>
-                            <p style={{ marginBottom: 8, fontWeight: 600 }}>2. Add your Company ID to the .env file</p>
-                            <pre style={{ background: '#1F2937', color: '#D1FAE5', padding: '12px 16px', borderRadius: 8, fontSize: 12, fontFamily: 'monospace', margin: '0 0 12px', overflowX: 'auto' }}>
-{`COMPANY_ID=${companyId || '<your-company-id>'}
-NEXT_APP_URL=https://your-levitate-domain.com
-DAEMON_SECRET=levitate-daemon-secret`}
-                            </pre>
-                            <p style={{ marginBottom: 8, fontWeight: 600 }}>3. Install and run</p>
-                            <pre style={{ background: '#1F2937', color: '#D1FAE5', padding: '12px 16px', borderRadius: 8, fontSize: 12, fontFamily: 'monospace', margin: 0, overflowX: 'auto' }}>
-{`npm install
-node whatsapp-host.mjs`}
-                            </pre>
-                            <p style={{ marginTop: 12, marginBottom: 0, color: '#6B7280' }}>
-                              A QR code will appear in your terminal AND sync to this dashboard. Scan it with your WhatsApp to connect.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 )}
               </div>
@@ -1003,6 +1046,14 @@ node whatsapp-host.mjs`}
                   )}
                 </AnimatePresence>
               </div>
+            )}
+
+            {tab === 'Sequences' && companyId && (
+              <SequencesTab companyId={companyId} />
+            )}
+
+            {tab === 'Re-engage' && companyId && (
+              <ReEngagementPanel companyId={companyId} />
             )}
 
           </motion.div>

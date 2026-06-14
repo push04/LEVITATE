@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
   const { company_id, from, body: messageBody, secret } = body
 
-  if (secret !== DAEMON_SECRET) {
+  if (secret !== DAEMON_SECRET && req.headers.get('x-daemon-secret') !== DAEMON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   const isEscalation = keywords.some((k: string) => lowerMsg.includes(k.toLowerCase()))
 
   if (isEscalation) {
-    // Send escalation response
+    // Queue outbound escalation reply
     await supabase.from('whatsapp_queue').insert({
       to_number: from,
       message: ESCALATION_RESPONSE,
@@ -78,12 +78,11 @@ export async function POST(req: NextRequest) {
 
     // Notify escalation email if configured
     if (config.ai_agent_escalation_email) {
-      // Email notification handled via existing email system if available
-      // For now just log it
       console.log(`[Inbound] Escalation triggered for ${from}, notify: ${config.ai_agent_escalation_email}`)
     }
 
-    return NextResponse.json({ ok: true, ai: true, escalated: true })
+    // Return reply directly so EXE can send immediately (skip queue wait)
+    return NextResponse.json({ ok: true, ai: true, escalated: true, reply: ESCALATION_RESPONSE })
   }
 
   // Load conversation history (last 10 messages)
@@ -137,7 +136,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, ai: false, error: 'AI unavailable' })
   }
 
-  // Queue outbound AI reply
+  // Queue outbound AI reply (for whatsapp-host.mjs compat / fallback)
   await supabase.from('whatsapp_queue').insert({
     to_number: from,
     message: aiReply,
@@ -157,5 +156,6 @@ export async function POST(req: NextRequest) {
     is_ai_response: true,
   })
 
-  return NextResponse.json({ ok: true, ai: true, escalated: false })
+  // Return reply directly so Electron EXE can send it immediately
+  return NextResponse.json({ ok: true, ai: true, escalated: false, reply: aiReply })
 }

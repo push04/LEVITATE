@@ -1,7 +1,12 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 
+
 export async function GET() {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = getServiceSupabase()
   const { data, error } = await supabase
     .from('busy_sync_logs')
@@ -17,3 +22,4 @@ export async function GET() {
 
   return NextResponse.json({ logs: data ?? [] })
 }
+

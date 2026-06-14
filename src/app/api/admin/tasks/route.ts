@@ -1,11 +1,16 @@
-/**
+﻿/**
  * Tasks API — task queue management
  */
 
 import { NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 
+
 export async function GET(req: Request) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = getServiceSupabase()
   const url = new URL(req.url)
   const status = url.searchParams.get('status') ?? 'all'
@@ -21,7 +26,11 @@ export async function GET(req: Request) {
   }
 }
 
+
 export async function POST(req: Request) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = getServiceSupabase()
   const { action, taskId } = await req.json()
 
@@ -43,3 +52,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 })
   }
 }
+

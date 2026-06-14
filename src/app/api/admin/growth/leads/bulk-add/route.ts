@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { checkAdminAuth } from '@/lib/auth';
+import { getServiceSupabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session) {
+    const { isAuthenticated } = await checkAdminAuth();
+    if (!isAuthenticated) {
         return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -17,43 +16,31 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, error: 'No leads provided' }, { status: 400 });
         }
 
-        const leadsToInsert = leads.map((lead: any) => {
-            // Generate placeholder email if missing
-            // Format: source_id@source.social (e.g. reddit_123@reddit.social)
-            const email = lead.email || `${lead.source_id || Date.now()}@${lead.source ? lead.source.toLowerCase() : 'unknown'}.social`;
-
+        const supabase = getServiceSupabase();
+        const leadsToInsert = leads.map((lead: Record<string, string | undefined>) => {
+            const email = lead.email || `${lead.source_id || Date.now()}@${(lead.source ?? 'unknown').toLowerCase()}.social`;
             return {
-                campaign_id: campaign_id || null, // Allow null for "Unassigned"
-                email: email,
+                campaign_id: campaign_id || null,
+                email,
                 name: lead.name || email.split('@')[0],
                 source: lead.source || 'Manual',
                 status: 'pending',
-                current_step: 1
+                current_step: 1,
             };
         });
-
-        // Use upsert to avoid duplicates based on email? 
-        // Or just insert and ignore errors? 
-        // Ideally we check for duplicates. Supabase upsert on (email, campaign_id) might work if we had a constraint, 
-        // but email is not unique globally, only maybe per campaign?
-        // Actually unique per campaign is usually good.
-        // Let's just try insert and return success.
 
         const { data, error } = await supabase
             .from('campaign_leads')
             .insert(leadsToInsert)
             .select();
 
-        if (error) {
-            console.error('Bulk Add Error:', error);
-            // If duplicate key error, we might want to handle gracefully
-            // But simple approach for now.
-            throw error;
-        }
+        if (error) throw error;
 
         return NextResponse.json({ success: true, count: data.length, data });
 
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Internal Server Error';
+        console.error('Bulk Add Error:', message);
+        return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }

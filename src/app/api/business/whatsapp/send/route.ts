@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
   if (!company) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const { to_number, message, contact_name, campaign_id } = body;
+  const { to_number, message, contact_name: rawName, campaign_id } = body;
+  const contact_name = (rawName ?? '').trim().slice(0, 100) || null;
 
   if (!to_number || !message) {
     return NextResponse.json({ error: 'to_number and message are required' }, { status: 400 });
@@ -41,10 +42,13 @@ export async function POST(req: NextRequest) {
     message,
     status: 'pending',
     company_id: company.id,
-    contact_name: contact_name ?? null,
+    contact_name,
     campaign_id: campaign_id ?? null,
   });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[WA Send] Queue insert failed:', error.message)
+    return NextResponse.json({ error: 'Failed to queue message: ' + error.message }, { status: 500 })
+  }
   return NextResponse.json({ success: true });
 }

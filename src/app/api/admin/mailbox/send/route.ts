@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import nodemailer from 'nodemailer';
+import { checkAdminAuth } from '@/lib/auth';
 
 export async function POST(request: Request) {
+  const { isAuthenticated } = await checkAdminAuth();
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   let supabase: Awaited<ReturnType<typeof createClient>> | null = null;
   let queuedLogId: string | null = null;
 

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 import { randomBytes, createHash } from 'crypto'
 
@@ -18,6 +19,9 @@ function hashKey(key: string): string {
 }
 
 export async function GET() {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = getServiceSupabase()
   const { data, error } = await supabase
     .from('api_keys')
@@ -29,6 +33,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json().catch(() => ({}))
   const { name, plan = 'starter', business_id } = body as {
     name?: string; plan?: string; business_id?: string
@@ -70,6 +77,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json().catch(() => ({}))
   const { id, is_active, plan } = body as { id?: string; is_active?: boolean; plan?: string }
 
@@ -90,6 +100,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
@@ -99,3 +112,4 @@ export async function DELETE(req: NextRequest) {
 
   return NextResponse.json({ success: true })
 }
+

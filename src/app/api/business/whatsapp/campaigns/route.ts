@@ -47,8 +47,13 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: 'Campaign name required' }, { status: 400 });
   if (!custom_message && !template_id) return NextResponse.json({ error: 'Message or template required' }, { status: 400 });
 
+  const validNumbers = (target_manual_numbers ?? []).filter((n: string) => {
+    const digits = n.replace(/[\s\-\+]/g, '')
+    return /^\d{10,15}$/.test(digits)
+  })
+
   const recipients = target_type === 'manual'
-    ? (target_manual_numbers ?? []).length
+    ? validNumbers.length
     : (target_lead_ids ?? []).length;
 
   const { data, error } = await supabase
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest) {
       custom_message: custom_message ?? null,
       target_type: target_type ?? 'leads',
       target_lead_ids: target_lead_ids ?? [],
-      target_manual_numbers: target_manual_numbers ?? [],
+      target_manual_numbers: validNumbers,
       scheduled_at: scheduled_at ?? null,
       total_recipients: recipients,
       status: scheduled_at ? 'scheduled' : 'draft',

@@ -1,26 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
-
-/**
- * Auth check only — use service role client for actual DB ops
- * because the RLS policy "Service role manages plans" only allows
- * mutations when auth.role() = 'service_role'.
- */
-async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  // allow any authenticated user in admin context for now
-  // (profiles.role check is optional if you haven't set roles yet)
-  return true
-}
 
 const db = () => getServiceSupabase()
 
 export async function GET() {
-  const ok = await requireAdmin()
-  if (!ok) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
 
   const supabase = db()
   const { data: plans, error: plansErr } = await supabase
@@ -47,8 +33,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const ok = await requireAdmin()
-  if (!ok) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json().catch(() => null)
   if (!body?.name) {
@@ -78,13 +64,24 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const ok = await requireAdmin()
-  if (!ok) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json().catch(() => null)
   if (!body?.id) return NextResponse.json({ success: false, error: 'id required' }, { status: 400 })
 
-  const { id, ...updates } = body
+  const { id } = body
+  const updates: Record<string, unknown> = {}
+  if (body.name !== undefined) updates.name = body.name
+  if (body.slug !== undefined) updates.slug = body.slug
+  if (body.price_monthly !== undefined) updates.price_monthly = body.price_monthly
+  if (body.price_annual !== undefined) updates.price_annual = body.price_annual
+  if (body.call_limit !== undefined) updates.call_limit = body.call_limit
+  if (body.max_keys !== undefined) updates.max_keys = body.max_keys
+  if (body.features !== undefined) updates.features = body.features
+  if (body.badge !== undefined) updates.badge = body.badge
+  if (body.tier !== undefined) updates.tier = body.tier
+  if (body.is_active !== undefined) updates.is_active = body.is_active
   const { data, error } = await db()
     .from('api_plans')
     .update(updates)
@@ -97,8 +94,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const ok = await requireAdmin()
-  if (!ok) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
 
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ success: false, error: 'id required' }, { status: 400 })

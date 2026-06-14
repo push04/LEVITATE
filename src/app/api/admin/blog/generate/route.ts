@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
+import { checkAdminAuth } from '@/lib/auth';
 import { generateAIResponse, FREE_MODELS } from '@/lib/openrouter';
 
 export async function POST(request: Request) {
+    const { isAuthenticated } = await checkAdminAuth();
+    if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     try {
         const { topic, category } = await request.json();
 
@@ -55,8 +59,8 @@ export async function POST(request: Request) {
             content: parsedResponse.content
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Blog Generation Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });
     }
 }

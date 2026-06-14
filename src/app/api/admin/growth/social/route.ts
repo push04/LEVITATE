@@ -2,6 +2,8 @@ import { filterItemsWithAI } from '@/lib/ai-filter';
 import { createClient } from '@supabase/supabase-js';
 import * as cheerio from 'cheerio';
 import { getSupabasePublishableKey, getSupabaseServiceRoleKey, getSupabaseUrl } from '@/lib/supabase-env';
+import { NextResponse } from 'next/server';
+import { checkAdminAuth } from '@/lib/auth';
 
 // Force dynamic to prevent static caching issues
 export const dynamic = 'force-dynamic';
@@ -19,6 +21,9 @@ interface SocialPost {
 }
 
 export async function GET(request: Request) {
+    const { isAuthenticated } = await checkAdminAuth();
+    if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     console.log('[Social] API Request started');
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q') || 'hiring developer';

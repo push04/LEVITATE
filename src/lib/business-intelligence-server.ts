@@ -130,6 +130,7 @@ function parseGroqRetryAfterSeconds(errorBody: string) {
 }
 
 const WEBSITE_SIGNAL_CACHE = new Map<string, { value: string; expiresAt: number }>()
+const SIGNAL_CACHE_MAX = 150
 
 function dedupeStrings(values: string[], maxItems = values.length) {
   return Array.from(
@@ -662,6 +663,13 @@ async function collectWebsiteSignals(targetUrl: string, targetName = '') {
   }
 
   const value = signalLines.filter(Boolean).join('\n')
+
+  // Evict oldest entry when cache is at capacity
+  if (WEBSITE_SIGNAL_CACHE.size >= SIGNAL_CACHE_MAX) {
+    const oldestKey = WEBSITE_SIGNAL_CACHE.keys().next().value
+    if (oldestKey) WEBSITE_SIGNAL_CACHE.delete(oldestKey)
+  }
+
   WEBSITE_SIGNAL_CACHE.set(cacheKey, {
     value,
     expiresAt: Date.now() + 30 * 60 * 1000,

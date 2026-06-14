@@ -1,117 +1,20 @@
 'use client';
 
-import { Fragment, useState, useRef } from 'react';
-import { Bot, Upload, Download, Check, ChevronRight, FileSpreadsheet, X, Zap, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { Bot, Upload, Download, Check, ChevronRight, Zap } from 'lucide-react';
 import { useCompanyPortalState } from '@/hooks/useCompanyPortalState';
 import BusinessPortalLocked from '@/components/business/BusinessPortalLocked';
+import ImportModal from '@/components/import/ImportModal';
 
-type CsvRow = Record<string, string>;
 type TabId = 'agent' | 'csv';
-
-function parseCsvText(text: string): { headers: string[]; rows: CsvRow[] } {
-  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
-  if (!lines.length) return { headers: [], rows: [] };
-  function splitLine(line: string): string[] {
-    const out: string[] = []; let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
-      else if (c === ',' && !inQ) { out.push(cur.trim()); cur = ''; }
-      else cur += c;
-    }
-    out.push(cur.trim()); return out;
-  }
-  const headers = splitLine(lines[0]);
-  return { headers, rows: lines.slice(1).map(l => { const v = splitLine(l); return Object.fromEntries(headers.map((h,i) => [h, v[i] ?? ''])); }) };
-}
-
-const CSV_FIELDS = [
-  { value: '', label: '— Skip —' },
-  { value: 'business_name', label: 'Business Name' },
-  { value: 'name', label: 'Contact Name' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'city', label: 'City' },
-  { value: 'service_category', label: 'Category' },
-  { value: 'budget', label: 'Budget' },
-  { value: 'notes', label: 'Notes' },
-];
-
-const CSV_AUTO_MAP: Record<string, string> = {
-  'name': 'business_name', 'account name': 'business_name', 'party name': 'business_name',
-  'company': 'business_name', 'business name': 'business_name',
-  'contact name': 'name', 'contact': 'name',
-  'email': 'email', 'email id': 'email',
-  'phone': 'phone', 'mobile': 'phone', 'mobile no': 'phone', 'mobile no.': 'phone',
-  'city': 'city', 'location': 'city',
-  'category': 'service_category', 'service category': 'service_category',
-  'account group': 'service_category', 'group': 'service_category',
-  'budget': 'budget', 'opening balance': 'budget', 'balance': 'budget',
-  'notes': 'notes', 'remark': 'notes', 'remarks': 'notes',
-};
-
-function autoMap(headers: string[]): Record<string, string> {
-  const r: Record<string, string> = {};
-  for (const h of headers) { const m = CSV_AUTO_MAP[h.toLowerCase().trim()]; if (m) r[h] = m; }
-  return r;
-}
 
 export default function BusinessIntegrationsPage() {
   const portal = useCompanyPortalState();
   const [tab, setTab] = useState<TabId>('agent');
-
-  // CSV state
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
-  const [csvRows, setCsvRows] = useState<CsvRow[]>([]);
-  const [csvMapping, setCsvMapping] = useState<Record<string, string>>({});
-  const [csvUploading, setCsvUploading] = useState(false);
-  const [csvResult, setCsvResult] = useState<{ imported: number; skipped: number; failed: number } | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [toast, setToast] = useState('');
-  const dropRef = useRef<HTMLDivElement>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
-
-  const handleFile = (file: File) => {
-    if (file.size > 50 * 1024 * 1024) { showToast('File too large. Maximum 50 MB.'); return; }
-    setCsvFile(file); setCsvResult(null);
-    const reader = new FileReader();
-    reader.onload = e => {
-      const { headers, rows } = parseCsvText(e.target?.result as string);
-      setCsvHeaders(headers); setCsvRows(rows); setCsvMapping(autoMap(headers));
-    };
-    reader.readAsText(file);
-  };
-
-  const uploadCsv = async () => {
-    if (!csvRows.length || !portal.companyId) return;
-    setCsvUploading(true); setCsvResult(null);
-    const mapped = csvRows.map(row => {
-      const out: CsvRow = {};
-      for (const [col, field] of Object.entries(csvMapping)) { if (field && row[col]) out[field] = row[col]; }
-      return out;
-    });
-    const CHUNK = 300;
-    let totalImported = 0, totalSkipped = 0, totalFailed = 0;
-    for (let i = 0; i < mapped.length; i += CHUNK) {
-      const chunk = mapped.slice(i, i + CHUNK);
-      try {
-        const res = await fetch('/api/business/leads/import', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ leads: chunk, company_id: portal.companyId }),
-        });
-        const json = await res.json();
-        if (json.success) {
-          totalImported += json.imported ?? 0;
-          totalSkipped  += json.skipped  ?? 0;
-          totalFailed   += json.failed   ?? 0;
-        } else { totalFailed += chunk.length; }
-      } catch { totalFailed += chunk.length; }
-    }
-    setCsvUploading(false);
-    setCsvResult({ imported: totalImported, skipped: totalSkipped, failed: totalFailed });
-    showToast(`Imported ${totalImported} leads${totalSkipped ? `, ${totalSkipped} skipped` : ''}`);
-  };
 
   if (portal.loading) return null;
 
@@ -127,7 +30,7 @@ export default function BusinessIntegrationsPage() {
     );
   }
 
-  const tabBtn = (id: TabId, label: string) => ({
+  const tabBtn = (id: TabId) => ({
     padding: '10px 0', marginRight: 28, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600,
     background: 'none', border: 'none', cursor: 'pointer',
     borderBottom: tab === id ? '2px solid #B08D57' : '2px solid transparent',
@@ -136,6 +39,16 @@ export default function BusinessIntegrationsPage() {
 
   return (
     <div style={{ padding: '0 0 80px', fontFamily: 'Inter, sans-serif', minHeight: '100vh' }}>
+      <ImportModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        apiEndpoint="/api/business/leads/import"
+        extraPayload={{ company_id: portal.companyId }}
+        enableWhatsApp={true}
+        sourceLabel="file_import"
+        onSuccess={(r) => showToast(`Imported ${r.imported} leads${r.skipped ? `, ${r.skipped} skipped` : ''}`)}
+      />
+
       {/* Toast */}
       {toast && (
         <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, background: '#1A1916', color: '#F4F2EE', padding: '12px 20px', borderRadius: 10, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -151,13 +64,13 @@ export default function BusinessIntegrationsPage() {
 
       {/* Tabs */}
       <div style={{ borderBottom: '1px solid #E5E7EB', marginBottom: 28 }}>
-        <button style={tabBtn('agent', 'LEVITATE Agent')} onClick={() => setTab('agent')}>
+        <button style={tabBtn('agent')} onClick={() => setTab('agent')}>
           <span style={{ marginRight: 5, display: 'inline-flex', verticalAlign: 'middle' }}><Bot size={13} color={tab === 'agent' ? '#B08D57' : '#9CA3AF'} /></span>
           LEVITATE Agent (Busy Sync)
         </button>
-        <button style={tabBtn('csv', 'CSV Import')} onClick={() => setTab('csv')}>
+        <button style={tabBtn('csv')} onClick={() => setTab('csv')}>
           <span style={{ marginRight: 5, display: 'inline-flex', verticalAlign: 'middle' }}><Upload size={13} color={tab === 'csv' ? '#B08D57' : '#9CA3AF'} /></span>
-          CSV Import
+          CSV / Excel Import
         </button>
       </div>
 
@@ -259,91 +172,32 @@ export default function BusinessIntegrationsPage() {
         </div>
       )}
 
-      {/* ── CSV IMPORT TAB ─────────────────────────────────────────────────── */}
+      {/* ── CSV / EXCEL IMPORT TAB ─────────────────────────────────────────── */}
       {tab === 'csv' && (
         <div style={{ maxWidth: 680 }}>
           <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: 12, padding: 24, marginBottom: 20 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Upload a CSV file</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>Import contacts from CSV or Excel</h3>
             <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px', lineHeight: 1.6 }}>
-              Import customers from any CSV — Busy exports, Excel sheets, or your own contact lists.
-              Column names are auto-detected.
+              Upload CSV, XLS, or XLSX files — Busy exports, Excel sheets, or your own contact lists.
+              Column names are auto-detected. Supports files with hundreds of thousands of rows.
+              After import, you can instantly launch a WhatsApp campaign to all imported contacts.
             </p>
 
-            {/* Drop zone */}
-            <div
-              ref={dropRef}
-              onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.name.endsWith('.csv')) handleFile(f); }}
-              onDragOver={e => e.preventDefault()}
-              onClick={() => document.getElementById('biz-int-csv')?.click()}
-              style={{ border: '2px dashed #D1D5DB', borderRadius: 12, padding: '32px 20px', textAlign: 'center', cursor: 'pointer', background: csvFile ? '#F0FDF4' : '#F9FAFB', marginBottom: 20 }}
-            >
-              <FileSpreadsheet size={32} color={csvFile ? '#059669' : '#9CA3AF'} style={{ margin: '0 auto 10px', display: 'block' }} />
-              {csvFile ? (
-                <>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: '#059669', margin: 0 }}>{csvFile.name}</p>
-                  <p style={{ fontSize: 12, color: '#6B7280', margin: '4px 0 0' }}>{csvRows.length} rows · Click to change</p>
-                </>
-              ) : (
-                <>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: '#374151', margin: 0 }}>Drop your CSV here</p>
-                  <p style={{ fontSize: 12, color: '#9CA3AF', margin: '4px 0 0' }}>or click to browse · .csv only</p>
-                </>
-              )}
-              <input id="biz-int-csv" type="file" accept=".csv" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+              {['CSV', 'XLS', 'XLSX', 'Up to 200 MB', 'Auto column mapping', 'WhatsApp campaigns'].map((f) => (
+                <span key={f} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600, color: '#059669' }}>
+                  <Check size={11} /> {f}
+                </span>
+              ))}
             </div>
 
-            {/* Mapper */}
-            {csvHeaders.length > 0 && (
-              <>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 12 }}>Map columns to CRM fields</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 14px 1fr', gap: '8px 10px', alignItems: 'center', marginBottom: 20 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase' }}>CSV Column</span>
-                  <span />
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase' }}>Field</span>
-                  {csvHeaders.map(h => (
-                    <Fragment key={h}>
-                      <div style={{ padding: '7px 10px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 7, fontSize: 12, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h}</div>
-                      <ChevronRight size={12} color="#D1D5DB" />
-                      <select
-                        value={csvMapping[h] ?? ''}
-                        onChange={e => setCsvMapping(m => ({ ...m, [h]: e.target.value }))}
-                        style={{ padding: '7px 10px', border: '1px solid #E5E7EB', borderRadius: 7, fontSize: 12, background: 'white' }}
-                      >
-                        {CSV_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                      </select>
-                    </Fragment>
-                  ))}
-                </div>
-
-                {/* Preview */}
-                <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Preview (first 3 rows)</p>
-                <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #E5E7EB', marginBottom: 20 }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead><tr style={{ background: '#F9FAFB' }}>{csvHeaders.map(h => <th key={h} style={{ padding: '8px 10px', fontSize: 11, fontWeight: 600, color: '#6B7280', textAlign: 'left', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap' }}>{h}</th>)}</tr></thead>
-                    <tbody>{csvRows.slice(0, 3).map((row, i) => <tr key={i}>{csvHeaders.map(h => <td key={h} style={{ padding: '8px 10px', fontSize: 12, color: '#374151', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', borderBottom: '1px solid #F9FAFB' }}>{row[h]}</td>)}</tr>)}</tbody>
-                  </table>
-                </div>
-
-                {csvResult && (
-                  <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 16px', marginBottom: 14, display: 'flex', gap: 20, alignItems: 'center' }}>
-                    <Check size={14} color="#059669" />
-                    <span style={{ fontSize: 13, color: '#059669', fontWeight: 700 }}>{csvResult.imported} imported</span>
-                    {csvResult.skipped > 0 && <span style={{ fontSize: 13, color: '#D97706', fontWeight: 600 }}>{csvResult.skipped} skipped (dupes)</span>}
-                    {csvResult.failed > 0 && <span style={{ fontSize: 13, color: '#DC2626', fontWeight: 600 }}>{csvResult.failed} failed</span>}
-                  </div>
-                )}
-
-                <button
-                  onClick={uploadCsv}
-                  disabled={csvUploading}
-                  style={{ width: '100%', padding: '12px 0', borderRadius: 8, border: 'none', background: '#B08D57', color: 'white', fontSize: 14, fontWeight: 600, cursor: csvUploading ? 'not-allowed' : 'pointer', opacity: csvUploading ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                >
-                  {csvUploading ? <RefreshCw size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Upload size={14} />}
-                  {csvUploading ? 'Importing...' : `Import ${csvRows.length} Leads to CRM`}
-                </button>
-                <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-              </>
-            )}
+            <button
+              onClick={() => setImportOpen(true)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', background: '#B08D57', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+            >
+              <Upload size={16} />
+              Open Import Wizard
+            </button>
           </div>
 
           {/* How to export from Busy */}

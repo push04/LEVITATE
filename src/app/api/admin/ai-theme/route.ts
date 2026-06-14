@@ -1,9 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { callAI } from '@/lib/ai/router'
 
 const THEME_IDS = ['espresso','ocean','forest','rose','slate','golden','violet','midnight','terracotta','sage']
 
+
 export async function POST(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { businessName, template, prompt } = await req.json().catch(() => ({})) as {
     businessName?: string; template?: string; prompt?: string
   }
@@ -66,3 +71,4 @@ function pickFallbackThemes(template: string): { themeId: string; reason: string
   const reasons = ['Great fit for this business category', 'Recommended for your target audience', 'Creates strong brand recall']
   return themes.map((id, i) => ({ themeId: id, reason: reasons[i] }))
 }
+

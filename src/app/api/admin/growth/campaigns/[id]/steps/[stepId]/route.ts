@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { checkAdminAuth } from '@/lib/auth';
+import { getServiceSupabase } from '@/lib/supabase';
 
-export async function DELETE(request: Request, props: { params: Promise<{ id: string, stepId: string }> }) {
-    const params = await props.params;
-    const { id, stepId } = params;
-    const supabase = await createClient();
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+export async function DELETE(_request: Request, props: { params: Promise<{ id: string; stepId: string }> }) {
+    const { isAuthenticated } = await checkAdminAuth();
+    if (!isAuthenticated) {
         return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
+
+    const params = await props.params;
+    const { id, stepId } = params;
+    const supabase = getServiceSupabase();
 
     try {
         const { error } = await supabase
@@ -22,7 +23,8 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
 
         return NextResponse.json({ success: true });
 
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Internal Server Error';
+        return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }

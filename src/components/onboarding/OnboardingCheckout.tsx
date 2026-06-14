@@ -109,11 +109,12 @@ export default function OnboardingCheckout({
     try {
       setCouponLoading(true);
       setError('');
+      const normalizedCoupon = couponCode.trim().toUpperCase();
       const response = await fetch('/api/onboard/coupon', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          couponCode,
+          couponCode: normalizedCoupon,
           planId: selectedPlan.id,
           billingCycle,
         }),
@@ -170,7 +171,7 @@ export default function OnboardingCheckout({
           companyName: form.companyName,
           ownerName: form.ownerName,
           phone: form.phone,
-          couponCode: appliedCoupon?.code ?? couponCode,
+          couponCode: appliedCoupon?.code ?? couponCode.trim().toUpperCase(),
         }),
       });
 
@@ -191,7 +192,9 @@ export default function OnboardingCheckout({
           window.location.href = data.checkoutUrl;
           return;
         }
-        throw new Error('Unable to load the payment form');
+        setError('Payment gateway failed to load. Please refresh and try again.');
+        setLoading(false);
+        return;
       }
 
       const razorpay = new window.Razorpay({

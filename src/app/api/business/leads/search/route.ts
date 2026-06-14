@@ -51,14 +51,16 @@ If you cannot determine either, use empty string.`,
         'lead-search-extract'
       )
 
+      const raw = extracted.replace(/```json?/g, '').replace(/```/g, '').trim()
       try {
-        const parsed = JSON.parse(extracted.replace(/```json?/g, '').replace(/```/g, '').trim()) as { city?: string; category?: string }
+        const parsed = JSON.parse(raw) as { city?: string; category?: string }
         city = String(parsed.city ?? '').trim()
         category = String(parsed.category ?? '').trim()
       } catch {
+        console.error('[LeadSearch] AI parse failed:', raw)
         return NextResponse.json({
           success: false,
-          error: 'Could not understand the search query. Try: "plumbers in Mumbai" or "dental clinics in Pune".',
+          error: 'AI extraction failed, try being more specific (e.g. "plumbers in Mumbai")',
         }, { status: 400 })
       }
     }

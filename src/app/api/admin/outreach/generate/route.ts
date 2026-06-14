@@ -1,9 +1,14 @@
-
-import { NextResponse } from 'next/server';
+﻿
+import { NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth';
 import { generateAIResponse, FREE_MODELS } from '@/lib/openrouter';
 
+
 export async function POST(request: Request) {
-    try {
+  const { isAuthenticated } = await checkAdminAuth();
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
         const { lead, type } = await request.json();
 
         if (!lead || !type) {
@@ -76,8 +81,10 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ success: true, data: result });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Outreach Gen Error:', error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        const msg = error instanceof Error ? error.message : 'Internal error';
+        return NextResponse.json({ success: false, error: msg }, { status: 500 });
     }
 }
+

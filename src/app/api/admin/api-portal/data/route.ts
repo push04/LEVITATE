@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * GET /api/admin/api-portal/data
- * Returns ALL api_plans and api_keys using the service role (bypasses RLS).
- * The anon client on the dashboard can only see keys where user_id = auth.uid(),
- * so the admin dashboard must use this endpoint instead.
- */
 export async function GET() {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = getServiceSupabase()
 
   const [plansRes, keysRes] = await Promise.all([

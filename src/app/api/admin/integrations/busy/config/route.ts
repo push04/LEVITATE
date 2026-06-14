@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 import { randomBytes } from 'crypto'
 
@@ -32,7 +33,11 @@ const DEFAULT_CONFIG: BusyConfig = {
   last_synced_at: null,
 }
 
+
 export async function GET() {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = getServiceSupabase()
   const { data } = await supabase
     .from('settings')
@@ -47,7 +52,11 @@ export async function GET() {
   return NextResponse.json({ success: true, config })
 }
 
+
 export async function POST(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'body required' }, { status: 400 })
 
@@ -74,3 +83,4 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ success: true, config: newConfig })
 }
+

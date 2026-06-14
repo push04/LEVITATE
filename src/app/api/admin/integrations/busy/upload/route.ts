@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 
 // Maps Busy party/customer CSV columns to CRM lead fields
@@ -32,7 +33,11 @@ function normalizeKey(k: string) {
   return k.toLowerCase().trim().replace(/\s+/g, ' ')
 }
 
+
 export async function POST(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json().catch(() => null)
   // Expect { rows: Record<string, string>[], source_type: 'party' | 'invoice' }
   const rows: Record<string, string>[] = body?.rows
@@ -135,3 +140,4 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ error: 'Unknown source_type' }, { status: 400 })
 }
+

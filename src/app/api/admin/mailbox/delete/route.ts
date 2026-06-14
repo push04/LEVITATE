@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { checkAdminAuth } from '@/lib/auth';
+import { getServiceSupabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
+    const { isAuthenticated } = await checkAdminAuth();
+    if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     try {
         const { threadIds } = await request.json();
 
@@ -9,18 +13,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'No threads selected' }, { status: 400 });
         }
 
-        const supabase = await createClient();
-
-        // Check if user is admin
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        // Perform deletion
-        // RLS policies should handle permission checks
-        // Cascading delete on 'email_messages' is assumed to be set up in the DB schema
-        // If not, we might need to delete messages first, but let's assume cascade for now based on typical setup
+        const supabase = getServiceSupabase();
         const { error } = await supabase
             .from('email_threads')
             .delete()
@@ -32,8 +25,7 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({ success: true });
-
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Delete API Error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }

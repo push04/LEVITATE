@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 import { randomBytes, createHash } from 'crypto'
 
@@ -6,6 +7,8 @@ function generateKey() { return `lv_${randomBytes(24).toString('hex')}` }
 function hashKey(key: string) { return createHash('sha256').update(key).digest('hex') }
 
 export async function POST(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await req.json().catch(() => null)
   const { user_id, plan_id, key_name } = (body ?? {}) as {
     user_id?: string; plan_id?: string; key_name?: string
@@ -43,6 +46,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json().catch(() => null)
   const { key_id, is_active, plan_id, plan_override_limit } = (body ?? {}) as {
     key_id?: string; is_active?: boolean; plan_id?: string | null; plan_override_limit?: number | null
@@ -63,6 +69,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const key_id = req.nextUrl.searchParams.get('key_id')
   if (!key_id) return NextResponse.json({ error: 'key_id required' }, { status: 400 })
 

@@ -1,21 +1,19 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { checkAdminAuth } from '@/lib/auth';
+import { getServiceSupabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
     try {
+        const { isAuthenticated } = await checkAdminAuth();
+        if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
         const { fileId, filePath } = await request.json();
 
         if (!fileId) {
             return NextResponse.json({ error: 'File ID is required' }, { status: 400 });
         }
 
-        const supabase = await createClient();
-
-        // Check if user is authorized (Admin or Uploader)
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const supabase = getServiceSupabase();
 
         // 1. Delete from Storage (if filePath provided)
         if (filePath) {
@@ -61,7 +59,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ success: true });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Delete File API Error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }

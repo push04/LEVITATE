@@ -4,7 +4,12 @@ import { checkAdminAuth } from '@/lib/auth';
 import { queueBusinessLeadWhatsApp } from '@/lib/whatsapp/queue-business-lead';
 
 export const dynamic = 'force-dynamic';
-export async function GET() {
+export async function GET(request: NextRequest) {
+    const adminAuth = await checkAdminAuth(request);
+    if (!adminAuth.isAuthenticated) {
+        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     try {
         const supabase = getServiceSupabase();
 

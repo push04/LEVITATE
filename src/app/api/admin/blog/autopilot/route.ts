@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateAIResponse, FREE_MODELS } from '@/lib/openrouter';
 import { getServiceSupabase } from '@/lib/supabase';
+import { checkAdminAuth } from '@/lib/auth';
 
 const FIELDS = [
     'Artificial Intelligence & Agents',
@@ -30,13 +31,10 @@ async function handleRequest(request: Request) {
         const { searchParams } = new URL(request.url);
         const key = searchParams.get('key');
 
-        // Simple Cron Auth
-        if (!CRON_SECRET || key !== CRON_SECRET) {
-            const supabase = getServiceSupabase();
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
-            }
+        // Cron secret for scheduled jobs; admin session for manual triggers
+        if (!key || !CRON_SECRET || key !== CRON_SECRET) {
+            const { isAuthenticated } = await checkAdminAuth();
+            if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
         }
 
         const force = searchParams.get('force'); // Optional param to force post even if recently posted

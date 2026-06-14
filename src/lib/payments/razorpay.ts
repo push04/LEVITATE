@@ -3,6 +3,8 @@
  * Keys are loaded from environment variables (set in Netlify dashboard)
  */
 
+import crypto from 'crypto'
+
 const RAZORPAY_BASE = 'https://api.razorpay.com/v1'
 
 function getAuth(): string {
@@ -73,12 +75,11 @@ export function verifyRazorpaySignature(body: string, signature: string | null):
   }
 
   try {
-    const crypto = require('crypto') as typeof import('crypto')
-    const expected = crypto
-      .createHmac('sha256', secret)
-      .update(body)
-      .digest('hex')
-    return expected === signature
+    const expected = crypto.createHmac('sha256', secret).update(body).digest('hex')
+    const a = Buffer.from(expected, 'hex')
+    const b = Buffer.from(signature.replace(/^sha256=/, ''), 'hex')
+    if (a.length !== b.length) return false
+    return crypto.timingSafeEqual(a, b)
   } catch {
     return false
   }

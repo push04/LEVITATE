@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { generateLinkedInContent, createLinkedInPost } from '@/lib/linkedin';
 import { getServiceSupabase } from '@/lib/supabase';
+import { checkAdminAuth } from '@/lib/auth';
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -21,8 +22,8 @@ async function handleRequest(request: Request) {
 
         let accessToken;
 
-        // 1. Cron/API Key Auth
-        if (key === CRON_SECRET) {
+        // 1. Cron/API Key Auth (cron jobs can't use session cookies)
+        if (key && CRON_SECRET && key === CRON_SECRET) {
             // Fetch token from settings (assuming we implement storage on login later, 
             // but for now let's just warn or try cookies if mistakenly called from browser with key)
             // Implementation Gaps: We need to store the User's LinkedIn Access Token in the DB 'settings' table when they login.
@@ -31,7 +32,9 @@ async function handleRequest(request: Request) {
             const { data: tokenSetting } = await supabase.from('settings').select('value').eq('key', 'linkedin_access_token_latest').single();
             accessToken = tokenSetting?.value;
         } else {
-            // 2. Browser Session Auth
+            // 2. Browser Session Auth — verify admin role first
+            const { isAuthenticated } = await checkAdminAuth();
+            if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
             const cookieStore = await cookies();
             accessToken = cookieStore.get('linkedin_access_token')?.value;
         }
@@ -62,7 +65,8 @@ async function handleRequest(request: Request) {
             postUrl: `https://www.linkedin.com/feed/update/${post.id}`,
             mode: targetUrn ? 'Company Page' : 'Personal Profile'
         });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : 'Internal error';
+        return NextResponse.json({ error: msg }, { status: 500 });
     }
 }

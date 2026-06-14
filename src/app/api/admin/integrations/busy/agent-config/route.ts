@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -8,7 +9,11 @@ export const dynamic = 'force-dynamic'
  * Returns a pre-configured config.json for the LEVITATE Sync Agent.
  * Picks the first active API key from the DB and pre-fills levitate_api_url.
  */
+
 export async function GET() {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = getServiceSupabase()
   // Always use the canonical domain — never the subdomain or request host
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? 'https://levitatelabs.online'
@@ -44,3 +49,4 @@ export async function GET() {
     },
   })
 }
+

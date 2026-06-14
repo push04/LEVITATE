@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import {
   buildPendingModuleResults,
   formatQuotaDayLabel,
-  isReportArchived,
   normalizeSelectedModules,
   type BusinessProfilePayload,
   type ResearchIntentPayload,
@@ -62,16 +61,13 @@ export async function GET() {
       throw error
     }
 
-    const archivedIds = (data ?? [])
-      .filter(report => !report.archived_at && isReportArchived(report.created_at))
-      .map(report => report.id)
-
-    if (archivedIds.length > 0) {
-      await supabase
-        .from('business_research_reports')
-        .update({ archived_at: new Date().toISOString(), status: 'archived' })
-        .in('id', archivedIds)
-    }
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    await supabase
+      .from('business_research_reports')
+      .update({ archived_at: new Date().toISOString(), status: 'archived' })
+      .eq('user_id', context.userId)
+      .is('archived_at', null)
+      .lte('created_at', thirtyDaysAgo)
 
     return NextResponse.json({
       success: true,

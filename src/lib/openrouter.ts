@@ -62,7 +62,7 @@ export async function generateAIResponse(
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
-                    'HTTP-Referer': 'https://levitatelabs.com',
+                    'HTTP-Referer': 'https://levitatelabs.online',
                     'X-Title': 'Levitate Labs',
                     'Content-Type': 'application/json',
                 },

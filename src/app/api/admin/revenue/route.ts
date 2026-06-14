@@ -3,9 +3,13 @@
  */
 
 import { NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 
 export async function GET(req: Request) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = getServiceSupabase()
   const url = new URL(req.url)
   const period = url.searchParams.get('period') ?? '30' // days

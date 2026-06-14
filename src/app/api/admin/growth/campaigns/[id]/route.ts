@@ -1,18 +1,21 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { checkAdminAuth } from '@/lib/auth';
+import { getServiceSupabase } from '@/lib/supabase';
 
-export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
-    const params = await props.params;
-    const { id } = params;
-    const supabase = await createClient();
+const ALLOWED_UPDATE_FIELDS = ['name', 'status', 'description', 'stats_sent', 'stats_opened', 'stats_replied'] as const;
+type AllowedField = typeof ALLOWED_UPDATE_FIELDS[number];
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+    const { isAuthenticated } = await checkAdminAuth();
+    if (!isAuthenticated) {
         return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    const params = await props.params;
+    const { id } = params;
+    const supabase = getServiceSupabase();
+
     try {
-        // Fetch campaign details
         const { data: campaign, error } = await supabase
             .from('campaigns')
             .select('*')
@@ -22,14 +25,12 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         if (error) throw error;
         if (!campaign) return NextResponse.json({ success: false, error: 'Campaign not found' }, { status: 404 });
 
-        // Fetch steps independently for now to be safe
         const { data: steps } = await supabase
             .from('campaign_steps')
             .select('*')
             .eq('campaign_id', id)
             .order('step_order', { ascending: true });
 
-        // Fetch leads count
         const { count: leadsCount } = await supabase
             .from('campaign_leads')
             .select('*', { count: 'exact', head: true })
@@ -40,27 +41,38 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
             data: { ...campaign, steps: steps || [], leadsCount: leadsCount || 0 }
         });
 
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Internal Server Error';
+        return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }
 
 export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
-    const params = await props.params;
-    const { id } = params;
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session) {
+    const { isAuthenticated } = await checkAdminAuth();
+    if (!isAuthenticated) {
         return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
+
+    const params = await props.params;
+    const { id } = params;
 
     try {
         const body = await request.json();
 
+        // Only allow safe fields — prevent mass assignment
+        const safeUpdate: Partial<Record<AllowedField, unknown>> = {};
+        for (const field of ALLOWED_UPDATE_FIELDS) {
+            if (field in body) safeUpdate[field] = body[field];
+        }
+
+        if (Object.keys(safeUpdate).length === 0) {
+            return NextResponse.json({ success: false, error: 'No valid fields to update' }, { status: 400 });
+        }
+
+        const supabase = getServiceSupabase();
         const { data, error } = await supabase
             .from('campaigns')
-            .update(body)
+            .update(safeUpdate)
             .eq('id', id)
             .select()
             .single();
@@ -68,7 +80,8 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
         if (error) throw error;
 
         return NextResponse.json({ success: true, data });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Internal Server Error';
+        return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }

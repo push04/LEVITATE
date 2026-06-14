@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { callAI } from '@/lib/ai/router'
 
 const SECTION_SCHEMA: Record<string, object> = {
@@ -18,7 +19,11 @@ const SECTION_SCHEMA: Record<string, object> = {
   blog:         { title: 'string' },
 }
 
+
 export async function POST(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { businessName, template, prompt, sections } = await req.json().catch(() => ({})) as {
     businessName?: string; template?: string; prompt?: string; sections?: string[]
   }
@@ -92,3 +97,4 @@ Return ONLY the JSON object.`
     return NextResponse.json({ success: false, error: message }, { status: 503 })
   }
 }
+

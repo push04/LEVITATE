@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { generateAIResponse, FREE_MODELS } from '@/lib/openrouter';
+import { checkAdminAuth } from '@/lib/auth';
 
 export async function POST(request: Request) {
+    const { isAuthenticated } = await checkAdminAuth();
+    if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     try {
         const body = await request.json();
         const { post } = body;

@@ -181,17 +181,21 @@ export async function POST(request: Request) {
       throw insertError ?? new Error('Unable to copy lead into CRM')
     }
 
-    await supabase.from('company_crm_lead_activity').insert({
-      crm_lead_id: crmLead.id,
-      company_id: context.portal.companyId,
-      actor_user_id: context.userId,
-      event_type: 'lead_copied',
-      event_label: 'Lead copied into business CRM',
-      payload: {
-        sourceLeadId: sourceLead.id,
-        source: sourceLead.source ?? 'global',
-      },
-    })
+    try {
+      await supabase.from('company_crm_lead_activity').insert({
+        crm_lead_id: crmLead.id,
+        company_id: context.portal.companyId,
+        actor_user_id: context.userId,
+        event_type: 'lead_copied',
+        event_label: 'Lead copied into business CRM',
+        payload: {
+          sourceLeadId: sourceLead.id,
+          source: sourceLead.source ?? 'global',
+        },
+      })
+    } catch (e) {
+      console.error('[CRM] Activity log failed:', e)
+    }
 
     return NextResponse.json({ success: true, data: crmLead })
   } catch (error) {

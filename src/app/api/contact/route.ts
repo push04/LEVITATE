@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
 
         if (error) {
             console.error('[Contact] DB insert error:', error.message);
+            return NextResponse.json({ error: 'Unable to save your submission. Please try again.' }, { status: 500 });
         }
 
         // Notify founder (non-fatal)

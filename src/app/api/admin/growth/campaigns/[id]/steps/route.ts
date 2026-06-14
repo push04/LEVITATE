@@ -1,25 +1,25 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { checkAdminAuth } from '@/lib/auth';
+import { getServiceSupabase } from '@/lib/supabase';
 
 export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
-    const params = await props.params;
-    const { id } = params;
-    const supabase = await createClient();
-
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const { isAuthenticated } = await checkAdminAuth();
+    if (!isAuthenticated) {
         return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
+
+    const params = await props.params;
+    const { id } = params;
 
     try {
         const body = await request.json();
         const { step_order, day_offset, subject, body: emailBody } = body;
 
-        // Validation
         if (!subject || !emailBody) {
             return NextResponse.json({ success: false, error: 'Subject and Body are required' }, { status: 400 });
         }
 
+        const supabase = getServiceSupabase();
         const { data, error } = await supabase
             .from('campaign_steps')
             .insert([{
@@ -36,7 +36,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
 
         return NextResponse.json({ success: true, data });
 
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Internal Server Error';
+        return NextResponse.json({ success: false, error: message }, { status: 500 });
     }
 }

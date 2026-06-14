@@ -1,10 +1,14 @@
 
 import { NextResponse } from 'next/server';
+import { checkAdminAuth } from '@/lib/auth';
 import { getServiceSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+    const { isAuthenticated } = await checkAdminAuth();
+    if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     try {
         const supabase = getServiceSupabase();
 
@@ -20,7 +24,7 @@ export async function GET() {
             success: true,
             posts: data
         });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });
     }
 }

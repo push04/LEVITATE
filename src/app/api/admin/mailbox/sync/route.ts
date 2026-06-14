@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { fetchRecentEmails } from '@/lib/imap-client';
 import { callAI } from '@/lib/ai/router';
+import { checkAdminAuth } from '@/lib/auth';
 
 export async function POST() {
+    const { isAuthenticated } = await checkAdminAuth();
+    if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     try {
         const supabase = await createClient();
         const emails = await fetchRecentEmails(10); // Fetch last 10 emails

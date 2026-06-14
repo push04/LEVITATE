@@ -1,10 +1,11 @@
-/**
+﻿/**
  * Agent Management API
  * GET: All agent status + rewards (auto-seeds if table is empty)
  * POST: Suspend/unsuspend/reset/update_gemma_url
  */
 
 import { NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 
 const ALL_AGENTS = [
@@ -48,7 +49,11 @@ async function seedAgentsIfEmpty(supabase: ReturnType<typeof getServiceSupabase>
   await supabase.from('agent_rewards').insert(seeds)
 }
 
+
 export async function GET() {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = getServiceSupabase()
 
   try {
@@ -126,7 +131,11 @@ export async function GET() {
   }
 }
 
+
 export async function POST(req: Request) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = getServiceSupabase()
   const body = await req.json()
   const { action, agentName, reason, url } = body
@@ -231,3 +240,4 @@ function getNextRun(cron: string): string {
 
   return 'Scheduled'
 }
+

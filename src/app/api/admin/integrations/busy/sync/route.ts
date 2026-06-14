@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
 
 interface BusyCustomer {
@@ -151,7 +152,11 @@ async function syncProducts(token: string, baseUrl: string, supabase: ReturnType
   return result
 }
 
+
 export async function POST(req: NextRequest) {
+  const { isAuthenticated } = await checkAdminAuth()
+  if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json().catch(() => ({})) as { entity?: string }
   const supabase = getServiceSupabase()
 
@@ -206,3 +211,4 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ success: true, results })
 }
+
