@@ -1333,8 +1333,8 @@ export async function deepScrapeWebsite(lead: ScrapedLead): Promise<Partial<Scra
 export async function fetchBingLeads(city: string, category: string, limit: number): Promise<ScrapedLead[]> {
   try {
     const queries = [
-      `"${category}" "${city}" site:justdial.com OR site:sulekha.com`,
-      `${category} in ${city} India phone contact`,
+      `"${category}" "${city}" site:justdial.com OR site:sulekha.com OR site:indiamart.com OR site:tradeindia.com`,
+      `"${category}" "${city}" site:yellowpages.co.in OR site:asklaila.com OR site:shopclues.com OR site:india.com`,
     ]
     const allResults: ScrapedLead[] = []
     const seen = new Set<string>()
@@ -1355,20 +1355,24 @@ export async function fetchBingLeads(city: string, category: string, limit: numb
         const html = await res.text()
 
         // Each Bing result is in <li class="b_algo">
-        // Reject non-business titles: generic web pages, news, foreign content, major brands
+        // Reject non-business titles: URLs, generic pages, news, foreign content, major brands
         const GENERIC_TITLE = new RegExp(
-          // Starts with question/listicle words
-          '^(what|how|why|when|where|is |are |can |best |top \\d|list of|find |get |free |download|video|image|news|about|home|contact|login|sign |faq|blog|review|compare|comparativa|tipos|tabla|guia|guide|todo|all |les |la |le |un |une |nouveau|nouvelle|tarif|prix|avis)' +
+          // Looks like a URL (domain pattern)
+          '^www\\.|\\.(com|net|org|au|ua|uk|ca|de|fr|ru|cn|jp|br|za|nz|sg|my|ph|pk|bd)(\\/|$)' +
+          // Starts with question/listicle/foreign words
+          '|^(what|how|why|when|where|is |are |can |best |top \\d|list of|find |get |free |download|video|image|news|about|home|contact|login|sign |faq|blog|review|compare|comparativa|tipos|tabla|guia|guide|todo|all |les |la |le |un |une |nouveau|nouvelle|tarif|prix|avis)' +
           // Major global brands (not Indian local businesses)
           '|^(toyota|honda|suzuki|hyundai|ford|bmw|mercedes|audi|volkswagen|kia|tesla|apple|samsung|google|microsoft|amazon|facebook|meta|netflix|uber|ola|zomato|swiggy|flipkart|myntra|paytm|phonepe)' +
-          // News/political keywords anywhere in title
-          '|\\b(trump|biden|modi|court|police|minister|election|parliament|verdict|congress|bjp|aap|rupee|sensex|nifty|stock market|inflation|rbi|budget)\\b' +
-          // Ends with ellipsis or is clearly a nav item
-          '|\\.{3}$' +
-          // Non-ASCII (foreign language — French, Spanish, German, etc.)
+          // Foreign government / non-Indian institutions
+          '|\\b(ontario|alberta|queensland|northern territory|south australia|western australia|new south wales|british columbia|government of|ministry of|department of|council of|municipality of|district of|province of)\\b' +
+          // News/political keywords
+          '|\\b(trump|biden|modi|court|police|minister|election|parliament|verdict|congress|bjp|aap|rupee|sensex|nifty|inflation|rbi|budget|gutfeld|fox news|cnn|bbc|ndtv|times of india)\\b' +
+          // Non-ASCII foreign language characters
           '|[àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿœ€£¥]' +
-          // Clearly article/review titles
-          '|\\b(review|vs\\.|versus|comparison|difference|alternative|price|cost|specification|spec|model \\d|generation|facelift|launch|release|unveiled|announced|rumour|leak)\\b',
+          // Article/comparison titles
+          '|\\b(vs\\.|versus|comparison|specification|spec|facelift|launch date|unveiled|announced|rumour|leak|portal|directory|database|registry|repository)\\b' +
+          // Ends with ellipsis
+          '|\\.{3}$',
           'i'
         )
         const resultBlocks = [...html.matchAll(/<li[^>]+b_algo[^>]*>([\s\S]*?)<\/li>/g)]
