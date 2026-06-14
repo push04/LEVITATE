@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
-import { ClipboardList, Copy, Filter, Sparkles, Upload, Search, Brain, Plus, CheckCircle2, Loader2, ChevronDown } from 'lucide-react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
+import { ClipboardList, Copy, Filter, Sparkles, Upload, Search, Brain, Plus, CheckCircle2, Loader2, ChevronDown, Database, Star, Phone, Globe } from 'lucide-react';
 import ImportModal from '@/components/import/ImportModal';
 import BusinessPortalLocked from '@/components/business/BusinessPortalLocked';
 import LeadCard from '@/components/business/ui/LeadCard';
@@ -14,7 +14,7 @@ import { useCompanyPortalState } from '@/hooks/useCompanyPortalState';
 import { useCompanyCrmLeads } from '@/hooks/useCompanyCrmLeads';
 import { type BusinessLeadRecord, useBusinessLeadRecords } from '@/hooks/useBusinessLeadRecords';
 
-type PageTab = 'my-leads' | 'find-leads';
+type PageTab = 'my-leads' | 'find-leads' | 'browse-db';
 type LeadFilter = 'all' | 'new' | 'engaged' | 'closed';
 type FindMode = 'manual' | 'ai';
 
@@ -105,6 +105,50 @@ export default function BusinessLeadsPage() {
   const [crmAddState, setCrmAddState] = useState<Record<string, 'idle' | 'adding' | 'added'>>({});
   const [citiesList, setCitiesList] = useState<string[]>([]);
   const [categoriesList, setCategoriesList] = useState<string[]>([]);
+
+  // Browse DB state
+  const [dbLeads, setDbLeads] = useState<ScrapedResult[]>([]);
+  const [dbTotal, setDbTotal] = useState(0);
+  const [dbPage, setDbPage] = useState(1);
+  const [dbCity, setDbCity] = useState('');
+  const [dbCategory, setDbCategory] = useState('');
+  const [dbLoading, setDbLoading] = useState(false);
+  const [dbAddState, setDbAddState] = useState<Record<string, 'idle' | 'adding' | 'added'>>({});
+
+  const loadDbLeads = useCallback(async (page = 1, city = dbCity, cat = dbCategory) => {
+    setDbLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page) });
+      if (city) params.set('city', city);
+      if (cat) params.set('category', cat);
+      params.set('min_score', '5');
+      const r = await fetch(`/api/business/leads/browse?${params}`);
+      const d = await r.json() as { data: ScrapedResult[]; total: number };
+      setDbLeads(d.data ?? []);
+      setDbTotal(d.total ?? 0);
+      setDbPage(page);
+    } catch { /* ignore */ } finally {
+      setDbLoading(false);
+    }
+  }, [dbCity, dbCategory]);
+
+  useEffect(() => {
+    if (pageTab === 'browse-db') loadDbLeads(1, dbCity, dbCategory);
+  }, [pageTab]); // eslint-disable-line
+
+  const handleDbAddToCrm = async (lead: ScrapedResult, key: string) => {
+    setDbAddState(prev => ({ ...prev, [key]: 'adding' }));
+    try {
+      await fetch('/api/business/leads/search/add-to-crm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead }),
+      });
+      setDbAddState(prev => ({ ...prev, [key]: 'added' }));
+    } catch {
+      setDbAddState(prev => ({ ...prev, [key]: 'idle' }));
+    }
+  };
 
   const loadSelects = useCallback(async () => {
     if (citiesList.length > 0) return;
@@ -338,7 +382,7 @@ export default function BusinessLeadsPage() {
     <>
       {/* Tab switcher */}
       <div className="mb-6 flex gap-2">
-        {(['my-leads', 'find-leads'] as PageTab[]).map((tab) => (
+        {(['my-leads', 'find-leads', 'browse-db'] as PageTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -352,8 +396,8 @@ export default function BusinessLeadsPage() {
                 : 'border-[var(--border-default)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]'
             }`}
           >
-            {tab === 'my-leads' ? <ClipboardList className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-            {tab === 'my-leads' ? 'My Leads' : 'Find New Leads'}
+            {tab === 'my-leads' ? <ClipboardList className="h-4 w-4" /> : tab === 'find-leads' ? <Search className="h-4 w-4" /> : <Database className="h-4 w-4" />}
+            {tab === 'my-leads' ? 'My Leads' : tab === 'find-leads' ? 'Find New Leads' : 'Browse Lead Database'}
           </button>
         ))}
       </div>
@@ -532,6 +576,104 @@ export default function BusinessLeadsPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── BROWSE LEAD DATABASE TAB ──────────────────────────────── */}
+      {pageTab === 'browse-db' && (
+        <div className="space-y-5">
+          <section className={`${styles.panel} p-6`}>
+            <div className="flex flex-col md:flex-row gap-3 mb-4">
+              <input
+                placeholder="City (e.g. Mumbai)"
+                value={dbCity}
+                onChange={e => setDbCity(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && loadDbLeads(1, dbCity, dbCategory)}
+                className="flex-1 px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              />
+              <input
+                placeholder="Category (e.g. dental clinic)"
+                value={dbCategory}
+                onChange={e => setDbCategory(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && loadDbLeads(1, dbCity, dbCategory)}
+                className="flex-1 px-3 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              />
+              <button
+                onClick={() => loadDbLeads(1, dbCity, dbCategory)}
+                disabled={dbLoading}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-[var(--primary)] text-white text-sm font-semibold disabled:opacity-50"
+              >
+                {dbLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                Search
+              </button>
+            </div>
+            <p className="text-xs text-[var(--text-secondary)]">
+              {dbTotal.toLocaleString('en-IN')} pre-scraped leads available — instantly searchable, no wait time.
+            </p>
+          </section>
+
+          {dbLoading && (
+            <div className="p-10 text-center text-[var(--text-secondary)]">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+              Loading leads...
+            </div>
+          )}
+
+          {!dbLoading && dbLeads.length > 0 && (
+            <div className="space-y-3">
+              {dbLeads.map((lead, i) => {
+                const key = `${lead.business_name}-${i}`;
+                const addSt = dbAddState[key] ?? 'idle';
+                return (
+                  <section key={key} className={`${styles.panel} p-4 flex flex-col md:flex-row gap-4`}>
+                    <div className="flex-1">
+                      <div className="flex items-start gap-2 mb-1">
+                        <h3 className="font-semibold text-[var(--text-primary)]">{lead.business_name}</h3>
+                        {lead.ai_score != null && (
+                          <span className={`flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${lead.ai_score >= 7 ? 'text-green-600 bg-green-50' : 'text-yellow-600 bg-yellow-50'}`}>
+                            <Star className="h-3 w-3" />{lead.ai_score}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--text-secondary)]">
+                        {lead.city && <span>{lead.city}</span>}
+                        {lead.category && <span className="capitalize">{lead.category}</span>}
+                        {lead.phone && <a href={`tel:${lead.phone}`} className="flex items-center gap-1 hover:text-[var(--primary)]"><Phone className="h-3 w-3" />{lead.phone}</a>}
+                        {lead.website && <a href={lead.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-[var(--primary)]"><Globe className="h-3 w-3" />Website</a>}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDbAddToCrm(lead, key)}
+                      disabled={addSt !== 'idle'}
+                      className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${addSt === 'added' ? 'bg-green-500/10 text-green-600' : 'bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20'} disabled:opacity-60`}
+                    >
+                      {addSt === 'adding' ? <Loader2 className="h-4 w-4 animate-spin" /> : addSt === 'added' ? <CheckCircle2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                      {addSt === 'added' ? 'Added' : addSt === 'adding' ? 'Adding...' : 'Add to CRM'}
+                    </button>
+                  </section>
+                );
+              })}
+
+              {/* Pagination */}
+              {dbTotal > 50 && (
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-sm text-[var(--text-secondary)]">
+                    {((dbPage - 1) * 50) + 1}–{Math.min(dbPage * 50, dbTotal)} of {dbTotal.toLocaleString('en-IN')}
+                  </span>
+                  <div className="flex gap-2">
+                    <button onClick={() => loadDbLeads(dbPage - 1, dbCity, dbCategory)} disabled={dbPage === 1 || dbLoading} className="px-3 py-1.5 rounded-lg border border-[var(--border-default)] text-sm disabled:opacity-40">Prev</button>
+                    <button onClick={() => loadDbLeads(dbPage + 1, dbCity, dbCategory)} disabled={dbPage * 50 >= dbTotal || dbLoading} className="px-3 py-1.5 rounded-lg border border-[var(--border-default)] text-sm disabled:opacity-40">Next</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!dbLoading && dbLeads.length === 0 && dbTotal === 0 && (
+            <div className="p-10 text-center text-[var(--text-secondary)] border border-dashed border-[var(--border-default)] rounded-2xl">
+              No leads found. Try a different city or category.
             </div>
           )}
         </div>

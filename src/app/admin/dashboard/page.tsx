@@ -7,7 +7,8 @@ import {
     Zap, LogOut, Users, TrendingUp, Clock,
     RefreshCw, Mail, Phone, FileText, ExternalLink,
     CheckCircle, Clock3, XCircle, Loader2, ChevronDown, BarChart3,
-    ArrowUpDown, ArrowDownUp, Trash2, IndianRupee, Pencil, Search, Globe, Sparkles, Code
+    ArrowUpDown, ArrowDownUp, Trash2, IndianRupee, Pencil, Search, Globe, Sparkles, Code,
+    Database, Star, ArrowRight,
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
@@ -46,6 +47,17 @@ export default function AdminDashboard() {
     const [organizations, setOrganizations] = useState<any[]>([]);
     const [selectedOrg, setSelectedOrg] = useState<string>(''); // '' = Personal, otherwise URN
     const [isLoadingOrgs, setIsLoadingOrgs] = useState(false);
+
+    // Recent scraped leads (from potential_leads table)
+    const [recentScraped, setRecentScraped] = useState<PotentialLead[]>([]);
+    const [scrapedTotal, setScrapedTotal] = useState(0);
+
+    useEffect(() => {
+        fetch('/api/admin/potential-leads?page=1')
+            .then(r => r.json())
+            .then(d => { setRecentScraped((d.data ?? []).slice(0, 8)); setScrapedTotal(d.total ?? 0); })
+            .catch(() => {});
+    }, []);
 
     // Lead Gen State (Restored)
     const [genCity, setGenCity] = useState('');
@@ -612,6 +624,57 @@ export default function AdminDashboard() {
                         <div className="grid lg:grid-cols-3 gap-8">
                             {/* Leads List */}
                             <div className="lg:col-span-2">
+                                {/* ── AI Lead Database preview ── */}
+                                {recentScraped.length > 0 && (
+                                    <div className="glass-card overflow-hidden mb-8">
+                                        <div className="p-4 border-b border-[var(--border)] flex items-center justify-between gap-4">
+                                            <h2 className="font-bold flex items-center gap-2">
+                                                <Database className="w-4 h-4 text-purple-500" />
+                                                AI Lead Database
+                                                <span className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-500 text-xs font-semibold border border-purple-500/20">
+                                                    {scrapedTotal.toLocaleString('en-IN')} scraped
+                                                </span>
+                                            </h2>
+                                            <a
+                                                href="/admin/dashboard/growth/potential-leads"
+                                                className="flex items-center gap-1 text-sm text-[var(--primary)] hover:underline font-medium"
+                                            >
+                                                View all <ArrowRight className="w-3 h-3" />
+                                            </a>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="border-b border-[var(--border)] text-[var(--muted)] text-xs uppercase">
+                                                        <th className="p-3 text-left">Business</th>
+                                                        <th className="p-3 text-left">City</th>
+                                                        <th className="p-3 text-left">Category</th>
+                                                        <th className="p-3 text-left">Phone</th>
+                                                        <th className="p-3 text-left">Score</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {recentScraped.map(lead => (
+                                                        <tr key={lead.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--surface)]/50">
+                                                            <td className="p-3 font-medium max-w-[180px] truncate">{lead.business_name}</td>
+                                                            <td className="p-3 text-[var(--muted)]">{lead.city}</td>
+                                                            <td className="p-3">
+                                                                <span className="px-2 py-0.5 rounded-full bg-[var(--secondary)] text-xs">{lead.category}</span>
+                                                            </td>
+                                                            <td className="p-3 text-[var(--muted)]">{lead.phone ?? '—'}</td>
+                                                            <td className="p-3">
+                                                                <span className={`flex items-center gap-1 text-xs font-bold ${lead.ai_score >= 7 ? 'text-green-500' : lead.ai_score >= 4 ? 'text-yellow-500' : 'text-red-400'}`}>
+                                                                    <Star className="w-3 h-3" />{lead.ai_score}/10
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="glass-card overflow-hidden">
                                     <div className="p-4 border-b border-[var(--border)] flex flex-wrap items-center justify-between gap-4">
                                         <h2 className="font-bold">Inquiry Feed</h2>
