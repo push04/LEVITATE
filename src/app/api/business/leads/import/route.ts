@@ -1,112 +1,96 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceSupabase } from '@/lib/supabase';
+import { getBusinessApiContext } from '@/lib/business-intelligence-server';
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 100;
 
 interface LeadRow extends Record<string, string> {}
 
 interface MappedLead {
+  company_id: string;
   name?: string;
+  company_name?: string;
   email?: string;
   phone?: string;
+  whatsapp?: string;
   city?: string;
   service_category?: string;
-  budget?: string;
+  estimated_value?: string;
   notes?: string;
   status: string;
-  company_id: string;
-  source: string;
   created_at: string;
 }
 
 function mapLead(row: LeadRow, company_id: string): MappedLead {
-  const name = row['business_name'] || row['name'] || undefined;
+  const name = row['name'] || row['business_name'] || row['customer_name'] || undefined;
+  const company_name = row['company_name'] || row['business_name'] || row['firm'] || undefined;
+  const phone = row['phone'] || row['mobile'] || row['contact'] || row['whatsapp'] || undefined;
+  const estimated_value = row['estimated_value'] || row['budget'] || row['amount'] || row['value'] || undefined;
 
   return {
+    company_id,
     ...(name !== undefined && { name }),
+    ...(company_name !== undefined && { company_name }),
     ...(row['email'] && { email: row['email'] }),
-    ...(row['phone'] && { phone: row['phone'] }),
+    ...(phone && { phone, whatsapp: phone }),
     ...(row['city'] && { city: row['city'] }),
     ...(row['service_category'] && { service_category: row['service_category'] }),
-    ...(row['budget'] && { budget: row['budget'] }),
+    ...(estimated_value && { estimated_value }),
     ...(row['notes'] && { notes: row['notes'] }),
     status: row['status'] || 'New',
-    company_id,
-    source: 'csv_import',
     created_at: new Date().toISOString(),
   };
 }
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
   return chunks;
 }
 
 export async function POST(req: NextRequest) {
+  let ctx: Awaited<ReturnType<typeof getBusinessApiContext>>;
+  try {
+    ctx = await getBusinessApiContext();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg === 'Active subscription required' || msg.includes('feature is not enabled')) {
+      return NextResponse.json({ success: false, error: msg }, { status: 403 });
+    }
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const company_id = ctx.portal.companyId;
+
+  let leads: LeadRow[];
   try {
     const body = await req.json();
-    const { leads, company_id } = body as { leads: LeadRow[]; company_id: string };
-
-    if (!Array.isArray(leads) || !company_id) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required fields: leads, company_id' },
-        { status: 400 }
-      );
-    }
-
-    const supabase = getServiceSupabase();
-
-    const total = leads.length;
-    let imported = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    const mappedLeads = leads.map((row) => mapLead(row, company_id));
-
-    const withEmail = mappedLeads.filter((l) => l.email);
-    const withoutEmail = mappedLeads.filter((l) => !l.email);
-
-    // Process leads with email using upsert (ignore duplicates)
-    const withEmailBatches = chunkArray(withEmail, BATCH_SIZE);
-    for (const batch of withEmailBatches) {
-      const { data, error } = await supabase
-        .from('leads')
-        .upsert(batch, { onConflict: 'email', ignoreDuplicates: true })
-        .select('id');
-
-      if (error) {
-        failed += batch.length;
-      } else {
-        const insertedCount = data?.length ?? 0;
-        imported += insertedCount;
-        skipped += batch.length - insertedCount;
-      }
-    }
-
-    // Process leads without email using plain insert
-    const withoutEmailBatches = chunkArray(withoutEmail, BATCH_SIZE);
-    for (const batch of withoutEmailBatches) {
-      const { data, error } = await supabase
-        .from('leads')
-        .insert(batch)
-        .select('id');
-
-      if (error) {
-        failed += batch.length;
-      } else {
-        imported += data?.length ?? 0;
-      }
-    }
-
-    return NextResponse.json({ success: true, total, imported, skipped, failed });
-  } catch (err) {
-    console.error('[leads/import] Unexpected error:', err);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    leads = body.leads;
+    if (!Array.isArray(leads)) throw new Error('leads must be array');
+  } catch {
+    return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
   }
+
+  const supabase = getServiceSupabase();
+  const total = leads.length;
+  let imported = 0, skipped = 0, failed = 0;
+
+  const mappedLeads = leads.map(row => mapLead(row, company_id));
+  const batches = chunkArray(mappedLeads, BATCH_SIZE);
+
+  for (const batch of batches) {
+    const { data, error } = await supabase
+      .from('company_crm_leads')
+      .insert(batch)
+      .select('id');
+
+    if (error) {
+      console.error('[leads/import] batch error:', error.message);
+      failed += batch.length;
+    } else {
+      imported += data?.length ?? 0;
+    }
+  }
+
+  return NextResponse.json({ success: true, total, imported, skipped, failed });
 }
