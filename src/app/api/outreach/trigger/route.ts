@@ -26,24 +26,20 @@ export async function POST() {
     for (const lead of hotLeads) {
       try {
         const body = await callAI(
-          `You are Neha Sharma, Head of Growth at Levitate Labs from Vadodara, Gujarat.
-Write a casual, friendly cold email to a local Indian business owner.
+          `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara, Gujarat.
+Write a short, genuine cold email to a local Indian business owner about building them a website.
 
 RULES:
-- NO em dashes (use simple hyphens or just spaces)
-- NO fancy punctuation
-- Keep it SHORT - under 100 words total
-- Subject should be simple like "Quick question about your business"
-- Start with something casual like "Hi, I hope you are doing well"
-- Mention ONE specific thing about their business type
-- Point out something practical - customers cant find them on Google without a website
-- Offer something free and easy - like a simple website mockup
-- Sound like a real person talking, not a company
-- End with a simple question they can easily answer
-- Sign: "Thanks and regards, Neha Sharma | Head of Growth"
-- Phone: +91-6299549112
-- Return JSON format: {"subject": "simple subject", "body": "email body text"}
-- NEVER mention AI, automation, bot, or agency`,
+- NO em dashes, NO fancy punctuation, NO corporate language
+- Under 90 words total
+- Subject: short and specific to their business type
+- Open casually - like texting a local contact, not a sales pitch
+- Mention ONE real problem their type of business has without a website (missed customers, no Google presence, etc.)
+- Offer to share a free mockup or quick example - no strings
+- End with ONE easy yes/no question
+- Sign off: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
+- Return JSON: {"subject": "...", "body": "..."}
+- Write like a real founder reaching out personally, not a salesperson`,
           JSON.stringify({ business_name: lead.name ?? lead.business_name, category: lead.service_category ?? lead.category, city: lead.city }),
           400,
           'outreach'

@@ -41,20 +41,19 @@ export async function POST() {
 
       if (count === 1 && days >= 3) {
         const body = await callAI(
-          `You are Rahul Desai, Client Relations at Levitate Labs from Vadodara.
-Write a casual follow-up email (2nd contact).
+          `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara.
+Write a short follow-up email (2nd contact, sent 3 days after first email).
 
 RULES:
 - NO em dashes or fancy punctuation
-- Keep it under 80 words
-- Try a different angle - offer something free like a simple mockup
-- Be friendly, not pushy
-- Sound like a real person following up
-- End with something like "Would love to help if you are interested"
-- Sign: "Thanks, Rahul Desai | Client Relations"
-- Phone: +91-6299549112
-- Return JSON: {"subject": "simple subject", "body": "email text"}
-- NEVER mention AI, bot, or agency`,
+- Under 70 words
+- Acknowledge you messaged before - don't pretend it's a fresh email
+- Try a slightly different angle - maybe mention a specific result or a free offer
+- Keep it light, zero pressure
+- End with a soft question like "Would this be useful for you?"
+- Sign: "Pushpal Sanyal | Levitate Labs | levitatelabs.online"
+- Return JSON: {"subject": "...", "body": "..."}
+- Write like a genuine person checking in, not a sales sequence`,
           JSON.stringify({ business_name: lead.name, category: lead.service_category }),
           250,
           'followup'
@@ -79,19 +78,18 @@ RULES:
         }
       } else if (count >= 2 && days >= 7) {
         const body = await callAI(
-          `You are Rahul Desai, Client Relations at Levitate Labs from Vadodara.
-Write a FINAL follow-up email (3rd and last).
+          `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara.
+Write a final follow-up email (3rd and last contact).
 
 RULES:
 - NO em dashes or fancy punctuation
-- Keep it under 60 words
-- Make it light and easy - no pressure
-- Maybe mention a simple offer
-- End with "No worries at all if you are not interested, wish you all the best"
-- Sign: "Thanks, Rahul Desai | Client Relations"
-- Phone: +91-6299549112
-- Return JSON: {"subject": "simple subject", "body": "email text"}
-- NEVER mention AI, bot, or agency`,
+- Under 55 words - very short
+- Be completely honest that this is the last message, no pressure at all
+- Leave the door open warmly - if they ever need help they can reach out
+- No offer, no pitch - just a genuine sign-off
+- Sign: "Pushpal Sanyal | Levitate Labs | levitatelabs.online"
+- Return JSON: {"subject": "...", "body": "..."}
+- Make it feel like a real human gracefully bowing out`,
           JSON.stringify({ business_name: lead.name }),
           200,
           'followup'
