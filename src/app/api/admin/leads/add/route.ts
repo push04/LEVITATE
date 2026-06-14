@@ -29,7 +29,7 @@ export async function POST(request: Request) {
                 message: body.message ?? null,
                 source: body.source ?? 'manual_entry',
                 status: body.status ?? 'New',
-                score: typeof body.score === 'number' ? body.score : 0,
+                ai_score: typeof body.score === 'number' ? body.score : 0,
                 created_at: new Date().toISOString(),
             }])
             .select()

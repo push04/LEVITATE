@@ -23,7 +23,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('whatsapp_queue')
-    .select('id, to_number, message, status, error, created_at, contact_name, campaign_id')
+    .select('id, to_number, message, status, error, created_at')
     .eq('company_id', company.id)
     .order('created_at', { ascending: false })
     .limit(200);

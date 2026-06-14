@@ -25,7 +25,7 @@ export async function GET() {
   const supabase = getServiceSupabase()
   const { data, error } = await supabase
     .from('api_keys')
-    .select('id, name, plan, requests_used, requests_limit, is_active, created_at, last_used_at, key_prefix')
+    .select('id, name, plan_id, requests_count, plan_override_limit, is_active, created_at, last_used_at, key_prefix')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -52,15 +52,13 @@ export async function POST(req: NextRequest) {
     .from('api_keys')
     .insert({
       name,
-      plan,
       key_hash: keyHash,
       key_prefix: keyPrefix,
-      business_id: business_id ?? null,
-      requests_limit: PLAN_LIMITS[plan] ?? PLAN_LIMITS.starter,
-      requests_used: 0,
+      plan_override_limit: PLAN_LIMITS[plan] ?? PLAN_LIMITS.starter,
+      requests_count: 0,
       is_active: true,
     })
-    .select('id, name, plan, requests_limit, key_prefix')
+    .select('id, name, plan_id, plan_override_limit, key_prefix')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -70,8 +68,8 @@ export async function POST(req: NextRequest) {
     key,
     id: data.id,
     name: data.name,
-    plan: data.plan,
-    requests_limit: data.requests_limit,
+    plan_id: data.plan_id,
+    requests_limit: data.plan_override_limit,
     warning: 'This is the only time the full key is shown. Copy it now.',
   }, { status: 201 })
 }
@@ -88,8 +86,7 @@ export async function PATCH(req: NextRequest) {
   const update: Record<string, unknown> = {}
   if (is_active !== undefined) update.is_active = is_active
   if (plan) {
-    update.plan = plan
-    update.requests_limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.starter
+    update.plan_override_limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.starter
   }
 
   const supabase = getServiceSupabase()

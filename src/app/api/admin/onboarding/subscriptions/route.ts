@@ -4,7 +4,10 @@ import { checkAdminAuth } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await checkAdminAuth(request)
+  if (!auth.isAuthenticated) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+
   try {
     const supabase = getServiceSupabase()
     const { data, error } = await supabase
