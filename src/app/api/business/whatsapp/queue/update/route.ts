@@ -11,14 +11,14 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-function verifyDaemonSecret(req: NextRequest): boolean {
-  const secret = req.headers.get('x-daemon-secret');
-  const expected = process.env.DAEMON_SECRET || 'levitate-daemon-secret';
-  return secret === expected;
-}
+const ALLOWED_STATUSES = ['sent', 'failed'] as const;
 
 export async function POST(req: NextRequest) {
-  if (!verifyDaemonSecret(req)) {
+  const expected = process.env.DAEMON_SECRET;
+  if (!expected) {
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+  }
+  if (req.headers.get('x-daemon-secret') !== expected) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -26,6 +26,10 @@ export async function POST(req: NextRequest) {
     const { id, status, error: msgError, sent_at } = await req.json();
 
     if (!id || !status) return NextResponse.json({ error: 'id and status required' }, { status: 400 });
+
+    if (!ALLOWED_STATUSES.includes(status)) {
+      return NextResponse.json({ error: `Invalid status. Allowed values: ${ALLOWED_STATUSES.join(', ')}` }, { status: 400 });
+    }
 
     const patch: Record<string, unknown> = {
       status,

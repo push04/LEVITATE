@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { callAI } from '@/lib/ai/router'
-
-export const runtime = 'edge' // Closer to user, no cold start, same timeout profile
+import { getBusinessApiContext } from '@/lib/business-intelligence-server'
 
 const CONTEXT_LIMIT = 3000 // chars of previousInsights to send
 
@@ -14,6 +13,12 @@ function rowsToText(headers: string[], rows: Record<string, string>[]): string {
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    await getBusinessApiContext()
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   let body: {
     company_id?: string
     fileName: string

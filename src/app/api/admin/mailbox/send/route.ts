@@ -21,6 +21,9 @@ export async function POST(request: Request) {
     if (!toAddress) {
       throw new Error('Recipient email is required');
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toAddress)) {
+      return NextResponse.json({ error: 'Invalid recipient email' }, { status: 400 });
+    }
     if (!cleanSubject) {
       throw new Error('Subject is required');
     }
@@ -30,6 +33,11 @@ export async function POST(request: Request) {
     const stripCRLF = (s: string) => s.replace(/[\r\n]/g, '');
     const senderName = stripCRLF(fromName || 'Levitate Labs').substring(0, 100);
     const safeSenderEmail = stripCRLF(senderEmail);
+
+    if (!safeSenderEmail) {
+      throw new Error('SMTP sender email is not configured');
+    }
+
     // Only allow sending from levitatelabs.online / levitatelabs.com domains
     const allowedDomains = ['levitatelabs.online', 'levitatelabs.com'];
     const emailDomain = safeSenderEmail.split('@')[1]?.toLowerCase();
@@ -37,10 +45,6 @@ export async function POST(request: Request) {
       throw new Error('Sender email domain not permitted');
     }
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://levitatelabs.online').replace(/\/$/, '');
-
-    if (!safeSenderEmail) {
-      throw new Error('SMTP sender email is not configured');
-    }
 
     if (!threadId) {
       let contactId;

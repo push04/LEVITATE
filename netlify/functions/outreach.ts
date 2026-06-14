@@ -44,7 +44,7 @@ async function outreachHandler() {
       .neq('email', '')
       .eq('source', 'bizdev_agent')
       .order('created_at', { ascending: true })
-      .limit(2)
+      .limit(1)
 
     if (!hotLeads?.length) {
       console.log('[Outreach] No email leads left to contact today')
@@ -55,6 +55,13 @@ async function outreachHandler() {
 
     for (const lead of hotLeads) {
       try {
+        // Re-fetch lead to guard against race condition before doing expensive AI call
+        const { data: freshLead } = await supabase.from('leads').select('last_outreach_at').eq('id', lead.id).single()
+        if (freshLead?.last_outreach_at != null) {
+          console.log(`[Outreach] Skipping ${lead.name} — already contacted by another run`)
+          continue
+        }
+
         const body = await callAI(
           `You are Neha Sharma, Head of Growth at Levitate Labs from Vadodara, Gujarat.
 Write a casual, friendly cold message to a local Indian business owner.

@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { callAI } from '@/lib/ai/router'
 import { sendLeadEmail } from '@/lib/email/client'
 import { getServiceSupabase } from '@/lib/supabase'
+import { checkAdminAuth } from '@/lib/auth'
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const auth = await checkAdminAuth(request)
+  if (!auth.isAuthenticated) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const supabase = getServiceSupabase()
 
   try {

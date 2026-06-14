@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { callAI } from '@/lib/ai/router'
 import { notifyFounder } from '@/lib/email/client'
 import { getServiceSupabase } from '@/lib/supabase'
+import { checkAdminAuth } from '@/lib/auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await checkAdminAuth(request)
+  if (!auth.isAuthenticated) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const supabase = getServiceSupabase()
   
   try {

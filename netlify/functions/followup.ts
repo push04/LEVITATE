@@ -51,6 +51,7 @@ async function followupHandler() {
       .not('email', 'is', null)
       .neq('email', '')
       .eq('source', 'bizdev_agent')
+      .limit(2)
 
     let followedUp = 0
 
@@ -98,7 +99,6 @@ RULES:
           }).eq('id', lead.id)
           await logEmail(supabase, { leadId: lead.id, agentName: 'followup', toEmail: lead.email, subject, body: emailBody })
           followedUp++
-          await sleep(2000)
         }
 
       } else if (lead.outreach_count === 2 && days >= 7) {
@@ -150,7 +150,6 @@ RULES:
             credits_earned: -2
           })
           followedUp++
-          await sleep(2000)
         }
       }
     }

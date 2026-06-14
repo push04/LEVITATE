@@ -23,30 +23,38 @@ export async function POST(req: NextRequest) {
 
     const cleanCode = code.trim().toUpperCase();
 
-    // Look up code
+    const daemonSecret = process.env.DAEMON_SECRET;
+    if (!daemonSecret) {
+      return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+    }
+
+    // Look up code to validate expiry before attempting atomic update
     const { data: linkCode, error } = await supabaseAdmin
       .from('wa_link_codes')
-      .select('company_id, expires_at, used')
+      .select('company_id, expires_at')
       .eq('code', cleanCode)
+      .eq('used', false)
       .single();
 
     if (error || !linkCode) {
       return NextResponse.json({ error: 'Invalid or expired code' }, { status: 400 });
     }
 
-    if (linkCode.used) {
-      return NextResponse.json({ error: 'Code already used. Generate a new code from your dashboard.' }, { status: 400 });
-    }
-
     if (new Date(linkCode.expires_at) < new Date()) {
       return NextResponse.json({ error: 'Code expired. Generate a new code from your dashboard.' }, { status: 400 });
     }
 
-    // Mark as used
-    await supabaseAdmin
+    // Atomic update: only succeeds if the row still has used=false (prevents TOCTOU race)
+    const { count } = await supabaseAdmin
       .from('wa_link_codes')
       .update({ used: true })
-      .eq('code', cleanCode);
+      .eq('code', cleanCode)
+      .eq('used', false)
+      .select('id', { count: 'exact', head: true });
+
+    if (!count || count === 0) {
+      return NextResponse.json({ error: 'Code already used. Generate a new code from your dashboard.' }, { status: 400 });
+    }
 
     // Ensure wa_config row exists for this company
     await supabaseAdmin
@@ -58,8 +66,6 @@ export async function POST(req: NextRequest) {
         ai_agent_name: 'Assistant',
         ai_agent_tone: 'professional',
       }, { onConflict: 'company_id', ignoreDuplicates: true });
-
-    const daemonSecret = process.env.DAEMON_SECRET || 'levitate-daemon-secret';
 
     return NextResponse.json({
       company_id: linkCode.company_id,

@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase'
 import { callAI } from '@/lib/ai/router'
 
-const DAEMON_SECRET = process.env.DAEMON_SECRET || 'levitate-daemon-secret'
 const ESCALATION_RESPONSE = 'I am connecting you with our team. Someone will be in touch shortly.'
 
 export async function POST(req: NextRequest) {
+  const DAEMON_SECRET = process.env.DAEMON_SECRET
+  if (!DAEMON_SECRET) {
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
+  }
+
   let body: Record<string, string>
   try {
     body = await req.json()

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { callAI } from '@/lib/ai/router'
 import { sendLeadEmail } from '@/lib/email/client'
 import { getServiceSupabase } from '@/lib/supabase'
+import { checkAdminAuth } from '@/lib/auth'
 
 function daysSince(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
@@ -22,7 +24,12 @@ async function logEmail(supabase: ReturnType<typeof getServiceSupabase>, leadId:
   } catch { /* non-fatal */ }
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const auth = await checkAdminAuth(request)
+  if (!auth.isAuthenticated) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const supabase = getServiceSupabase()
 
   try {

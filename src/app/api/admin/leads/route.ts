@@ -43,15 +43,25 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
+        const { name, email, phone, city, service_category, budget, message, source, status, deal_value, website_link, business_name } = body;
         const supabase = getServiceSupabase();
 
         const { data, error } = await supabase
             .from('leads')
             .insert([{
-                ...body,
+                name,
+                email,
+                phone,
+                city,
+                service_category,
+                budget,
+                message,
+                deal_value,
+                website_link,
+                business_name,
                 created_at: new Date().toISOString(),
-                status: 'New', // Default status
-                source: 'manual_entry'
+                status: status ?? 'New',
+                source: source ?? 'manual_entry'
             }])
             .select()
             .single();
@@ -72,8 +82,13 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
     try {
+        const adminAuth = await checkAdminAuth(request);
+        if (!adminAuth.isAuthenticated) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
-        const { id, ...updates } = body;
+        const { id } = body;
 
         if (!id) {
             return NextResponse.json(
@@ -82,13 +97,14 @@ export async function PATCH(request: NextRequest) {
             );
         }
 
-        const adminAuth = await checkAdminAuth(request);
-        if (!adminAuth.isAuthenticated) {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        const allowed = ['name', 'email', 'phone', 'city', 'service_category', 'budget', 'message', 'status', 'deal_value', 'notes', 'assigned_to', 'website_link', 'business_name'];
+        const updates: Record<string, unknown> = {};
+        for (const key of allowed) {
+            if (key in body) updates[key] = (body as Record<string, unknown>)[key];
         }
 
         // Validate status if present
-        if (updates.status && !['New', 'Contacted', 'Follow Up', 'Closed'].includes(updates.status)) {
+        if (updates.status && !['New', 'Contacted', 'Follow Up', 'Closed'].includes(updates.status as string)) {
             return NextResponse.json({ success: false, error: 'Invalid status' }, { status: 400 });
         }
 

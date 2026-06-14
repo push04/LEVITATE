@@ -12,13 +12,17 @@ import { scrapeLeads } from '@/lib/scrapers/free-sources'
 import { callAI } from '@/lib/ai/router'
 import { getServiceSupabase } from '@/lib/supabase'
 
-const VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN ?? 'levitate-meta-webhook'
 const TOKEN = () => process.env.WHATSAPP_ACCESS_TOKEN ?? ''
 const PHONE_ID = () => process.env.WHATSAPP_PHONE_NUMBER_ID ?? ''
 const OWNER = () => (process.env.OWNER_WHATSAPP_NUMBER ?? '').replace(/\D/g, '')
 
 // ── Verification handshake ────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
+  const VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN
+  if (!VERIFY_TOKEN) {
+    return new Response('Forbidden', { status: 403 })
+  }
+
   const mode = req.nextUrl.searchParams.get('hub.mode')
   const token = req.nextUrl.searchParams.get('hub.verify_token')
   const challenge = req.nextUrl.searchParams.get('hub.challenge')

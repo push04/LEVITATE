@@ -7,12 +7,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { randomBytes } from 'crypto';
 
 function genCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,1,0 to avoid confusion
-  let code = '';
-  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+  return randomBytes(4).toString('hex').toUpperCase();
 }
 
 export async function POST(_req: NextRequest) {
@@ -31,7 +29,7 @@ export async function POST(_req: NextRequest) {
     const { data: company, error: companyError } = await supabase
       .from('companies')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('owner_id', user.id)
       .single();
 
     if (companyError || !company) return NextResponse.json({ error: 'Company not found' }, { status: 404 });

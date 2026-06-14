@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
   const supabase = getServiceSupabase()
-  const { data: lead } = await supabase.from('potential_leads').select('*').eq('id', id).single()
-  if (!lead) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  const { data: lead, error: fetchError } = await supabase.from('potential_leads').select('*').eq('id', id).single()
+  if (fetchError || !lead) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Insert into leads (CRM) table
   const { error } = await supabase.from('leads').insert({

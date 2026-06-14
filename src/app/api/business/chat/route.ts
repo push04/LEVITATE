@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceSupabase } from '@/lib/supabase'
 import { callAI } from '@/lib/ai/router'
-
-export const runtime = 'edge'
+import { getBusinessApiContext } from '@/lib/business-intelligence-server'
 
 interface ChatMessage { role: 'user' | 'assistant'; content: string }
 
 export async function POST(req: NextRequest) {
-  let body: { company_id: string; message: string; history?: ChatMessage[] }
+  let context: Awaited<ReturnType<typeof getBusinessApiContext>>
+  try {
+    context = await getBusinessApiContext()
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const company_id = context.portal.companyId
+
+  let body: { message: string; history?: ChatMessage[] }
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
-  const { company_id, message, history = [] } = body
-  if (!company_id || !message) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+  const { message, history = [] } = body
+  if (!message) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
   const supabase = getServiceSupabase()
 

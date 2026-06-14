@@ -191,7 +191,7 @@ export default async () => {
      }
 
      const message = `📊 *Market Update*\n\n${summary}\n\n${keyInsights.map(i => `• ${i}`).join('\n')}`;
-     await notifyFounder(message, 'Market Tracker Alert');
+     await notifyFounder('Market Tracker Alert', message);
 
      await supabase.from('agent_logs').insert({
        agent_name: 'market_tracker',

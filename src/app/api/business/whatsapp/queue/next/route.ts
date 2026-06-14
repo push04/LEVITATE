@@ -12,14 +12,12 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-function verifyDaemonSecret(req: NextRequest): boolean {
-  const secret = req.headers.get('x-daemon-secret');
-  const expected = process.env.DAEMON_SECRET || 'levitate-daemon-secret';
-  return secret === expected;
-}
-
 export async function GET(req: NextRequest) {
-  if (!verifyDaemonSecret(req)) {
+  const expected = process.env.DAEMON_SECRET;
+  if (!expected) {
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+  }
+  if (req.headers.get('x-daemon-secret') !== expected) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

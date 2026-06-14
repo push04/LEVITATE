@@ -17,6 +17,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
+        const VALID_ROLES = ['super_admin', 'admin', 'manager', 'employee', 'sales', 'client'];
+        if (!VALID_ROLES.includes(role)) {
+            return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+        }
+
         const token = crypto.randomBytes(32).toString('hex');
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);
@@ -45,7 +50,7 @@ export async function POST(request: Request) {
             if (dept) deptName = dept.name;
         }
 
-        const inviteLink = `https://levitatelabs.online/invite?token=${token}`;
+        const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://levitatelabs.online'}/invite?token=${token}`;
 
         if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
             const transporter = nodemailer.createTransport({
@@ -63,14 +68,18 @@ export async function POST(request: Request) {
                 footerText: `Best Regards,\nHarsh & Pushpal,\nFounders, LevitateLabs`
             });
 
-            await transporter.sendMail({
-                from: process.env.SMTP_FROM
-                    ? `"Team LevitateLabs" <${process.env.SMTP_FROM.replace(/^.*<|>.*$/g, '')}>`
-                    : '"Team LevitateLabs" <noreply@levitate-os.com>',
-                to: email,
-                subject: 'Invitation to join Levitate Labs',
-                html: htmlContent,
-            });
+            try {
+                await transporter.sendMail({
+                    from: process.env.SMTP_FROM
+                        ? `"Team LevitateLabs" <${process.env.SMTP_FROM.replace(/^.*<|>.*$/g, '')}>`
+                        : '"Team LevitateLabs" <noreply@levitate-os.com>',
+                    to: email,
+                    subject: 'Invitation to join Levitate Labs',
+                    html: htmlContent,
+                });
+            } catch (mailError) {
+                console.error('Failed to send invite email (invite was saved):', mailError);
+            }
         }
 
         return NextResponse.json({ success: true, link: inviteLink });
