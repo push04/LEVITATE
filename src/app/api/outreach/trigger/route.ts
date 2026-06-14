@@ -16,7 +16,7 @@ export async function POST() {
       .is('last_outreach_at', null)
       .not('email', 'is', null)
       .order('created_at', { ascending: true })
-      .limit(5) // 5 per run — safe rate, clears backlog faster
+      .limit(1) // 1 per cron run (every 20min) = max 72/day — safe for domain warm-up
 
     if (!hotLeads?.length) {
       return NextResponse.json({ success: true, message: 'No leads left to contact', sent: 0 })
@@ -27,19 +27,18 @@ export async function POST() {
       try {
         const body = await callAI(
           `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara, Gujarat.
-Write a short, genuine cold email to a local Indian business owner about building them a website.
+Write a short genuine cold email to a local Indian business owner about building them a website.
 
-RULES:
-- NO em dashes, NO fancy punctuation, NO corporate language
-- Under 90 words total
-- Subject: short and specific to their business type
-- Open casually - like texting a local contact, not a sales pitch
-- Mention ONE real problem their type of business has without a website (missed customers, no Google presence, etc.)
-- Offer to share a free mockup or quick example - no strings
-- End with ONE easy yes/no question
-- Sign off: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
-- Return JSON: {"subject": "...", "body": "..."}
-- Write like a real founder reaching out personally, not a salesperson`,
+STRICT RULES:
+- Under 90 words in the body
+- NO greetings like "Hello sir" or "Dear sir" - use their business name or just "Hi"
+- NO em dashes, NO exclamation marks, NO corporate buzzwords
+- Subject line: MUST mention their specific business type, 4-7 words max. Examples: "Quick question about your restaurant", "Website idea for your salon", "Found your medical clinic online". NEVER use generic subjects like "Hello" or "Quick question" alone.
+- Body: mention one specific problem their business type faces without a website
+- Offer a free mockup, no strings attached
+- End with one simple yes/no question
+- Sign: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
+- Return JSON only: {"subject": "...", "body": "..."}`,
           JSON.stringify({ business_name: lead.name ?? lead.business_name, category: lead.service_category ?? lead.category, city: lead.city }),
           400,
           'outreach'

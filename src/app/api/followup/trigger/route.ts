@@ -32,7 +32,7 @@ export async function POST() {
       .eq('status', 'Contacted')
       .not('last_outreach_at', 'is', null)
       .not('email', 'is', null)
-      .limit(3) // Keep small for Netlify 10s limit on synchronous functions
+      .limit(1) // 1 per cron run — avoid burst sending
 
     let followedUp = 0
     for (const lead of contactedLeads ?? []) {
