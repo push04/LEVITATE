@@ -5,6 +5,7 @@ import {
   Activity,
   Bot,
   Briefcase,
+  ClipboardList,
   Database,
   FileText,
   Globe,
@@ -39,6 +40,7 @@ const GROUPS = [
     label: 'Revenue',
     items: [
       { label: 'CRM', icon: PieChart, href: '/admin/dashboard/leads', roles: ['super_admin', 'admin', 'sales'] },
+      { label: 'Intake Responses', icon: ClipboardList, href: '/admin/dashboard/intake-responses', roles: ['super_admin', 'admin', 'sales'], badge: 'New' },
       { label: 'AI Lead Database', icon: Database, href: '/admin/dashboard/growth/potential-leads', roles: ['super_admin', 'admin', 'sales'], badge: 'AI' },
       { label: 'Sales', icon: TrendingUp, href: '/admin/dashboard/sales', roles: ['super_admin', 'admin', 'manager', 'sales'] },
       { label: 'Revenue', icon: IndianRupee, href: '/admin/dashboard/revenue', roles: ['super_admin', 'admin'] },
