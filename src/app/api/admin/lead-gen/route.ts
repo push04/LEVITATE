@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const city = String(body.city ?? '').trim()
     const category = String(body.category ?? '').trim()
-    const limit = Math.min(Math.max(parseInt(String(body.limit ?? '10')), 1), 10)
+    const limit = Math.min(Math.max(parseInt(String(body.limit ?? '15')), 1), 25)
 
     if (!city || !category) {
       return NextResponse.json({ success: false, error: 'city and category are required' }, { status: 400 })

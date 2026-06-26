@@ -1417,6 +1417,113 @@ export async function fetchBingLeads(city: string, category: string, limit: numb
   }
 }
 
+// ── Source 9: JustDial ────────────────────────────────────────────────────────
+// India's #1 SMB directory. Tries __NEXT_DATA__ JSON first, falls back to HTML patterns.
+// Returns [] silently if blocked — safe to add to the parallel pool.
+
+export async function fetchJustDialLeads(city: string, category: string, limit: number): Promise<ScrapedLead[]> {
+  try {
+    const jdCity = city.charAt(0).toUpperCase() + city.slice(1)
+    const jdCat  = category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')
+    const url    = `https://www.justdial.com/${encodeURIComponent(jdCity)}/${jdCat}`
+
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-IN,en;q=0.9',
+        'Accept-Encoding': 'identity',
+        Referer: 'https://www.justdial.com/',
+      },
+      signal: AbortSignal.timeout(5500),
+    })
+
+    if (!res.ok) return []
+    const html = await res.text()
+
+    // ── Strategy 1: __NEXT_DATA__ JSON (modern JD) ──
+    const nextMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)
+    if (nextMatch) {
+      try {
+        const nd = JSON.parse(nextMatch[1])
+        // JD buries listing data at various depths — search recursively for arrays of objects with company_name
+        function findResults(obj: unknown, depth = 0): unknown[] {
+          if (depth > 8 || !obj || typeof obj !== 'object') return []
+          if (Array.isArray(obj)) {
+            if (obj.length > 0 && typeof obj[0] === 'object' && obj[0] !== null &&
+                ('company_name' in obj[0] || 'name' in obj[0] || 'title' in obj[0])) return obj
+            for (const item of obj) { const r = findResults(item, depth + 1); if (r.length) return r }
+          } else {
+            for (const val of Object.values(obj as Record<string, unknown>)) {
+              const r = findResults(val, depth + 1)
+              if (r.length) return r
+            }
+          }
+          return []
+        }
+
+        const results = findResults(nd) as Array<Record<string, unknown>>
+        if (results.length > 0) {
+          const seen = new Set<string>()
+          return results.slice(0, limit * 2).flatMap((r): ScrapedLead[] => {
+            const rawName = String(r.company_name ?? r.name ?? r.title ?? '').trim()
+            if (!rawName || rawName.length < 3) return []
+            const key = rawName.toLowerCase()
+            if (seen.has(key)) return []
+            seen.add(key)
+            const phone   = normalizePhone(String(r.mobile ?? r.phone ?? r.contact ?? ''))
+            const email   = extractEmailFromText(String(r.email ?? ''))
+            const website = r.website_url ? String(r.website_url) : null
+            const rating  = parseFloat(String(r.rating_overall ?? r.rating ?? '0')) || undefined
+            const address = String(r.address ?? r.area ?? r.locality ?? '').trim() || null
+            return [{
+              business_name: rawName,
+              address,
+              phone,
+              email,
+              website: website ? (website.startsWith('http') ? website : `https://${website}`) : null,
+              city,
+              category,
+              ai_score: scoreFromFields(phone, email, website, phone, undefined, rating),
+              status: 'pending',
+              raw_data: { rating, source: 'justdial', deep_scraped: false },
+            }]
+          }).slice(0, limit)
+        }
+      } catch { /* fall through */ }
+    }
+
+    // ── Strategy 2: HTML attribute patterns (legacy JD) ──
+    const names  = [...html.matchAll(/class="[^"]*lng_cont_name[^"]*"[^>]*>([^<]{3,80})/g)].map(m => m[1].trim())
+    const addrs  = [...html.matchAll(/class="[^"]*cont_fl_addr[^"]*"[^>]*>([^<]{5,120})/g)].map(m => m[1].trim())
+    const phones = [...html.matchAll(/data-mobile="(\d{10})"/g)].map(m => normalizePhone(m[1]))
+
+    if (names.length === 0) return []
+
+    const seen2 = new Set<string>()
+    return names.slice(0, limit).flatMap((name, i): ScrapedLead[] => {
+      const key = name.toLowerCase()
+      if (seen2.has(key)) return []
+      seen2.add(key)
+      const phone = phones[i] ?? null
+      return [{
+        business_name: name,
+        address: addrs[i] ?? null,
+        phone,
+        email: null,
+        website: null,
+        city,
+        category,
+        ai_score: scoreFromFields(phone, null, null),
+        status: 'pending',
+        raw_data: { source: 'justdial', deep_scraped: false },
+      }]
+    })
+  } catch {
+    return []
+  }
+}
+
 // ── Main orchestrator ─────────────────────────────────────────────────────────
 
 export async function scrapeLeads(
@@ -1426,11 +1533,19 @@ export async function scrapeLeads(
 ): Promise<ScrapedLead[]> {
   const perSource = Math.ceil(limit * 2)
 
-  // 5 sources in parallel — DDG removed (blocked by 202 captcha from all server IPs)
-  // Zomato returns [] for non-food; Practo returns [] for non-health — other 3 always run
+  // 7 sources in parallel — all capped individually so total wall-time ≤ 8s (Netlify Free 10s budget)
+  // Overpass/OSM  — location data, addresses, some phones (always runs)
+  // Nominatim     — OSM geocoding, coordinates (always runs)
+  // Bing          — web search snippets via directory site: queries (always runs)
+  // JustDial      — India's #1 SMB directory; returns [] on bot-block (always runs)
+  // Sulekha       — Indian SMB directory with real phones (always runs)
+  // Zomato        — food categories only; returns [] otherwise
+  // Practo        — healthcare only; returns [] otherwise
   const settled = await Promise.allSettled([
+    withTimeout(fetchOverpassLeads(city, category, perSource), 6000, []),
     withTimeout(fetchNominatimLeads(city, category, perSource), 5000, []),
     withTimeout(fetchBingLeads(city, category, Math.ceil(limit / 2)), 5000, []),
+    withTimeout(fetchJustDialLeads(city, category, perSource), 5500, []),
     withTimeout(fetchSulekhaLeads(city, category, perSource), 6000, []),
     withTimeout(fetchZomatoLeads(city, category, perSource), 5000, []),
     withTimeout(fetchPractoLeads(city, category, perSource), 5000, []),
@@ -1438,12 +1553,15 @@ export async function scrapeLeads(
 
   const raw = settled.flatMap(r => r.status === 'fulfilled' ? r.value : [])
 
-  // Deduplicate on normalized name
-  const seen = new Set<string>()
+  // Deduplicate on normalized name AND phone (same business listed by two sources)
+  const seenNames  = new Set<string>()
+  const seenPhones = new Set<string>()
   const deduped = raw.filter((lead) => {
     const key = normalizeName(lead.business_name)
-    if (!key || seen.has(key)) return false
-    seen.add(key)
+    if (!key || seenNames.has(key)) return false
+    if (lead.phone && seenPhones.has(lead.phone)) return false
+    seenNames.add(key)
+    if (lead.phone) seenPhones.add(lead.phone)
     return true
   })
 

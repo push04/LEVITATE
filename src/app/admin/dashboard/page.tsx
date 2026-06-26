@@ -62,7 +62,7 @@ export default function AdminDashboard() {
     // Lead Gen State (Restored)
     const [genCity, setGenCity] = useState('');
     const [genCategory, setGenCategory] = useState('');
-    const [genLimit, setGenLimit] = useState(10);
+    const [genLimit, setGenLimit] = useState(15);
     const [genRequirePhone, setGenRequirePhone] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
     const [potentialLeads, setPotentialLeads] = useState<PotentialLead[]>([]);
@@ -897,8 +897,8 @@ export default function AdminDashboard() {
                                         className="w-full px-4 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg"
                                     >
                                         <option value={10}>10 Leads</option>
-                                        <option value={25}>25 Leads</option>
-                                        <option value={50}>50 Leads</option>
+                                        <option value={15}>15 Leads</option>
+                                        <option value={25}>25 Leads (max)</option>
                                     </select>
                                 </div>
                                 <div className="flex items-end pl-1 pb-3">
