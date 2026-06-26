@@ -32,8 +32,27 @@ export async function POST(request: NextRequest) {
     let sent = 0
     for (const lead of hotLeads) {
       try {
-        const body = await callAI(
-          `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara, Gujarat.
+        // Check for a saved active template first
+        const { data: activeTemplate } = await supabase
+          .from('outreach_templates')
+          .select('subject, body')
+          .eq('is_active', true)
+          .maybeSingle()
+
+        let subject = `Quick question for ${lead.name ?? lead.business_name}`
+        let emailBody = ''
+
+        if (activeTemplate) {
+          const vars: Record<string, string> = {
+            business_name: lead.name ?? lead.business_name ?? 'your business',
+            category: lead.service_category ?? lead.category ?? 'business',
+            city: lead.city ?? 'your city',
+          }
+          subject = activeTemplate.subject.replace(/\{(\w+)\}/g, (_: string, k: string) => vars[k] ?? `{${k}}`)
+          emailBody = activeTemplate.body.replace(/\{(\w+)\}/g, (_: string, k: string) => vars[k] ?? `{${k}}`)
+        } else {
+          const aiRaw = await callAI(
+            `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara, Gujarat.
 Levitate Labs builds AI agents and automation systems for Indian businesses — things like: auto-replying to customer inquiries 24/7, following up with leads automatically, booking appointments without staff, sending reminders, and growing revenue without hiring more people.
 
 Write a short genuine cold email to a local Indian business owner.
@@ -50,21 +69,32 @@ STRICT RULES:
 - End with one yes/no question
 - Sign: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
 - Return JSON only: {"subject": "...", "body": "..."}`,
-          JSON.stringify({ business_name: lead.name ?? lead.business_name, category: lead.service_category ?? lead.category, city: lead.city }),
-          400,
-          'outreach'
-        )
+            JSON.stringify({ business_name: lead.name ?? lead.business_name, category: lead.service_category ?? lead.category, city: lead.city }),
+            400,
+            'outreach'
+          )
 
-        let subject = `Hi, quick question about ${lead.name}`
-        let emailBody = body
-        try {
-          const jsonMatch = body.match(/\{[\s\S]*\}/)
-          const p = JSON.parse(jsonMatch ? jsonMatch[0] : body)
-          subject = p.subject ?? subject
-          emailBody = p.body ?? emailBody
-        } catch { }
-        
-        // Clean up any remaining em dashes
+          // Robust JSON extraction — never send raw JSON on failure
+          const jsonMatch = aiRaw.match(/\{[\s\S]*"subject"[\s\S]*"body"[\s\S]*\}/)
+          if (!jsonMatch) {
+            console.error(`[Outreach] AI returned non-JSON for ${lead.name}:`, aiRaw.slice(0, 200))
+            continue
+          }
+          try {
+            const p = JSON.parse(jsonMatch[0])
+            if (!p.subject || !p.body) {
+              console.error(`[Outreach] Missing subject/body keys for ${lead.name}`)
+              continue
+            }
+            subject = p.subject
+            emailBody = p.body
+          } catch {
+            console.error(`[Outreach] JSON parse failed for ${lead.name}`)
+            continue
+          }
+        }
+
+        // Clean up em dashes and double-dashes
         emailBody = emailBody.replace(/---/g, '-').replace(/--/g, '-')
         subject = subject.replace(/---/g, '-').replace(/--/g, '-')
 

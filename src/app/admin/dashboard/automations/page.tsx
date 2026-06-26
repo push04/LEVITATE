@@ -7,8 +7,9 @@ import {
   Bot, Activity, Clock, TrendingUp, AlertTriangle,
   Cpu, RefreshCw, ChevronDown, CheckCircle, XCircle,
   Play, Filter, Search, BarChart3, Wifi, WifiOff, Eye,
-  Users, ArrowRight, MapPin, Star, Mail, Inbox, Send
+  Users, ArrowRight, MapPin, Star, Mail, Inbox, Send, FileText
 } from 'lucide-react'
+import OutreachTemplateManager from '@/components/admin/OutreachTemplateManager'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -157,7 +158,7 @@ export default function AutomationsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'agents' | 'logs' | 'analytics' | 'pipeline' | 'emails'>('agents')
+  const [activeTab, setActiveTab] = useState<'agents' | 'logs' | 'analytics' | 'pipeline' | 'emails' | 'templates'>('agents')
 
   const loadAgents = useCallback(async () => {
     try {
@@ -265,7 +266,7 @@ export default function AutomationsPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-[var(--secondary)] rounded-xl p-1 w-fit flex-wrap">
-        {(['agents', 'logs', 'pipeline', 'analytics', 'emails'] as const).map(tab => (
+        {(['agents', 'logs', 'pipeline', 'analytics', 'emails', 'templates'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -275,7 +276,7 @@ export default function AutomationsPage() {
                 : 'text-[var(--muted)] hover:text-white'
             }`}
           >
-            {tab === 'logs' ? 'Live Logs' : tab === 'analytics' ? 'Analytics' : tab === 'pipeline' ? 'Leads Pipeline' : tab === 'emails' ? 'Emails' : 'Agents'}
+            {tab === 'logs' ? 'Live Logs' : tab === 'analytics' ? 'Analytics' : tab === 'pipeline' ? 'Leads Pipeline' : tab === 'emails' ? 'Emails' : tab === 'templates' ? 'Templates' : 'Agents'}
           </button>
         ))}
       </div>
@@ -461,6 +462,7 @@ export default function AutomationsPage() {
       {activeTab === 'pipeline' && <PipelineTab />}
       {activeTab === 'analytics' && <AnalyticsTab agents={agents} />}
       {activeTab === 'emails' && <EmailsTab />}
+      {activeTab === 'templates' && <OutreachTemplateManager />}
 
     </div>
   )
