@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Users,
   UserCheck,
+  Crosshair,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -42,6 +43,7 @@ const GROUPS = [
       { label: 'CRM', icon: PieChart, href: '/admin/dashboard/leads', roles: ['super_admin', 'admin', 'sales'] },
       { label: 'Intake Responses', icon: ClipboardList, href: '/admin/dashboard/intake-responses', roles: ['super_admin', 'admin', 'sales'], badge: 'New' },
       { label: 'AI Lead Database', icon: Database, href: '/admin/dashboard/growth/potential-leads', roles: ['super_admin', 'admin', 'sales'], badge: 'AI' },
+      { label: 'BizHarvest', icon: Crosshair, href: '/admin/dashboard/growth/bizharvest', roles: ['super_admin', 'admin', 'sales'], badge: 'New' },
       { label: 'Sales', icon: TrendingUp, href: '/admin/dashboard/sales', roles: ['super_admin', 'admin', 'manager', 'sales'] },
       { label: 'Revenue', icon: IndianRupee, href: '/admin/dashboard/revenue', roles: ['super_admin', 'admin'] },
       { label: 'Mailbox', icon: Mail, href: '/admin/dashboard/mailbox', roles: ['super_admin', 'admin'] },
