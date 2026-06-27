@@ -167,7 +167,8 @@ export async function POST(req: NextRequest) {
           skipped++
         } else {
           console.error('[BizHarvest ingest] DB error:', error.code, error.message, '| record:', rec.name)
-          errors++
+          // Temporary: surface error for debugging
+          return NextResponse.json({ debug_error: error.message, debug_code: error.code, debug_details: error.details, record: rec.name }, { status: 200 })
         }
         continue
       }
