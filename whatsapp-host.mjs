@@ -73,11 +73,11 @@ const queueFilter = COMPANY_ID
 
 console.log(`Starting WhatsApp Daemon [${COMPANY_ID ? `company: ${COMPANY_ID}` : 'ADMIN'}]`);
 
-// Anti-ban settings
-const DAILY_LIMIT = 20;
-const MIN_DELAY_MS = 45 * 1000;
-const MAX_DELAY_MS = 90 * 1000;
-const POLL_INTERVAL_MS = 15 * 1000;
+// Anti-ban settings (all configurable via env vars)
+const DAILY_LIMIT = parseInt(process.env.DAILY_LIMIT || '200', 10);
+const MIN_DELAY_MS = parseInt(process.env.MIN_DELAY_MS || '45000', 10);
+const MAX_DELAY_MS = parseInt(process.env.MAX_DELAY_MS || '90000', 10);
+const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '15000', 10);
 const PING_INTERVAL_MS = 30 * 1000;
 const DNS_RECHECK_MS = 5 * 60 * 1000;
 
@@ -193,13 +193,15 @@ async function forwardInbound(from, body) {
   try {
     const res = await fetch(`${NEXT_APP_URL}/api/whatsapp/inbound`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-daemon-secret': DAEMON_SECRET,
+      },
       body: JSON.stringify({
         company_id: COMPANY_ID,
         from,
         body,
         timestamp: new Date().toISOString(),
-        secret: DAEMON_SECRET
       }),
       signal: AbortSignal.timeout(30000)
     });
@@ -383,15 +385,74 @@ const client = new Client({
   authStrategy: new LocalAuth({ clientId: COMPANY_ID ? `company-${COMPANY_ID}` : 'admin' }),
   puppeteer: {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--disable-gpu',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-sync',
+      '--disable-translate',
+      '--hide-scrollbars',
+      '--metrics-recording-only',
+      '--mute-audio',
+      '--safebrowsing-disable-auto-update',
+    ]
   }
 });
 
+async function clearLocalSession() {
+  const clientId = COMPANY_ID ? `company-${COMPANY_ID}` : 'admin';
+  const sessionPath = `.wwebjs_auth/session-${clientId}`;
+  try {
+    const { rm } = await import('node:fs/promises');
+    await rm(sessionPath, { recursive: true, force: true });
+    console.log('[Auth] Stale session cleared:', sessionPath);
+  } catch (e) {
+    console.warn('[Auth] Could not clear session directory:', e.message);
+  }
+}
+
+client.on('loading_screen', (percent, message) => {
+  console.log(`[Loading] ${percent}% — ${message}`);
+});
+
 client.on('qr', async (qr) => {
-  currentQR = await qrcode.toDataURL(qr);
-  console.log('Scan this QR code with your WhatsApp:');
+  try {
+    currentQR = await qrcode.toDataURL(qr);
+  } catch (e) {
+    console.error('[QR] Failed to convert QR to data URL:', e.message);
+    return;
+  }
+  console.log('\n=== SCAN QR CODE WITH WHATSAPP ===');
+  console.log('WhatsApp → Linked Devices → Link a Device\n');
   qrcodeTerminal.generate(qr, { small: true });
+  console.log('QR also available at: http://localhost:3005/api/qr\n');
   await upsertCompanyConfig({ qr_code: currentQR, daemon_last_ping: new Date().toISOString() });
+});
+
+client.on('auth_failure', async (msg) => {
+  console.error('[Auth] Authentication failure:', msg);
+  isReady = false;
+  currentQR = '';
+  console.log('[Auth] Clearing stale session — a fresh QR will be generated...');
+  await clearLocalSession();
+  await new Promise(resolve => setTimeout(resolve, 3000));
+  if (!isRestartingClient) {
+    isRestartingClient = true;
+    try {
+      await client.initialize();
+    } catch (err) {
+      console.error('[Auth] Re-init after auth failure failed:', err.message);
+    } finally {
+      isRestartingClient = false;
+    }
+  }
 });
 
 client.on('ready', async () => {
@@ -451,7 +512,33 @@ client.on('message', async (msg) => {
   await forwardInbound(from, body);
 });
 
-client.initialize();
+// ── Graceful shutdown ──────────────────────────────────────────────────────
+async function gracefulShutdown(signal) {
+  console.log(`\n[Shutdown] Received ${signal}. Cleaning up...`);
+  if (pollIntervalHandle) { clearInterval(pollIntervalHandle); pollIntervalHandle = null; }
+  if (pingIntervalHandle) { clearInterval(pingIntervalHandle); pingIntervalHandle = null; }
+  isReady = false;
+  try { await upsertCompanyConfig({ daemon_last_ping: null, connected: false }); } catch {}
+  try { await client.destroy(); } catch {}
+  console.log('[Shutdown] Done. Goodbye.');
+  process.exit(0);
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
+
+// Safety: reset isProcessing if it gets stuck (should never happen, but guards against crashes)
+setInterval(() => {
+  if (isProcessing) {
+    // If still processing after 5 minutes, force-clear (something went very wrong)
+    isProcessing = false;
+    console.warn('[Safety] isProcessing was stuck — force-cleared');
+  }
+}, 5 * 60 * 1000);
+
+client.initialize().catch(err => {
+  console.error('[Fatal] client.initialize() threw:', err.message);
+  console.error('[Fatal] Hint: Ensure Chromium/Chrome is accessible and no other whatsapp-host instance is running.');
+});
 
 // Local API for admin dashboard (backward-compatible)
 app.get('/api/status', (req, res) => {
@@ -464,7 +551,41 @@ app.get('/api/qr', (req, res) => {
   res.json({ qr: currentQR });
 });
 
+// ── Pause / resume endpoints ───────────────────────────────────────────────
+app.post('/api/pause', (req, res) => {
+  const minutes = parseInt(req.body?.minutes || '5', 10);
+  queuePausedUntil = Date.now() + minutes * 60 * 1000;
+  res.json({ paused: true, resumesAt: new Date(queuePausedUntil).toISOString() });
+});
+
+app.post('/api/resume', (req, res) => {
+  queuePausedUntil = 0;
+  res.json({ resumed: true });
+});
+
+// Force-reset: destroy session + re-initialize (generates fresh QR)
+app.post('/api/reset-session', async (req, res) => {
+  console.log('[Reset] Manual session reset requested from admin panel');
+  isReady = false;
+  currentQR = '';
+  if (pollIntervalHandle) { clearInterval(pollIntervalHandle); pollIntervalHandle = null; }
+  if (pingIntervalHandle) { clearInterval(pingIntervalHandle); pingIntervalHandle = null; }
+  try { await client.destroy(); } catch {}
+  await clearLocalSession();
+  console.log('[Reset] Reinitializing client for fresh QR...');
+  setTimeout(() => {
+    client.initialize().catch(err => console.error('[Reset] Reinit failed:', err.message));
+  }, 1500);
+  res.json({ success: true, message: 'Session reset — new QR will appear shortly' });
+});
+
 app.listen(3005, () => {
-  console.log('Local API Server running on http://localhost:3005');
-  console.log(`Anti-ban: Max ${DAILY_LIMIT} messages/day, ${MIN_DELAY_MS / 1000}-${MAX_DELAY_MS / 1000}s delay between sends`);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`  Levitate WhatsApp Daemon  [${COMPANY_ID ? `company: ${COMPANY_ID}` : 'ADMIN'}]`);
+  console.log(`  Local API: http://localhost:3005`);
+  console.log(`  Daily limit: ${DAILY_LIMIT} msgs/day`);
+  console.log(`  Delay: ${MIN_DELAY_MS / 1000}–${MAX_DELAY_MS / 1000}s between sends`);
+  console.log(`  Poll: every ${POLL_INTERVAL_MS / 1000}s`);
+  console.log('  Env overrides: DAILY_LIMIT, MIN_DELAY_MS, MAX_DELAY_MS, POLL_INTERVAL_MS');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 });
