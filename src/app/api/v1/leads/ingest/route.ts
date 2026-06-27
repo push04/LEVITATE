@@ -74,6 +74,12 @@ export async function POST(req: NextRequest) {
 
     try {
       // Map BizHarvest fields → leads table columns
+      // Note: only columns that exist in the leads table
+      let workingHours = null
+      if (rec.working_hours) {
+        try { workingHours = JSON.parse(rec.working_hours) } catch { workingHours = rec.working_hours }
+      }
+
       const lead = {
         name:             rec.name,
         business_name:    rec.name,
@@ -81,52 +87,46 @@ export async function POST(req: NextRequest) {
         email:            rec.email ?? null,
         website_link:     rec.website ?? rec.maps_url ?? null,
         city:             rec.city ?? rec.location_label ?? null,
-        address:          rec.address ?? null,
         service_category: rec.category ?? rec.subcategory ?? null,
-        source:           `bizharvest_${rec.source}`,   // 'bizharvest_gmaps' | 'bizharvest_justdial'
+        source:           `bizharvest_${rec.source}`,
         status:           'New',
         message:          buildMessage(rec),
         deal_value:       null,
         budget:           null,
-        // Store extra BizHarvest metadata in notes field
         notes: JSON.stringify({
           rating:        rec.rating,
           review_count:  rec.review_count,
           years_active:  rec.years_active,
-          working_hours: rec.working_hours ? JSON.parse(rec.working_hours) : null,
+          working_hours: workingHours,
           maps_url:      rec.maps_url,
           query_term:    rec.query_term,
           scraped_at:    rec.scraped_at,
           uid:           rec.uid,
           phone_alt:     rec.phone_alt,
           pin_code:      rec.pin_code,
+          address:       rec.address,
         }),
         created_at: rec.scraped_at ?? new Date().toISOString(),
       }
 
-      // Upsert by (name + city + source) to avoid duplicates across scrape runs
+      // Insert — catch duplicate key (23505) as skipped
       const { data, error } = await supabase
         .from('leads')
-        .upsert(lead, {
-          onConflict: 'name,city,source',
-          ignoreDuplicates: true,
-        })
+        .insert(lead)
         .select('id, phone, name')
         .maybeSingle()
 
       if (error) {
-        // Unique constraint violation = duplicate
         if (error.code === '23505' || error.message?.includes('duplicate')) {
           skipped++
         } else {
-          console.error('[BizHarvest ingest] DB error:', error.message, '| record:', rec.name)
+          console.error('[BizHarvest ingest] DB error:', error.code, error.message, '| record:', rec.name)
           errors++
         }
         continue
       }
 
       if (!data) {
-        // ignoreDuplicates suppressed the row = already existed
         skipped++
         continue
       }
