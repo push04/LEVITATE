@@ -125,10 +125,12 @@ export async function POST(req: NextRequest) {
         try { workingHours = JSON.parse(rec.working_hours) } catch { workingHours = rec.working_hours }
       }
 
+      const uid = rec.uid ?? `${rec.source}_${rec.name}_${rec.city ?? ''}`.replace(/\s+/g, '_').toLowerCase()
       const lead = {
         name:             rec.name,
         phone:            rec.phone ?? null,
-        email:            rec.email ?? null,
+        // leads.email is NOT NULL — use placeholder when scraper has no email
+        email:            rec.email ?? `bh_${uid}@noemail.bh`,
         website_link:     rec.website ?? rec.maps_url ?? null,
         city:             rec.city ?? rec.location_label ?? null,
         service_category: rec.category ?? rec.subcategory ?? null,
