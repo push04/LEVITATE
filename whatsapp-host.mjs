@@ -529,11 +529,49 @@ process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 // Safety: reset isProcessing if it gets stuck (should never happen, but guards against crashes)
 setInterval(() => {
   if (isProcessing) {
-    // If still processing after 5 minutes, force-clear (something went very wrong)
     isProcessing = false;
     console.warn('[Safety] isProcessing was stuck — force-cleared');
   }
 }, 5 * 60 * 1000);
+
+// Auto-retry: every 30 min reset failed messages that aren't permanently undeliverable
+const PERMANENT_ERRORS = ['not on whatsapp', 'invalid phone number', 'too short', 'too long'];
+const AUTO_RETRY_INTERVAL_MS = parseInt(process.env.AUTO_RETRY_INTERVAL_MS || String(30 * 60 * 1000), 10);
+
+async function autoRetryFailed() {
+  try {
+    const response = await supabaseRequest(
+      `/whatsapp_queue?select=id,error&status=eq.failed&${queueFilter}&limit=500`,
+      { method: 'GET' }
+    );
+    const rows = await response.json().catch(() => []);
+    if (!Array.isArray(rows) || rows.length === 0) return;
+
+    const retryIds = rows
+      .filter(r => {
+        const err = (r.error || '').toLowerCase();
+        return !PERMANENT_ERRORS.some(pe => err.includes(pe));
+      })
+      .map(r => r.id);
+
+    if (retryIds.length === 0) return;
+
+    // Supabase REST: PATCH with id=in.(id1,id2,...)
+    const idList = retryIds.join(',');
+    await supabaseRequest(
+      `/whatsapp_queue?id=in.(${encodeURIComponent(idList)})&${queueFilter}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'pending', error: null, updated_at: new Date().toISOString() })
+      }
+    );
+    console.log(`[AutoRetry] Reset ${retryIds.length} failed messages back to pending`);
+  } catch (e) {
+    console.warn('[AutoRetry] Failed:', e.message);
+  }
+}
+
+setInterval(autoRetryFailed, AUTO_RETRY_INTERVAL_MS);
 
 client.initialize().catch(err => {
   console.error('[Fatal] client.initialize() threw:', err.message);
