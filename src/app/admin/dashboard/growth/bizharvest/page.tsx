@@ -15,7 +15,7 @@ interface Stats {
   topCategories: { category: string; count: number }[]
   trend: { date: string; count: number }[]
   recentLogs: { id: string; status: string; inserted: number; skipped: number; errors: number; created_at: string }[]
-  whatsapp: { sent: number; pending: number; total: number }
+  whatsapp: { queued: number }
 }
 
 function StatCard({ label, value, sub, icon: Icon, accent = '#B08D57' }: {
@@ -198,21 +198,18 @@ export default function BizHarvestAnalyticsPage() {
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <MessageSquare className="h-4 w-4 text-green-500" />
-            <p className="text-[13px] font-semibold text-gray-700">WhatsApp Queue</p>
+            <p className="text-[13px] font-semibold text-gray-700">WhatsApp Outreach</p>
           </div>
           <div className="space-y-3">
             <div className="flex justify-between text-[13px]">
-              <span className="text-gray-500">Sent</span>
-              <span className="font-bold text-green-600">{whatsapp.sent.toLocaleString()}</span>
+              <span className="text-gray-500">Messages queued</span>
+              <span className="font-bold text-green-600">{whatsapp.queued.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-[13px]">
-              <span className="text-gray-500">Pending</span>
-              <span className="font-bold text-yellow-600">{whatsapp.pending.toLocaleString()}</span>
+              <span className="text-gray-500">Source</span>
+              <span className="font-medium text-gray-500">Local WA daemon</span>
             </div>
-            <div className="flex justify-between text-[13px]">
-              <span className="text-gray-500">Total queued</span>
-              <span className="font-bold text-gray-900">{whatsapp.total.toLocaleString()}</span>
-            </div>
+            <p className="text-[11px] text-gray-400 mt-2">Every lead with a phone number is auto-queued on ingest</p>
           </div>
         </div>
 

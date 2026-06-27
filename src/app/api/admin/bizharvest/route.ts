@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const supabase = getServiceSupabase()
 
-  const [leadsRes, targetsRes, logsRes, whatsappRes] = await Promise.all([
+  const [leadsRes, targetsRes, logsRes] = await Promise.all([
     supabase
       .from('leads')
       .select('id, source, city, category, phone, website, created_at')
@@ -22,17 +22,14 @@ export async function GET() {
       .eq('agent_name', 'bizharvest')
       .order('created_at', { ascending: false })
       .limit(50),
-
-    supabase
-      .from('whatsapp_queue')
-      .select('id, status, created_at')
-      .like('notes', '%bizharvest%')
-      .limit(500),
   ])
 
   const leads = leadsRes.data ?? []
   const targets = targetsRes.data ?? []
   const logs = logsRes.data ?? []
+
+  // WhatsApp: every bizharvest lead with a phone gets queued — no separate tracking column
+  const whatsappQueued = leads.filter(l => l.phone).length
 
   // Summary
   const total = leads.length
@@ -102,6 +99,6 @@ export async function GET() {
     topCategories,
     trend,
     recentLogs,
-    whatsapp: { sent: wqSent, pending: wqPending, total: wq.length },
+    whatsapp: { queued: whatsappQueued },
   })
 }
