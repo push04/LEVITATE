@@ -1,9 +1,7 @@
 /**
  * POST /api/v1/leads/ingest
  * BizHarvest → Levitate Labs ingest endpoint.
- * Accepts bulk scraped business records, upserts into `leads` table,
- * and queues WhatsApp outreach for every record that has a phone number.
- *
+ * Deduplication: phone number first, then name+city fallback.
  * Auth: x-api-key header must match BIZHARVEST_API_KEY env var.
  */
 
@@ -55,7 +53,7 @@ export async function POST(req: NextRequest) {
   }
 
   const records = body.records ?? []
-  const doWhatsApp = body.queue_whatsapp !== false  // default true
+  const doWhatsApp = body.queue_whatsapp !== false
 
   if (!Array.isArray(records) || records.length === 0) {
     return NextResponse.json({ inserted: 0, skipped: 0, errors: 0 })
@@ -66,15 +64,62 @@ export async function POST(req: NextRequest) {
   let skipped  = 0
   let errors   = 0
 
+  // ── Batch dedup check ──────────────────────────────────────────────────────
+  // 1. Collect all non-null phones and name+city pairs from this batch
+  const batchPhones   = records.map(r => r.phone).filter(Boolean) as string[]
+  const batchNameCity = records
+    .filter(r => !r.phone && r.name && r.city)
+    .map(r => `${r.name?.toLowerCase().trim()}|${r.city?.toLowerCase().trim()}`)
+
+  // 2. Single query: fetch existing leads matching any phone in this batch
+  const existingPhones = new Set<string>()
+  const existingNameCity = new Set<string>()
+
+  if (batchPhones.length > 0) {
+    const { data: phoneRows } = await supabase
+      .from('leads')
+      .select('phone')
+      .in('phone', batchPhones)
+    ;(phoneRows ?? []).forEach(r => { if (r.phone) existingPhones.add(r.phone) })
+  }
+
+  // 3. For records without phone: check name+city duplicates
+  if (batchNameCity.length > 0) {
+    const names  = records.filter(r => !r.phone && r.name).map(r => r.name as string)
+    const cities = records.filter(r => !r.phone && r.city).map(r => r.city as string)
+    const { data: nameRows } = await supabase
+      .from('leads')
+      .select('name, city')
+      .in('name', names)
+      .in('city', cities)
+    ;(nameRows ?? []).forEach(r => {
+      if (r.name && r.city)
+        existingNameCity.add(`${r.name.toLowerCase().trim()}|${r.city.toLowerCase().trim()}`)
+    })
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   for (const rec of records) {
     if (!rec.name || !rec.source) {
       errors++
       continue
     }
 
+    // ── Deduplicate by phone (primary) or name+city (fallback) ────────────
+    if (rec.phone && existingPhones.has(rec.phone)) {
+      skipped++
+      continue
+    }
+    if (!rec.phone) {
+      const key = `${rec.name?.toLowerCase().trim()}|${(rec.city ?? rec.location_label ?? '').toLowerCase().trim()}`
+      if (existingNameCity.has(key)) {
+        skipped++
+        continue
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     try {
-      // Map BizHarvest fields → leads table columns
-      // Note: only columns that exist in the leads table
       let workingHours = null
       if (rec.working_hours) {
         try { workingHours = JSON.parse(rec.working_hours) } catch { workingHours = rec.working_hours }
@@ -109,7 +154,6 @@ export async function POST(req: NextRequest) {
         created_at: rec.scraped_at ?? new Date().toISOString(),
       }
 
-      // Insert — catch duplicate key (23505) as skipped
       const { data, error } = await supabase
         .from('leads')
         .insert(lead)
@@ -118,6 +162,8 @@ export async function POST(req: NextRequest) {
 
       if (error) {
         if (error.code === '23505' || error.message?.includes('duplicate')) {
+          // Race condition — another request inserted same record concurrently
+          if (rec.phone) existingPhones.add(rec.phone)
           skipped++
         } else {
           console.error('[BizHarvest ingest] DB error:', error.code, error.message, '| record:', rec.name)
@@ -131,24 +177,26 @@ export async function POST(req: NextRequest) {
         continue
       }
 
+      // Track newly inserted to catch intra-batch duplicates
+      if (rec.phone) existingPhones.add(rec.phone)
+      else existingNameCity.add(`${rec.name.toLowerCase().trim()}|${(rec.city ?? '').toLowerCase().trim()}`)
+
       inserted++
 
-      // Queue WhatsApp outreach for leads with phone numbers
       if (doWhatsApp && data.phone) {
         await queueBusinessLeadWhatsApp({ name: data.name, phone: data.phone }).catch((e) =>
           console.error('[BizHarvest ingest] WhatsApp queue error:', e)
         )
       }
 
-      // Log the agent action
       await supabase.from('agent_logs').insert({
-        agent_name: 'bizharvest',
-        action:     'lead_ingested',
-        input:      { source: rec.source, name: rec.name, city: rec.city, phone: rec.phone },
-        output:     { lead_id: data.id, whatsapp_queued: doWhatsApp && !!data.phone },
-        status:     'success',
+        agent_name:     'bizharvest',
+        action:         'lead_ingested',
+        input:          { source: rec.source, name: rec.name, city: rec.city, phone: rec.phone },
+        output:         { lead_id: data.id, whatsapp_queued: doWhatsApp && !!data.phone },
+        status:         'success',
         credits_earned: 1,
-      }).then(() => {})  // fire-and-forget
+      }).then(() => {})
 
     } catch (err) {
       console.error('[BizHarvest ingest] Unexpected error:', err)
@@ -161,10 +209,10 @@ export async function POST(req: NextRequest) {
 
 function buildMessage(rec: BizHarvestRecord): string {
   const parts: string[] = []
-  if (rec.query_term)  parts.push(`Query: ${rec.query_term}`)
-  if (rec.rating)      parts.push(`Rating: ${rec.rating}`)
+  if (rec.query_term)   parts.push(`Query: ${rec.query_term}`)
+  if (rec.rating)       parts.push(`Rating: ${rec.rating}`)
   if (rec.review_count) parts.push(`Reviews: ${rec.review_count}`)
   if (rec.years_active) parts.push(`Est: ${rec.years_active}`)
-  if (rec.maps_url)    parts.push(`Maps: ${rec.maps_url}`)
+  if (rec.maps_url)     parts.push(`Maps: ${rec.maps_url}`)
   return parts.join(' | ') || 'BizHarvest lead'
 }
