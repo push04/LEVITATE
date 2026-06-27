@@ -10,7 +10,7 @@ export async function GET() {
     const [leadsRes, targetsRes, logsRes] = await Promise.all([
       supabase
         .from('leads')
-        .select('id, source, city, category, phone, website, created_at')
+        .select('id, source, city, service_category, phone, website_link, created_at')
         .like('source', 'bizharvest_%'),
 
       supabase
@@ -36,7 +36,7 @@ export async function GET() {
     // Summary
     const total = leads.length
     const withPhone = leads.filter(l => l.phone).length
-    const withWebsite = leads.filter(l => l.website).length
+    const withWebsite = leads.filter(l => l.website_link).length
     const gmaps = leads.filter(l => l.source === 'bizharvest_gmaps').length
     const justdial = leads.filter(l => l.source === 'bizharvest_justdial').length
 
@@ -50,7 +50,7 @@ export async function GET() {
 
     // By category (top 15)
     const catMap: Record<string, number> = {}
-    leads.forEach(l => { if (l.category) catMap[l.category] = (catMap[l.category] ?? 0) + 1 })
+    leads.forEach(l => { if (l.service_category) catMap[l.service_category] = (catMap[l.service_category] ?? 0) + 1 })
     const topCategories = Object.entries(catMap)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 15)
