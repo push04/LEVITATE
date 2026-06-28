@@ -81,6 +81,16 @@ const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '15000', 10);
 const PING_INTERVAL_MS = 30 * 1000;
 const DNS_RECHECK_MS = 5 * 60 * 1000;
 
+// ── Human-behavior settings ───────────────────────────────────────────────────
+const BUSINESS_HOURS_START   = parseInt(process.env.BUSINESS_HOURS_START   || '9',  10); // 9 AM IST
+const BUSINESS_HOURS_END     = parseInt(process.env.BUSINESS_HOURS_END     || '20', 10); // 8 PM IST
+const ENFORCE_BUSINESS_HOURS = process.env.ENFORCE_BUSINESS_HOURS !== 'false';
+const BURST_LIMIT            = parseInt(process.env.BURST_LIMIT            || '6',  10); // sends before forced long break
+const BURST_BREAK_MIN_MS     = parseInt(process.env.BURST_BREAK_MIN_MS     || String(10 * 60 * 1000), 10);
+const BURST_BREAK_MAX_MS     = parseInt(process.env.BURST_BREAK_MAX_MS     || String(20 * 60 * 1000), 10);
+const TYPING_ENABLED         = process.env.TYPING_ENABLED !== 'false';
+const STARTUP_WARMUP_MS      = parseInt(process.env.STARTUP_WARMUP_MS      || String(2 * 60 * 1000), 10);
+
 let sentToday = 0;
 let lastResetDate = new Date().toDateString();
 let currentQR = '';
@@ -93,19 +103,59 @@ let lastDnsCheckAt = 0;
 let publicDnsFallbackApplied = false;
 let isProcessing = false;
 let queuePausedUntil = 0;
+let consecutiveSent = 0; // burst counter — resets after burst break or daily reset
+let startupReadyAt  = 0; // timestamp when client first became ready this session
 
-function randomDelay() {
-  const ms = Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS)) + MIN_DELAY_MS;
-  console.log(`[Delay] Waiting ${Math.round(ms / 1000)}s before next message (anti-ban)`);
+// Human-like delay with realistic distribution instead of flat uniform random.
+// 60% normal range | 20% longer pause (browsing/distracted) | 15% short | 5% very long (in a meeting)
+function humanDelay() {
+  const r = Math.random();
+  let ms;
+  if (r < 0.60) {
+    ms = MIN_DELAY_MS + Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS);
+  } else if (r < 0.80) {
+    ms = 3 * 60_000 + Math.random() * 4 * 60_000;   // 3–7 min
+  } else if (r < 0.95) {
+    ms = 20_000 + Math.random() * 25_000;             // 20–45 s
+  } else {
+    ms = 15 * 60_000 + Math.random() * 15 * 60_000;  // 15–30 min
+  }
+  console.log(`[Delay] ${Math.round(ms / 1000)}s before next send`);
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isWithinBusinessHours() {
+  if (!ENFORCE_BUSINESS_HOURS) return true;
+  const ist  = new Date(Date.now() + 5.5 * 60 * 60 * 1000); // UTC → IST (UTC+5:30)
+  const hour = ist.getUTCHours();
+  const day  = ist.getUTCDay(); // 0 = Sunday
+  if (day === 0) return false;
+  return hour >= BUSINESS_HOURS_START && hour < BUSINESS_HOURS_END;
+}
+
+// Simulate "typing..." before sending — visible to the recipient, major humanization signal.
+async function simulateTyping(chatId, messageText) {
+  if (!TYPING_ENABLED) return;
+  try {
+    const chat = await client.getChatById(chatId);
+    // Brief pause simulating navigating to the chat and reading it
+    await new Promise(r => setTimeout(r, 400 + Math.random() * 1800));
+    await chat.sendStateTyping();
+    // Duration proportional to message length (~4–7 chars/sec on mobile), capped 1.8–7s
+    const charRate  = 4 + Math.random() * 3;
+    const rawMs     = (messageText.length / charRate) * 1000;
+    const typingMs  = Math.min(Math.max(rawMs, 1800), 7000) + Math.random() * 600;
+    await new Promise(resolve => setTimeout(resolve, typingMs));
+  } catch { /* typing is cosmetic — never let it block sends */ }
 }
 
 function resetDailyCounterIfNeeded() {
   const today = new Date().toDateString();
   if (today !== lastResetDate) {
     sentToday = 0;
+    consecutiveSent = 0;
     lastResetDate = today;
-    console.log('[Clock] New day — daily counter reset to 0');
+    console.log('[Clock] New day — daily counter and burst counter reset');
   }
 }
 
@@ -294,6 +344,22 @@ async function pollQueue() {
   if (!isReady || isProcessing) return;
   if (Date.now() < queuePausedUntil) return;
 
+  // Business hours gate — pause for 15 min each time we check outside hours
+  if (!isWithinBusinessHours()) {
+    const ist = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const hhmm = `${ist.getUTCHours()}:${String(ist.getUTCMinutes()).padStart(2, '0')}`;
+    console.log(`[Hours] Outside business hours (${hhmm} IST). Next check in 15 min.`);
+    queuePausedUntil = Date.now() + 15 * 60 * 1000;
+    return;
+  }
+
+  // Startup warmup — don't blast immediately after connecting
+  if (startupReadyAt > 0 && Date.now() - startupReadyAt < STARTUP_WARMUP_MS) {
+    const remaining = Math.round((STARTUP_WARMUP_MS - (Date.now() - startupReadyAt)) / 1000);
+    console.log(`[Warmup] Startup cooldown: ${remaining}s remaining before first send`);
+    return;
+  }
+
   if (Date.now() - lastDnsCheckAt > DNS_RECHECK_MS) {
     lastDnsCheckAt = Date.now();
     const dnsOk = await verifySupabaseHost();
@@ -348,11 +414,15 @@ async function pollQueue() {
 
       const cleanMessage = safeMessageText(msg.message);
       console.log(`[Send] [${sentToday + 1}/${DAILY_LIMIT}] To ${targetNumber}: "${cleanMessage.substring(0, 50)}..."`);
+
+      // Show "typing..." to recipient before sending — major human presence signal
+      await simulateTyping(numberId._serialized, cleanMessage);
       await client.sendMessage(numberId._serialized, cleanMessage);
 
       await updateQueueRow(msg.id, { status: 'sent', updated_at: new Date().toISOString() });
       sentToday++;
-      console.log(`[Sent] OK (${sentToday}/${DAILY_LIMIT} today)`);
+      consecutiveSent++;
+      console.log(`[Sent] OK (${sentToday}/${DAILY_LIMIT} today | burst ${consecutiveSent}/${BURST_LIMIT})`);
 
       // Mirror to conversation history
       await mirrorOutbound(targetNumber, cleanMessage, msg.campaign_id);
@@ -371,7 +441,17 @@ async function pollQueue() {
       await updateQueueRow(msg.id, { status: 'failed', error: errMsg.substring(0, 200), updated_at: new Date().toISOString() });
     }
 
-    if (shouldDelay) await randomDelay();
+    if (shouldDelay) {
+      if (consecutiveSent >= BURST_LIMIT) {
+        const breakMs   = BURST_BREAK_MIN_MS + Math.random() * (BURST_BREAK_MAX_MS - BURST_BREAK_MIN_MS);
+        const breakMins = Math.round(breakMs / 60_000);
+        console.log(`[Burst] ${BURST_LIMIT} sends in a row — taking a ~${breakMins}min human break`);
+        consecutiveSent  = 0;
+        queuePausedUntil = Date.now() + breakMs; // use existing pause gate
+      } else {
+        await humanDelay();
+      }
+    }
   } catch (e) {
     console.error('[Error] Fatal polling error:', e);
     queuePausedUntil = Date.now() + 2 * 60 * 1000;
@@ -457,9 +537,10 @@ client.on('auth_failure', async (msg) => {
 
 client.on('ready', async () => {
   console.log('WhatsApp Client is READY! Polling starts now.');
-  isReady = true;
+  isReady        = true;
   pollingStarted = true;
-  currentQR = '';
+  currentQR      = '';
+  if (startupReadyAt === 0) startupReadyAt = Date.now(); // set once per session
 
   // Get connected phone number
   let phoneNumber = null;
@@ -622,8 +703,14 @@ app.listen(3005, () => {
   console.log(`  Levitate WhatsApp Daemon  [${COMPANY_ID ? `company: ${COMPANY_ID}` : 'ADMIN'}]`);
   console.log(`  Local API: http://localhost:3005`);
   console.log(`  Daily limit: ${DAILY_LIMIT} msgs/day`);
-  console.log(`  Delay: ${MIN_DELAY_MS / 1000}–${MAX_DELAY_MS / 1000}s between sends`);
+  console.log(`  Delay: variable (${MIN_DELAY_MS / 1000}–${MAX_DELAY_MS / 1000}s base, bimodal distribution)`);
+  console.log(`  Burst limit: ${BURST_LIMIT} msgs then ${BURST_BREAK_MIN_MS / 60000}–${BURST_BREAK_MAX_MS / 60000} min break`);
+  console.log(`  Business hours: ${BUSINESS_HOURS_START}:00–${BUSINESS_HOURS_END}:00 IST (enforce=${ENFORCE_BUSINESS_HOURS})`);
+  console.log(`  Typing simulation: ${TYPING_ENABLED ? 'ON' : 'OFF'} | Warmup: ${STARTUP_WARMUP_MS / 1000}s`);
   console.log(`  Poll: every ${POLL_INTERVAL_MS / 1000}s`);
-  console.log('  Env overrides: DAILY_LIMIT, MIN_DELAY_MS, MAX_DELAY_MS, POLL_INTERVAL_MS');
+  console.log('  Env overrides: DAILY_LIMIT, MIN_DELAY_MS, MAX_DELAY_MS, POLL_INTERVAL_MS,');
+  console.log('                 BURST_LIMIT, BURST_BREAK_MIN_MS, BURST_BREAK_MAX_MS,');
+  console.log('                 BUSINESS_HOURS_START, BUSINESS_HOURS_END, ENFORCE_BUSINESS_HOURS,');
+  console.log('                 TYPING_ENABLED, STARTUP_WARMUP_MS');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 });
