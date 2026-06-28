@@ -4,6 +4,7 @@ import { useProfile } from '@/hooks/useProfile';
 import {
   Activity,
   Bot,
+  Brain,
   Briefcase,
   ClipboardList,
   Database,
@@ -52,6 +53,7 @@ const GROUPS = [
   {
     label: 'Automation',
     items: [
+      { label: 'AI Command Center', icon: Brain, href: '/admin/dashboard/ai', roles: ['super_admin', 'admin'], badge: 'NEW' },
       { label: 'AI Agents', icon: Bot, href: '/admin/dashboard/automations', roles: ['super_admin', 'admin'], badge: 'AI' },
       { label: 'WhatsApp', icon: MessageSquare, href: '/admin/dashboard/whatsapp', roles: ['super_admin', 'admin'] },
       { label: 'Live Logs', icon: Activity, href: '/admin/dashboard/logs', roles: ['super_admin', 'admin'] },
