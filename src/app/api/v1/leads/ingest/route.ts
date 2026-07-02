@@ -99,113 +99,126 @@ export async function POST(req: NextRequest) {
   }
   // ──────────────────────────────────────────────────────────────────────────
 
+  // ── Build the row set to insert: filter out cross-batch dupes (checked
+  // above against the DB) and within-batch dupes (scraper can emit the same
+  // business twice), then insert everything in ONE bulk upsert call instead
+  // of one round-trip per record — sequential per-row inserts here were
+  // exceeding the serverless function's timeout window on larger batches.
+  const seenPhones = new Set<string>()
+  const seenNameCity = new Set<string>()
+  const leadsToInsert: Record<string, unknown>[] = []
+
   for (const rec of records) {
     if (!rec.name || !rec.source) {
       errors++
       continue
     }
 
-    // ── Deduplicate by phone (primary) or name+city (fallback) ────────────
+    // ── Deduplicate against existing DB rows: phone (primary) or name+city (fallback) ──
     if (rec.phone && existingPhones.has(rec.phone)) {
       skipped++
       continue
     }
     if (!rec.phone) {
-      const key = `${rec.name?.toLowerCase().trim()}|${(rec.city ?? rec.location_label ?? '').toLowerCase().trim()}`
+      const key = `${rec.name.toLowerCase().trim()}|${(rec.city ?? rec.location_label ?? '').toLowerCase().trim()}`
       if (existingNameCity.has(key)) {
         skipped++
         continue
       }
     }
-    // ─────────────────────────────────────────────────────────────────────
 
-    try {
-      let workingHours = null
-      if (rec.working_hours) {
-        try { workingHours = JSON.parse(rec.working_hours) } catch { workingHours = rec.working_hours }
-      }
+    // ── Deduplicate within this batch itself ───────────────────────────────
+    if (rec.phone) {
+      if (seenPhones.has(rec.phone)) { skipped++; continue }
+      seenPhones.add(rec.phone)
+    } else {
+      const key = `${rec.name.toLowerCase().trim()}|${(rec.city ?? rec.location_label ?? '').toLowerCase().trim()}`
+      if (seenNameCity.has(key)) { skipped++; continue }
+      seenNameCity.add(key)
+    }
 
-      const uid = rec.uid ?? `${rec.source}_${rec.name}_${rec.city ?? ''}`.replace(/\s+/g, '_').toLowerCase()
-      const lead = {
-        name:             rec.name,
-        phone:            rec.phone ?? null,
-        // leads.email is NOT NULL — use placeholder when scraper has no email
-        email:            rec.email ?? `bh_${uid}@noemail.bh`,
-        website_link:     rec.website ?? rec.maps_url ?? null,
-        city:             rec.city ?? rec.location_label ?? null,
-        service_category: rec.category ?? rec.subcategory ?? null,
-        source:           `bizharvest_${rec.source}`,
-        status:           'New',
-        message:          buildMessage(rec),
-        deal_value:       null,
-        budget:           null,
-        notes: JSON.stringify({
-          rating:        rec.rating,
-          review_count:  rec.review_count,
-          years_active:  rec.years_active,
-          working_hours: workingHours,
-          maps_url:      rec.maps_url,
-          query_term:    rec.query_term,
-          scraped_at:    rec.scraped_at,
-          uid:           rec.uid,
-          phone_alt:     rec.phone_alt,
-          pin_code:      rec.pin_code,
-          address:       rec.address,
-        }),
-        created_at: rec.scraped_at ?? new Date().toISOString(),
-      }
+    leadsToInsert.push(buildLeadRow(rec))
+  }
 
-      const { data, error } = await supabase
-        .from('leads')
-        .insert(lead)
-        .select('id, phone, name')
-        .maybeSingle()
+  if (leadsToInsert.length > 0) {
+    const { data, error } = await supabase
+      .from('leads')
+      .upsert(leadsToInsert, { onConflict: 'name,city,source', ignoreDuplicates: true })
+      .select('id, phone, name')
 
-      if (error) {
-        if (error.code === '23505' || error.message?.includes('duplicate')) {
-          // Race condition — another request inserted same record concurrently
-          if (rec.phone) existingPhones.add(rec.phone)
-          skipped++
-        } else {
-          console.error('[BizHarvest ingest] DB error:', error.code, error.message, '| record:', rec.name)
-          errors++
+    if (error) {
+      console.error('[BizHarvest ingest] bulk upsert error:', error.code, error.message)
+      errors += leadsToInsert.length
+    } else {
+      const insertedRows = data ?? []
+      inserted = insertedRows.length
+      // Rows that hit ON CONFLICT DO NOTHING aren't returned — count them as skipped.
+      skipped += leadsToInsert.length - inserted
+
+      if (doWhatsApp) {
+        for (const row of insertedRows) {
+          if (row.phone) {
+            queueBusinessLeadWhatsApp({ name: row.name, phone: row.phone }).catch((e) =>
+              console.error('[BizHarvest ingest] WhatsApp queue error:', e)
+            )
+          }
         }
-        continue
       }
-
-      if (!data) {
-        skipped++
-        continue
-      }
-
-      // Track newly inserted to catch intra-batch duplicates
-      if (rec.phone) existingPhones.add(rec.phone)
-      else existingNameCity.add(`${rec.name.toLowerCase().trim()}|${(rec.city ?? '').toLowerCase().trim()}`)
-
-      inserted++
-
-      if (doWhatsApp && data.phone) {
-        await queueBusinessLeadWhatsApp({ name: data.name, phone: data.phone }).catch((e) =>
-          console.error('[BizHarvest ingest] WhatsApp queue error:', e)
-        )
-      }
-
-      await supabase.from('agent_logs').insert({
-        agent_name:     'bizharvest',
-        action:         'lead_ingested',
-        input:          { source: rec.source, name: rec.name, city: rec.city, phone: rec.phone },
-        output:         { lead_id: data.id, whatsapp_queued: doWhatsApp && !!data.phone },
-        status:         'success',
-        credits_earned: 1,
-      }).then(() => {})
-
-    } catch (err) {
-      console.error('[BizHarvest ingest] Unexpected error:', err)
-      errors++
     }
   }
 
+  // Log this run to agent_logs so the BizHarvest dashboard shows real numbers
+  supabase.from('agent_logs').insert({
+    agent_name: 'bizharvest',
+    agent_version: '1.0',
+    action: 'ingest',
+    input: { total: records.length },
+    output: { inserted, skipped, errors },
+    status: errors > 0 && inserted === 0 ? 'failure' : inserted > 0 ? 'success' : 'partial',
+    duration_ms: 0,
+    credits_earned: 0,
+    tokens_used: 0,
+    ai_provider: 'none',
+  }).then(() => {}, () => {})
+
   return NextResponse.json({ inserted, skipped, errors, total: records.length })
+}
+
+function buildLeadRow(rec: BizHarvestRecord): Record<string, unknown> {
+  let workingHours: unknown = null
+  if (rec.working_hours) {
+    try { workingHours = JSON.parse(rec.working_hours) } catch { workingHours = rec.working_hours }
+  }
+
+  const uid = rec.uid ?? `${rec.source}_${rec.name}_${rec.city ?? ''}`.replace(/\s+/g, '_').toLowerCase()
+  return {
+    name:             rec.name,
+    phone:            rec.phone ?? null,
+    // leads.email is NOT NULL — use placeholder when scraper has no email
+    email:            rec.email ?? `bh_${uid}@noemail.bh`,
+    website_link:     rec.website ?? rec.maps_url ?? null,
+    city:             rec.city ?? rec.location_label ?? null,
+    service_category: rec.category ?? rec.subcategory ?? null,
+    source:           `bizharvest_${rec.source}`,
+    status:           'New',
+    message:          buildMessage(rec),
+    deal_value:       null,
+    budget:           null,
+    notes: JSON.stringify({
+      rating:        rec.rating,
+      review_count:  rec.review_count,
+      years_active:  rec.years_active,
+      working_hours: workingHours,
+      maps_url:      rec.maps_url,
+      query_term:    rec.query_term,
+      scraped_at:    rec.scraped_at,
+      uid:           rec.uid,
+      phone_alt:     rec.phone_alt,
+      pin_code:      rec.pin_code,
+      address:       rec.address,
+    }),
+    created_at: rec.scraped_at ?? new Date().toISOString(),
+  }
 }
 
 function buildMessage(rec: BizHarvestRecord): string {

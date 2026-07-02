@@ -1,6 +1,6 @@
 import { fetchAllRows, getServiceSupabase } from '@/lib/supabase'
 
-interface BizHarvestNotes {
+export interface BizHarvestNotes {
   rating?: number
   review_count?: number
   years_active?: string
@@ -12,13 +12,20 @@ interface BizHarvestNotes {
   address?: string
 }
 
-function parseNotes(notes: string | null): BizHarvestNotes {
+export function parseNotes(notes: string | null): BizHarvestNotes {
   if (!notes) return {}
   try {
     return JSON.parse(notes) as BizHarvestNotes
   } catch {
     return {}
   }
+}
+
+export function bizharvestSourceLabel(source: string | null): string {
+  if (source === 'bizharvest_gmaps') return 'gmaps'
+  if (source === 'bizharvest_justdial') return 'justdial'
+  if (source === 'bizharvest_hotfrog') return 'hotfrog'
+  return (source ?? '').replace(/^bizharvest_/, '') || 'unknown'
 }
 
 export async function getBizharvestAnalytics(supabase: ReturnType<typeof getServiceSupabase>) {
@@ -164,7 +171,7 @@ export async function getBizharvestAnalytics(supabase: ReturnType<typeof getServ
     rating: l.meta.rating ?? null,
     reviewCount: l.meta.review_count ?? null,
     dealValue: l.deal_value,
-    source: l.source === 'bizharvest_gmaps' ? 'gmaps' : l.source === 'bizharvest_justdial' ? 'justdial' : l.source,
+    source: bizharvestSourceLabel(l.source),
     createdAt: l.created_at,
   }))
 

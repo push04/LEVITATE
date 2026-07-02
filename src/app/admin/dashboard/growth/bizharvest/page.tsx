@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   RefreshCw, MapPin, Tag, Phone, Database,
   TrendingUp, CheckCircle2, MessageSquare,
   Loader2, AlertCircle, Target, Activity, Star,
-  Sparkles, Users, Search, ExternalLink,
+  Sparkles, Users, Search, ExternalLink, Send,
+  FileText, FileSpreadsheet, FileDown,
 } from 'lucide-react'
+import { exportLeadsCSV, exportLeadsXLSX, exportLeadsPDF } from '@/lib/bizharvest-export'
 
 interface RecentLead {
   id: string
@@ -143,56 +145,196 @@ const PIPELINE_COLOR: Record<string, string> = {
   New: '#2563eb', Contacted: '#eab308', 'Follow Up': '#7c3aed', Closed: '#16a34a',
 }
 
-function AIInsightsPanel() {
-  const [insight, setInsight] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [meta, setMeta] = useState<{ cached: boolean; generatedAt: string } | null>(null)
+interface ChatLead {
+  id: string
+  name: string
+  city: string | null
+  category: string | null
+  phone: string | null
+  website: string | null
+  status: string
+  rating: number | null
+  reviewCount: number | null
+  dealValue: number | null
+  source: string
+  createdAt: string
+}
 
-  const load = useCallback(async (refresh = false) => {
-    setLoading(true)
-    setError(null)
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  leads?: ChatLead[]
+  total?: number
+  truncated?: boolean
+  error?: boolean
+}
+
+const CHAT_EXAMPLES = [
+  'restaurants in Patna with phone numbers',
+  'top rated clinics in Vadodara',
+  'CA firms in Ahmedabad without a website',
+  'all salons, sorted by rating',
+]
+
+function ChatResultsTable({ leads, query }: { leads: ChatLead[]; query: string }) {
+  const [exporting, setExporting] = useState<string | null>(null)
+  const filenameBase = `bizharvest_${query.replace(/[^a-z0-9]+/gi, '_').toLowerCase().slice(0, 40).replace(/^_+|_+$/g, '') || 'leads'}_${new Date().toISOString().slice(0, 10)}`
+
+  const handleExport = async (fmt: 'csv' | 'xlsx' | 'pdf') => {
+    setExporting(fmt)
     try {
-      const res = await fetch(`/api/admin/bizharvest/insights${refresh ? '?refresh=1' : ''}`)
+      if (fmt === 'csv') await exportLeadsCSV(leads, filenameBase)
+      else if (fmt === 'xlsx') await exportLeadsXLSX(leads, filenameBase)
+      else await exportLeadsPDF(leads, filenameBase, `BizHarvest — ${query}`)
+    } finally {
+      setExporting(null)
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/50">
+        <span className="text-[11px] font-semibold text-gray-500">{leads.length} result{leads.length === 1 ? '' : 's'}</span>
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => handleExport('csv')} disabled={!!exporting} className="flex items-center gap-1 text-[11px] rounded-lg border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+            {exporting === 'csv' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} CSV
+          </button>
+          <button onClick={() => handleExport('xlsx')} disabled={!!exporting} className="flex items-center gap-1 text-[11px] rounded-lg border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+            {exporting === 'xlsx' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileSpreadsheet className="h-3 w-3" />} Excel
+          </button>
+          <button onClick={() => handleExport('pdf')} disabled={!!exporting} className="flex items-center gap-1 text-[11px] rounded-lg border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+            {exporting === 'pdf' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileDown className="h-3 w-3" />} PDF
+          </button>
+        </div>
+      </div>
+      <div className="max-h-64 overflow-y-auto">
+        <table className="w-full text-[12px]">
+          <thead className="sticky top-0 bg-white">
+            <tr className="text-left text-gray-400 border-b border-gray-100">
+              <th className="px-3 py-1.5 font-semibold">Name</th>
+              <th className="px-3 py-1.5 font-semibold">Phone</th>
+              <th className="px-3 py-1.5 font-semibold">City</th>
+              <th className="px-3 py-1.5 font-semibold">Rating</th>
+              <th className="px-3 py-1.5 font-semibold">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {leads.slice(0, 100).map(l => (
+              <tr key={l.id} className="text-gray-700">
+                <td className="px-3 py-1.5 max-w-[160px] truncate">{l.name}</td>
+                <td className="px-3 py-1.5 whitespace-nowrap">{l.phone || '—'}</td>
+                <td className="px-3 py-1.5">{l.city || '—'}</td>
+                <td className="px-3 py-1.5">{l.rating ? `${l.rating} ★` : '—'}</td>
+                <td className="px-3 py-1.5"><LeadStatusPill status={l.status} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {leads.length > 100 && (
+          <p className="px-3 py-2 text-[11px] text-gray-400">Showing first 100 in preview — export for the full {leads.length}.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function BizHarvestChat() {
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+  }, [messages, loading])
+
+  const send = useCallback(async (text: string) => {
+    const q = text.trim()
+    if (!q || loading) return
+    const history = messages.map(m => ({ role: m.role, content: m.content }))
+    setInput('')
+    setMessages(prev => [...prev, { role: 'user', content: q }])
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/bizharvest/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: q, history }),
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
-      setInsight(data.insight)
-      setMeta({ cached: data.cached, generatedAt: data.generatedAt })
+      setMessages(prev => [...prev, { role: 'assistant', content: data.reply, leads: data.leads, total: data.total, truncated: data.truncated }])
     } catch (e: any) {
-      setError(e.message)
+      setMessages(prev => [...prev, { role: 'assistant', content: e.message ?? 'Something went wrong.', error: true }])
     } finally {
       setLoading(false)
     }
-  }, [])
-
-  useEffect(() => { load() }, [load])
+  }, [messages, loading])
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-[#B08D57]/5 to-white p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-[#B08D57]" />
-          <p className="text-[13px] font-semibold text-gray-700">AI Insights</p>
-          {meta?.cached && <span className="text-[10px] text-gray-400">(cached, {timeAgo(meta.generatedAt)})</span>}
-        </div>
-        <button
-          onClick={() => load(true)}
-          disabled={loading}
-          className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-600 shadow-sm hover:bg-gray-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-          Regenerate
-        </button>
+    <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
+        <Sparkles className="h-4 w-4 text-[#B08D57]" />
+        <p className="text-[13px] font-semibold text-gray-700">Ask BizHarvest</p>
+        <span className="text-[11px] text-gray-400 hidden sm:inline">— ask for leads in plain English, export the results</span>
       </div>
-      {loading && !insight ? (
-        <div className="flex items-center gap-2 text-[13px] text-gray-400 py-4">
-          <Loader2 className="h-4 w-4 animate-spin" /> Generating insights...
-        </div>
-      ) : error ? (
-        <p className="text-[13px] text-red-500">{error}</p>
-      ) : (
-        <p className="text-[13px] leading-relaxed text-gray-700 whitespace-pre-line">{insight}</p>
-      )}
+
+      <div ref={scrollRef} className="max-h-[420px] overflow-y-auto px-5 py-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="space-y-2">
+            <p className="text-[13px] text-gray-400">Try asking:</p>
+            <div className="flex flex-wrap gap-2">
+              {CHAT_EXAMPLES.map(p => (
+                <button
+                  key={p}
+                  onClick={() => send(p)}
+                  className="text-[12px] rounded-full border border-gray-200 px-3 py-1.5 text-gray-600 hover:border-[#B08D57] hover:text-[#B08D57]"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {messages.map((m, i) => (
+          <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] ${
+              m.role === 'user' ? 'bg-[#B08D57] text-white' : m.error ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-50 text-gray-700'
+            }`}>
+              <p className="whitespace-pre-line">{m.content}</p>
+              {m.leads && m.leads.length > 0 && (
+                <ChatResultsTable leads={m.leads} query={messages[i - 1]?.content ?? 'leads'} />
+              )}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="rounded-2xl bg-gray-50 px-4 py-2.5 text-[13px] text-gray-400 flex items-center gap-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching leads...
+            </div>
+          </div>
+        )}
+      </div>
+
+      <form
+        onSubmit={e => { e.preventDefault(); send(input) }}
+        className="flex items-center gap-2 border-t border-gray-100 px-4 py-3"
+      >
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder='e.g. "I need all restaurant leads in Patna"'
+          className="flex-1 text-[13px] rounded-xl border border-gray-200 px-3.5 py-2.5 focus:outline-none focus:ring-1 focus:ring-[#B08D57]"
+        />
+        <button
+          type="submit"
+          disabled={loading || !input.trim()}
+          className="flex items-center gap-1.5 rounded-xl bg-[#B08D57] px-4 py-2.5 text-[13px] font-medium text-white disabled:opacity-40"
+        >
+          <Send className="h-3.5 w-3.5" /> Send
+        </button>
+      </form>
     </div>
   )
 }
@@ -290,8 +432,8 @@ export default function BizHarvestAnalyticsPage() {
         <StatCard label="Avg Rating" value={summary.avgRating || '—'} sub={`${ratings.rated} businesses rated`} icon={Star} accent="#eab308" />
       </div>
 
-      {/* AI Insights */}
-      <AIInsightsPanel />
+      {/* AI Chat — ask for leads in plain English */}
+      <BizHarvestChat />
 
       {/* Target + WhatsApp + Pipeline row */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
