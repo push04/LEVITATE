@@ -26,14 +26,11 @@ export async function getBizharvestAnalytics(supabase: ReturnType<typeof getServ
     fetchAllRows((from, to) =>
       supabase
         .from('leads')
-        .select('id, name, business_name, source, city, service_category, phone, website_link, status, notes, deal_value, created_at')
+        .select('id, name, source, city, service_category, phone, website_link, status, notes, deal_value, created_at')
         .like('source', 'bizharvest_%')
         .order('created_at', { ascending: false })
         .range(from, to)
-    ).catch((err) => {
-      console.error('[bizharvest] leads error:', err.message)
-      return []
-    }),
+    ),
 
     supabase
       .from('bizharvest_targets')
@@ -146,7 +143,7 @@ export async function getBizharvestAnalytics(supabase: ReturnType<typeof getServ
     .slice(0, 10)
     .map(l => ({
       id: l.id,
-      name: l.business_name || l.name,
+      name: l.name,
       city: l.city,
       category: l.service_category,
       rating: l.meta.rating,
@@ -158,7 +155,7 @@ export async function getBizharvestAnalytics(supabase: ReturnType<typeof getServ
   // ── Client directory: most recent scraped businesses, full detail ────────
   const recentLeads = leads.slice(0, 40).map(l => ({
     id: l.id,
-    name: l.business_name || l.name,
+    name: l.name,
     city: l.city,
     category: l.service_category,
     phone: l.phone,
