@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServiceSupabase } from '@/lib/supabase';
+import { getServiceSupabase, fetchAllRows } from '@/lib/supabase';
 import { checkAdminAuth } from '@/lib/auth';
 import { queueBusinessLeadWhatsApp } from '@/lib/whatsapp/queue-business-lead';
 
@@ -13,23 +13,19 @@ export async function GET(request: NextRequest) {
     try {
         const supabase = getServiceSupabase();
 
-        const { data, error } = await supabase
-            .from('leads')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Database error:', error);
-            return NextResponse.json(
-                { success: false, error: 'Failed to fetch leads' },
-                { status: 500 }
-            );
-        }
+        const data = await fetchAllRows((from, to) =>
+            supabase
+                .from('leads')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .range(from, to)
+        );
 
         return NextResponse.json({ success: true, data });
     } catch (error) {
+        console.error('Database error:', error);
         return NextResponse.json(
-            { success: false, error: 'Internal Server Error' },
+            { success: false, error: 'Failed to fetch leads' },
             { status: 500 }
         );
     }

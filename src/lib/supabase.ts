@@ -36,6 +36,25 @@ export const getAnonSupabase = () => createClientJs(
     getSupabasePublishableKey()
 );
 
+// PostgREST caps any unpaginated select() at db-max-rows (1000 by default on Supabase).
+// Use this to page through with .range() and get every row instead of just the first 1000.
+export async function fetchAllRows<T>(
+    queryFn: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+    pageSize = 1000
+): Promise<T[]> {
+    const all: T[] = [];
+    let from = 0;
+    for (;;) {
+        const { data, error } = await queryFn(from, from + pageSize - 1);
+        if (error) throw new Error(error.message);
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+    }
+    return all;
+}
+
 
 // Types for database tables
 export interface Lead {
