@@ -2,6 +2,7 @@
 // This is what RUN_TENDERPULSE.bat launches — leave it running on the local
 // PC and it keeps polling without further interaction (per tenderbot.md
 // Section 3: "Local PC, always-on... acts as the server for scheduled jobs").
+import "dotenv/config";
 import { runAllSources } from "./scheduler.js";
 
 const INTERVAL_MINUTES = Number(process.env.CRAWL_INTERVAL_MINUTES || 30);

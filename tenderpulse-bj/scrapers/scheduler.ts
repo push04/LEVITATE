@@ -1,3 +1,4 @@
+import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,8 +8,84 @@ import { scrapeS3waasDistrict } from "./engines/s3waas_district.js";
 import { scrapeStandaloneHealth } from "./engines/standalone_health.js";
 import { scrapeGemPublic } from "./engines/gem_public.js";
 import { normalize, type SourceConfig, type RawTender } from "./normalizer.js";
-import { dedupAndPersist } from "./dedup.js";
+import { dedupAndPersist, type StoredTender } from "./dedup.js";
 import { getSupabaseClient } from "../db/supabase_client.js";
+
+const supabase = getSupabaseClient();
+const sourceIdCache = new Map<string, string>();
+
+async function getOrCreateSourceId(source: SourceConfig): Promise<string | null> {
+  if (!supabase) return null;
+  if (sourceIdCache.has(source.name)) return sourceIdCache.get(source.name)!;
+
+  const { data: existing, error: selectErr } = await supabase
+    .from("sources")
+    .select("id")
+    .eq("name", source.name)
+    .maybeSingle();
+  if (selectErr) throw selectErr;
+
+  if (existing) {
+    sourceIdCache.set(source.name, existing.id);
+    return existing.id;
+  }
+
+  const { data: inserted, error: insertErr } = await supabase
+    .from("sources")
+    .insert({
+      name: source.name,
+      family: source.family,
+      base_url: source.base_url,
+      state: source.state,
+      district: source.district,
+      org_type: source.org_type,
+      poll_frequency_minutes: source.poll_frequency_minutes,
+    })
+    .select("id")
+    .single();
+  if (insertErr) throw insertErr;
+
+  sourceIdCache.set(source.name, inserted.id);
+  return inserted.id;
+}
+
+async function pushTendersToSupabase(source: SourceConfig, tenders: StoredTender[]) {
+  if (!supabase || tenders.length === 0) return;
+  const sourceId = await getOrCreateSourceId(source);
+  if (!sourceId) return;
+
+  // A source can hand back the same external_ref twice in one scrape (e.g.
+  // a repeated ticker row) — newTenders/updatedTenders being separate arrays
+  // doesn't guarantee uniqueness across their concatenation. Postgres's
+  // ON CONFLICT can't update the same row twice in one statement, so collapse
+  // duplicates (last one wins) before building the upsert payload.
+  const byRef = new Map<string, StoredTender>();
+  for (const t of tenders) byRef.set(t.external_ref, t);
+
+  const rows = Array.from(byRef.values()).map((t) => ({
+    source_id: sourceId,
+    external_ref: t.external_ref.slice(0, 500),
+    title: t.title.slice(0, 2000),
+    organization: t.organization?.slice(0, 500),
+    district: t.district?.slice(0, 200),
+    category: t.category,
+    publish_date: t.publish_date || null,
+    bid_submission_deadline: t.bid_submission_deadline || null,
+    nit_document_url: t.nit_document_url || null,
+    raw_scraped_at: t.last_seen_at,
+    updated_at: new Date().toISOString(),
+  }));
+
+  // Supabase caps request payload size — chunk large sources (S3WaaS
+  // districts rarely exceed a few dozen rows, GeM/eProc2 can run higher).
+  const CHUNK = 200;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const { error } = await supabase
+      .from("tenders")
+      .upsert(rows.slice(i, i + CHUNK), { onConflict: "source_id,external_ref" });
+    if (error) throw error;
+  }
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONCURRENCY = Number(process.env.CRAWL_CONCURRENCY || 5);
@@ -44,6 +121,15 @@ async function runOne(source: SourceConfig): Promise<SourceReport> {
     const raw = await engine(source);
     const normalized = normalize(raw, source);
     const { newTenders, updatedTenders } = dedupAndPersist(source.name, normalized);
+
+    if (supabase) {
+      try {
+        await pushTendersToSupabase(source, [...newTenders, ...updatedTenders]);
+      } catch (dbErr) {
+        console.error(`[supabase] push failed for ${source.name}:`, (dbErr as Error).message);
+      }
+    }
+
     return {
       name: source.name,
       family: source.family,
@@ -101,22 +187,13 @@ export async function runAllSources(): Promise<SourceReport[]> {
   if (failed.length) {
     console.log("Failed sources:", failed.map((f) => `${f.name} (${f.error})`).join("; "));
   }
+  console.log(
+    supabase
+      ? "Supabase configured — new/updated tenders were pushed per-source above."
+      : "Supabase not configured (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY unset) — data kept in local data/ store only."
+  );
 
-  await pushToSupabaseIfConfigured(reports);
   return reports;
-}
-
-async function pushToSupabaseIfConfigured(_reports: SourceReport[]) {
-  const supabase = getSupabaseClient();
-  if (!supabase) {
-    console.log("Supabase not configured (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY unset) — data kept in local data/ store only.");
-    return;
-  }
-  // Left intentionally minimal: once credentials exist, wire this to upsert
-  // into `sources` (by name) then `tenders` (by source_id + external_ref)
-  // per db/schema.sql. Not exercised yet — no live Supabase project to test
-  // against in this environment.
-  console.log("Supabase configured — push-to-DB wiring pending credential verification.");
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);

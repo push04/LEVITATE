@@ -29,10 +29,25 @@ function loadJson<T>(file: string, fallback: T): T {
 
 // Atomic write (write to temp file, then rename) so the admin server — which
 // reads this same file concurrently — never sees a half-written JSON blob.
+// The temp filename includes a per-call random token, not just the PID —
+// under concurrency (multiple sources finishing around the same tick),
+// reusing a PID-only name let a second call's write/rename race the first
+// one's still-in-flight rename on Windows (EPERM).
 function writeJsonAtomic(file: string, data: unknown) {
-  const tmp = `${file}.tmp-${process.pid}`;
+  const tmp = `${file}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-  fs.renameSync(tmp, file);
+  // Windows can briefly hold a lock on the destination right after another
+  // process's own rename completes — retry a couple times before giving up.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      fs.renameSync(tmp, file);
+      return;
+    } catch (err) {
+      if (attempt >= 3) throw err;
+      const sab = new Int32Array(new SharedArrayBuffer(4));
+      Atomics.wait(sab, 0, 0, 25 * (attempt + 1)); // brief synchronous backoff
+    }
+  }
 }
 
 // Stable, deterministic id derived from source+external_ref — same tender

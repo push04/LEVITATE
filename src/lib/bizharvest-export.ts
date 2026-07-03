@@ -11,6 +11,7 @@ export interface ExportableLead {
   dealValue: number | null
   source: string
   createdAt: string
+  address?: string | null
 }
 
 function toRows(leads: ExportableLead[]) {
@@ -60,13 +61,11 @@ export async function exportLeadsPDF(leads: ExportableLead[], filenameBase: stri
   const pageHeight = pdf.internal.pageSize.getHeight()
   const margin = 32
   const columns = [
-    { label: 'Name', width: 170 },
+    { label: 'Name', width: 150 },
     { label: 'Phone', width: 90 },
-    { label: 'City', width: 90 },
-    { label: 'Category', width: 140 },
-    { label: 'Rating', width: 50 },
-    { label: 'Status', width: 70 },
-    { label: 'Source', width: 60 },
+    { label: 'City', width: 80 },
+    { label: 'Category', width: 120 },
+    { label: 'Address', width: 220 },
   ]
   let y = margin
 
@@ -109,9 +108,7 @@ export async function exportLeadsPDF(leads: ExportableLead[], filenameBase: stri
       l.phone || '-',
       l.city || '-',
       l.category || '-',
-      l.rating ? String(l.rating) : '-',
-      l.status || '-',
-      l.source || '-',
+      l.address || '-',
     ]
     cells.forEach((cell, i) => {
       const fitted = pdf.splitTextToSize(String(cell), columns[i].width - 6)[0] ?? ''

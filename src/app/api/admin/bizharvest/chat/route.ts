@@ -79,7 +79,8 @@ function buildReply(f: ParsedFilters, total: number, withPhone: number, withWebs
   return reply
 }
 
-const RETURN_CAP = 1000
+// No cap — the admin explicitly wants every matching lead returned (used for
+// both on-screen review and full-dataset export), not just a preview page.
 
 export async function POST(req: NextRequest) {
   const { isAuthenticated } = await checkAdminAuth()
@@ -152,6 +153,7 @@ export async function POST(req: NextRequest) {
       dealValue: l.deal_value,
       source: bizharvestSourceLabel(l.source),
       createdAt: l.created_at,
+      address: meta.address ?? null,
     }
   })
 
@@ -168,14 +170,13 @@ export async function POST(req: NextRequest) {
     ? Math.round((rated.reduce((s, l) => s + (l.rating as number), 0) / rated.length) * 10) / 10
     : 0
 
-  const resultLeads = leads.slice(0, RETURN_CAP)
-  const reply = buildReply(filters, total, withPhone, withWebsite, avgRating, resultLeads.length)
+  const reply = buildReply(filters, total, withPhone, withWebsite, avgRating, leads.length)
 
   return NextResponse.json({
     reply,
     filters,
-    leads: resultLeads,
+    leads,
     total,
-    truncated: total > resultLeads.length,
+    truncated: false,
   })
 }

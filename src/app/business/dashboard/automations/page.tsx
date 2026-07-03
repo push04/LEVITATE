@@ -157,7 +157,9 @@ export default function BusinessAutomationsPage() {
     }
 
     const interval = window.setInterval(() => {
-      if (!portal.loading && portal.hasPaidAccess) {
+      // Skip the refetch while the tab is backgrounded — no one's watching,
+      // and it was firing every 30s indefinitely regardless.
+      if (!portal.loading && portal.hasPaidAccess && document.visibilityState === 'visible') {
         load();
       }
     }, 30000);

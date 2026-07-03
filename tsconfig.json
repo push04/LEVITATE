@@ -43,6 +43,7 @@
     "netlify",
     "supabase",
     ".next",
-    "levitate-agent"
+    "levitate-agent",
+    "tenderpulse-bj"
   ]
 }

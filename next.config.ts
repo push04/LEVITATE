@@ -5,6 +5,15 @@ const nextConfig: NextConfig = {
   // Fix workspace root detection when multiple lockfiles exist
   outputFileTracingRoot: path.join(__dirname),
 
+  // tenderpulse-bj/ (and its dashboard/ subfolder) ship their own
+  // package.json + lockfile as a self-contained subproject. Turbopack's own
+  // root inference is separate from outputFileTracingRoot above and was
+  // walking past those nested lockfiles up to the wrong directory — pin it
+  // explicitly so module resolution doesn't break.
+  turbopack: {
+    root: path.join(__dirname),
+  },
+
   // Default Next.js output — works with @netlify/plugin-nextjs
 
   typescript: {

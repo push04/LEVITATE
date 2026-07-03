@@ -22,6 +22,7 @@ import {
   Users,
   UserCheck,
   Crosshair,
+  Gavel,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -45,6 +46,7 @@ const GROUPS = [
       { label: 'Intake Responses', icon: ClipboardList, href: '/admin/dashboard/intake-responses', roles: ['super_admin', 'admin', 'sales'], badge: 'New' },
       { label: 'AI Lead Database', icon: Database, href: '/admin/dashboard/growth/potential-leads', roles: ['super_admin', 'admin', 'sales'], badge: 'AI' },
       { label: 'BizHarvest', icon: Crosshair, href: '/admin/dashboard/growth/bizharvest', roles: ['super_admin', 'admin', 'sales'], badge: 'New' },
+      { label: 'Tenders (BJ)', icon: Gavel, href: '/admin/dashboard/tenders', roles: ['super_admin', 'admin', 'sales'], badge: 'New' },
       { label: 'Sales', icon: TrendingUp, href: '/admin/dashboard/sales', roles: ['super_admin', 'admin', 'manager', 'sales'] },
       { label: 'Revenue', icon: IndianRupee, href: '/admin/dashboard/revenue', roles: ['super_admin', 'admin'] },
       { label: 'Mailbox', icon: Mail, href: '/admin/dashboard/mailbox', roles: ['super_admin', 'admin'] },
@@ -124,19 +126,17 @@ export default function AdminSidebar() {
               <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-gray-400">{group.label}</p>
               <div className="space-y-0.5">
                 {visible.map((item) => {
-                  const active = item.href === '/admin/dashboard'
+                  const isExternal = (item as any).external === true;
+                  const active = !isExternal && (item.href === '/admin/dashboard'
                     ? pathname === item.href
-                    : pathname === item.href || pathname.startsWith(item.href + '/');
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`group flex items-center gap-3 rounded-[10px] px-3 py-2 text-[13px] font-medium transition-all duration-150 ${
-                        active
-                          ? 'bg-[#B08D57]/10 text-[#8a6d3f]'
-                          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                      }`}
-                    >
+                    : pathname === item.href || pathname.startsWith(item.href + '/'));
+                  const className = `group flex items-center gap-3 rounded-[10px] px-3 py-2 text-[13px] font-medium transition-all duration-150 ${
+                    active
+                      ? 'bg-[#B08D57]/10 text-[#8a6d3f]'
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                  }`;
+                  const content = (
+                    <>
                       <item.icon
                         className={`h-[15px] w-[15px] shrink-0 transition-colors ${active ? 'text-[#B08D57]' : 'text-gray-400 group-hover:text-gray-600'}`}
                         strokeWidth={active ? 2 : 1.6}
@@ -150,6 +150,22 @@ export default function AdminSidebar() {
                       {active && (
                         <span className="h-1.5 w-1.5 rounded-full bg-[#B08D57]" />
                       )}
+                    </>
+                  );
+                  return isExternal ? (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Opens the local TenderPulse dashboard — only reachable from the PC running Run_TenderPulse.bat"
+                      className={className}
+                    >
+                      {content}
+                    </a>
+                  ) : (
+                    <Link key={item.href} href={item.href} className={className}>
+                      {content}
                     </Link>
                   );
                 })}

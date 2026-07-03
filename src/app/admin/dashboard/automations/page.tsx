@@ -175,7 +175,9 @@ export default function AutomationsPage() {
 
   useEffect(() => {
     loadAgents()
-    const interval = setInterval(loadAgents, 30000)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') loadAgents()
+    }, 30000)
     return () => clearInterval(interval)
   }, [loadAgents])
 

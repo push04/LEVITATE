@@ -119,12 +119,16 @@ create table if not exists crawl_runs (
 
 -- ---------------------------------------------------------------------------
 -- Client delivery model — you (the admin) curate tenders and hand them to
--- client companies via email digests or one-off exported files. `clients`
--- replaces the earlier WhatsApp-only "subscribers" concept: email is the
--- primary channel, phone stays optional for a future WhatsApp add-on.
+-- client companies via email digests or one-off exported files.
+-- `tender_clients` replaces the earlier WhatsApp-only "subscribers" concept:
+-- email is the primary channel, phone stays optional for a future WhatsApp
+-- add-on. Named `tender_clients` (not `clients`) because this schema shares
+-- a database with the rest of Levitate Labs, which already has an unrelated
+-- `clients` table — `create table if not exists` would otherwise silently
+-- no-op against that one instead of creating this one.
 -- ---------------------------------------------------------------------------
 
-create table if not exists clients (
+create table if not exists tender_clients (
   id uuid primary key default gen_random_uuid(),
   company_name text not null,
   contact_name text,
@@ -142,14 +146,14 @@ create table if not exists clients (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists clients_email_idx on clients (email);
+create index if not exists tender_clients_email_idx on tender_clients (email);
 
 -- Every time you send tenders out — an automatic filtered email digest, or a
 -- manual "export these 12 selected rows to XLSX and email to this client" —
 -- it's logged here. Doubles as an audit trail for what each client was sent.
 create table if not exists deliveries (
   id uuid primary key default gen_random_uuid(),
-  client_id uuid references clients(id) on delete set null,
+  client_id uuid references tender_clients(id) on delete set null,
   tender_ids uuid[] not null default '{}',
   channel delivery_channel not null,
   recipient_email text,

@@ -249,6 +249,7 @@ export default function WhatsAppAdmin() {
     fetchQueue()
     fetchStats()
     const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') return
       fetchDaemonStatus()
       fetchQueue()
       fetchStats()

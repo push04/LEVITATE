@@ -76,7 +76,13 @@ export async function GET() {
         .from('company_crm_leads')
         .select(CRM_LEAD_SELECT)
         .eq('company_id', context.portal.companyId)
-        .order('updated_at', { ascending: false }),
+        .order('updated_at', { ascending: false })
+        // Safety cap, not real pagination — the Kanban board needs every
+        // lead across every stage in view, so this must stay far above any
+        // realistic company's lead count. It only exists to stop a
+        // pathological full-table scan; if a company ever approaches this,
+        // the board needs real pagination/virtualization, not a lower cap.
+        .limit(2000),
       supabase
         .from('company_crm_pipeline_stages')
         .select(STAGE_SELECT)

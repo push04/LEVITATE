@@ -158,6 +158,7 @@ interface ChatLead {
   dealValue: number | null
   source: string
   createdAt: string
+  address: string | null
 }
 
 interface ChatMessage {
