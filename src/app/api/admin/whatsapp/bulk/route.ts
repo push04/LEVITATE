@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const { isAuthenticated } = await checkAdminAuth()
   if (!isAuthenticated) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  let body: { contacts: Array<{ phone: string; name?: string }>; message: string }
+  let body: { contacts: Array<{ phone: string; name?: string; message?: string }>; message: string }
   try {
     body = await req.json()
   } catch {
@@ -50,10 +50,14 @@ export async function POST(req: NextRequest) {
   for (const c of contacts) {
     const phone = normalizePhone(c.phone ?? '')
     if (phone.length >= 10 && phone.length <= 15) {
+      // Per-contact override takes priority over the shared template.
+      const resolvedMessage = c.message?.trim()
+        ? c.message.trim()
+        : personalize(message.trim(), c.name?.trim() ?? '')
       validRows.push({
         to_number: phone,
         contact_name: c.name?.trim() || null,
-        message: personalize(message.trim(), c.name?.trim() ?? ''),
+        message: resolvedMessage,
         status: 'pending',
         company_id: null,
       })

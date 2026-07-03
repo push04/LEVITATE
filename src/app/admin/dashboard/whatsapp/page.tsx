@@ -7,8 +7,10 @@ import {
   Trash2, RefreshCw, X, RotateCcw, Activity,
   MessageSquare, Building2, AlertTriangle, Wifi,
   Upload, Users, FileText, ChevronDown, Sparkles, RotateCw,
+  FileDown, Pencil,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { exportWhatsAppReportPDF } from '@/lib/whatsapp-export'
 
 interface QueueMsg {
   id: string
@@ -34,6 +36,87 @@ const STATUS_PILL: Record<string, string> = {
   failed:  'bg-red-50 text-red-700 border-red-200',
 }
 
+const PAGE_SIZE = 50
+
+function personalizeClient(template: string, name: string): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => (key.toLowerCase() === 'name' ? (name || `{{${key}}}`) : `{{${key}}}`))
+}
+
+// Shows the resolved message per contact and lets the admin override any
+// single contact's message — everyone else keeps using the shared template.
+function ContactPreviewList({
+  contacts, template, overrides, onOverrideChange,
+}: {
+  contacts: { phone: string; name: string }[]
+  template: string
+  overrides: Record<string, string>
+  onOverrideChange: (key: string, message: string | null) => void
+}) {
+  const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const visible = contacts.slice(0, 200)
+
+  return (
+    <div>
+      <div className="max-h-52 overflow-y-auto rounded-xl border border-[var(--border)] divide-y divide-[var(--border)]">
+        {visible.map((c, i) => {
+          const key = c.phone || String(i)
+          const hasOverride = key in overrides
+          const resolved = hasOverride ? overrides[key] : personalizeClient(template, c.name)
+          const isEditing = editingKey === key
+          return (
+            <div key={key} className="px-3 py-2 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 truncate">
+                  <span className="font-mono text-[var(--foreground)]">{c.phone || '—'}</span>
+                  {c.name && <span className="text-[var(--muted)] ml-1.5">· {c.name}</span>}
+                  {hasOverride && <span className="ml-1.5 text-[10px] font-semibold text-purple-600">custom</span>}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {hasOverride && (
+                    <button onClick={() => onOverrideChange(key, null)} className="text-[10px] text-[var(--muted)] hover:text-red-500">Reset</button>
+                  )}
+                  <button
+                    onClick={() => { setEditingKey(isEditing ? null : key); setDraft(resolved) }}
+                    className="p-1 rounded hover:bg-[var(--secondary)]"
+                    title="Edit message for this contact"
+                  >
+                    <Pencil className="w-3 h-3 text-[var(--muted)]" />
+                  </button>
+                </div>
+              </div>
+              {isEditing ? (
+                <div className="mt-1.5 flex items-start gap-1.5">
+                  <textarea
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    rows={2}
+                    className="flex-1 text-xs rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 outline-none focus:border-purple-500 resize-none"
+                  />
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={() => { onOverrideChange(key, draft); setEditingKey(null) }}
+                      className="text-[10px] px-2 py-1 rounded bg-purple-600 text-white font-semibold"
+                    >
+                      Save
+                    </button>
+                    <button onClick={() => setEditingKey(null)} className="text-[10px] px-2 py-1 rounded text-[var(--muted)]">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-1 text-[var(--muted)] truncate">{resolved || <em className="opacity-50">empty message</em>}</p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {contacts.length > 200 && (
+        <p className="mt-1.5 text-[10px] text-[var(--muted)]">Showing first 200 for preview/editing — the rest use the shared template above.</p>
+      )}
+    </div>
+  )
+}
+
 export default function WhatsAppAdmin() {
   const supabaseRef = useRef(createClient())
   const supabase = supabaseRef.current
@@ -52,6 +135,9 @@ export default function WhatsAppAdmin() {
 
   const [confirmClear, setConfirmClear] = useState(false)
   const [companyFilter, setCompanyFilter] = useState<'all' | 'admin'>('all')
+  const [page, setPage] = useState(0)
+  const [totalCount, setTotalCount] = useState(0)
+  const [exportingReport, setExportingReport] = useState(false)
 
   // CSV / AI bulk send
   const [showBulkForm, setShowBulkForm] = useState(false)
@@ -65,6 +151,7 @@ export default function WhatsAppAdmin() {
   const [bulkQueuing, setBulkQueuing] = useState(false)
   const [bulkResult, setBulkResult] = useState<{ queued: number; skipped: number } | null>(null)
   const [bulkError, setBulkError] = useState('')
+  const [bulkOverrides, setBulkOverrides] = useState<Record<string, string>>({})
   const bulkFileRef = useRef<HTMLInputElement>(null)
   // AI smart extract state
   const [aiRawText, setAiRawText] = useState('')
@@ -74,25 +161,47 @@ export default function WhatsAppAdmin() {
   const [aiMessage, setAiMessage] = useState('')
   const [aiQueuing, setAiQueuing] = useState(false)
   const [aiResult, setAiResult] = useState<{ queued: number; skipped: number } | null>(null)
+  const [aiOverrides, setAiOverrides] = useState<Record<string, string>>({})
   // Reset QR session
   const [resettingSession, setResettingSession] = useState(false)
 
   const fetchQueue = useCallback(async () => {
-    const { data } = await supabase
+    const from = page * PAGE_SIZE
+    const to = from + PAGE_SIZE - 1
+    let q = supabase
       .from('whatsapp_queue')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
-      .limit(100)
+      .range(from, to)
+    if (companyFilter === 'admin') q = q.is('company_id', null)
+    const { data, count } = await q
     if (data) {
-      const q = data as QueueMsg[]
-      setQueue(q)
-      setDbStats({
-        pending: q.filter(m => m.status === 'pending').length,
-        sent:    q.filter(m => m.status === 'sent').length,
-        failed:  q.filter(m => m.status === 'failed').length,
-      })
+      setQueue(data as QueueMsg[])
+      setTotalCount(count ?? 0)
     }
-  }, [supabase])
+  }, [supabase, page, companyFilter])
+
+  // Global counts (independent of the current page) — computing these from
+  // just the visible page was wrong once results exceeded one page.
+  const countByStatus = useCallback(async (status: 'pending' | 'sent' | 'failed') => {
+    let q = supabase.from('whatsapp_queue').select('id', { count: 'exact', head: true }).eq('status', status)
+    if (companyFilter === 'admin') q = q.is('company_id', null)
+    const { count } = await q
+    return count ?? 0
+  }, [supabase, companyFilter])
+
+  const fetchStats = useCallback(async () => {
+    const [pending, sent, failed] = await Promise.all([
+      countByStatus('pending'),
+      countByStatus('sent'),
+      countByStatus('failed'),
+    ])
+    setDbStats({
+      pending,
+      sent,
+      failed,
+    })
+  }, [countByStatus])
 
   const fetchQrCode = useCallback(async () => {
     try {
@@ -124,12 +233,17 @@ export default function WhatsAppAdmin() {
   useEffect(() => {
     fetchDaemonStatus()
     fetchQueue()
+    fetchStats()
     const interval = setInterval(() => {
       fetchDaemonStatus()
       fetchQueue()
+      fetchStats()
     }, 6000)
     return () => clearInterval(interval)
-  }, [fetchDaemonStatus, fetchQueue])
+  }, [fetchDaemonStatus, fetchQueue, fetchStats])
+
+  // Filtering changes the underlying result set — always land back on page 0.
+  useEffect(() => { setPage(0) }, [companyFilter])
 
   const handleSend = async () => {
     if (!sendNumber.trim() || !sendMessage.trim()) return
@@ -147,6 +261,7 @@ export default function WhatsAppAdmin() {
       setSendMessage('')
       setShowSendForm(false)
       fetchQueue()
+      fetchStats()
     } catch (e) {
       setSendError(e instanceof Error ? e.message : 'Failed to queue message')
     } finally {
@@ -155,24 +270,32 @@ export default function WhatsAppAdmin() {
   }
 
   const retryFailed = async () => {
-    const ids = queue.filter(m => m.status === 'failed').map(m => m.id)
-    if (!ids.length) return
-    await supabase
+    // Update by status directly (not by current-page ids) — the failed count
+    // shown on the button is global, and pagination means `queue` may only
+    // hold a subset of the failed rows.
+    let q = supabase
       .from('whatsapp_queue')
       .update({ status: 'pending', error: null, updated_at: new Date().toISOString() })
-      .in('id', ids)
+      .eq('status', 'failed')
+    if (companyFilter === 'admin') q = q.is('company_id', null)
+    await q
     fetchQueue()
+    fetchStats()
   }
 
   const deleteMessage = async (id: string) => {
     await supabase.from('whatsapp_queue').delete().eq('id', id)
     setQueue(prev => prev.filter(m => m.id !== id))
+    setTotalCount(c => Math.max(0, c - 1))
+    fetchStats()
   }
 
   const clearHistory = async () => {
     await supabase.from('whatsapp_queue').delete().in('status', ['sent', 'failed'])
     setConfirmClear(false)
+    setPage(0)
     fetchQueue()
+    fetchStats()
   }
 
   const handleBulkFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,6 +306,7 @@ export default function WhatsAppAdmin() {
     setBulkResult(null)
     setBulkHeaders([])
     setBulkRawRows([])
+    setBulkOverrides({})
     try {
       const { parseFile } = await import('@/lib/import/fileParser')
       const parsed = await parseFile(file)
@@ -210,7 +334,12 @@ export default function WhatsAppAdmin() {
     setBulkError('')
     try {
       const contacts = bulkRawRows
-        .map(row => ({ phone: row[bulkPhoneCol] ?? '', name: bulkNameCol ? (row[bulkNameCol] ?? '') : '' }))
+        .map(row => {
+          const phone = row[bulkPhoneCol] ?? ''
+          const name = bulkNameCol ? (row[bulkNameCol] ?? '') : ''
+          const override = bulkOverrides[phone]
+          return override !== undefined ? { phone, name, message: override } : { phone, name }
+        })
         .filter(c => c.phone)
       const res = await fetch('/api/admin/whatsapp/bulk', {
         method: 'POST',
@@ -221,6 +350,7 @@ export default function WhatsAppAdmin() {
       if (data.error) throw new Error(data.error)
       setBulkResult({ queued: data.queued, skipped: data.skipped })
       fetchQueue()
+      fetchStats()
     } catch (err) {
       setBulkError(err instanceof Error ? err.message : 'Failed to queue messages')
     } finally {
@@ -234,6 +364,7 @@ export default function WhatsAppAdmin() {
     setAiError('')
     setAiExtracted([])
     setAiResult(null)
+    setAiOverrides({})
     try {
       const res = await fetch('/api/admin/whatsapp/extract-numbers', {
         method: 'POST',
@@ -255,15 +386,20 @@ export default function WhatsAppAdmin() {
     setAiQueuing(true)
     setAiError('')
     try {
+      const contacts = aiExtracted.map(c => {
+        const override = aiOverrides[c.phone]
+        return override !== undefined ? { ...c, message: override } : c
+      })
       const res = await fetch('/api/admin/whatsapp/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contacts: aiExtracted, message: aiMessage }),
+        body: JSON.stringify({ contacts, message: aiMessage }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setAiResult({ queued: data.queued, skipped: data.skipped })
       fetchQueue()
+      fetchStats()
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'Failed to queue')
     } finally {
@@ -286,12 +422,27 @@ export default function WhatsAppAdmin() {
     }
   }
 
+  const handleExportReport = async () => {
+    setExportingReport(true)
+    try {
+      const res = await fetch(`/api/admin/whatsapp/queue/export${companyFilter === 'admin' ? '?filter=admin' : ''}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+      await exportWhatsAppReportPDF(
+        data.summary,
+        data.messages,
+        `whatsapp_report_${new Date().toISOString().slice(0, 10)}`
+      )
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to export report')
+    } finally {
+      setExportingReport(false)
+    }
+  }
+
   const isConnected = daemonStatus === 'connected'
   const isOffline = daemonStatus === 'offline'
-
-  const displayQueue = companyFilter === 'admin'
-    ? queue.filter(m => !m.company_id)
-    : queue
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   return (
     <div className="min-h-screen bg-[var(--background)] p-6 md:p-8">
@@ -324,7 +475,7 @@ export default function WhatsAppAdmin() {
               Retry failed ({dbStats.failed})
             </button>
           )}
-          <button onClick={() => { setShowBulkForm(true); setBulkResult(null); setBulkError(''); setAiResult(null); setAiError(''); setAiExtracted([]); setAiRawText(''); setAiMessage(''); setBulkTab('file') }}
+          <button onClick={() => { setShowBulkForm(true); setBulkResult(null); setBulkError(''); setBulkOverrides({}); setAiResult(null); setAiError(''); setAiExtracted([]); setAiRawText(''); setAiMessage(''); setAiOverrides({}); setBulkTab('file') }}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm">
             <Upload className="w-4 h-4" />
             Bulk send CSV
@@ -447,7 +598,7 @@ export default function WhatsAppAdmin() {
       <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--border)]">
           <h2 className="font-semibold text-sm text-[var(--foreground)]">Message Queue</h2>
-          <span className="text-xs text-[var(--muted)] bg-[var(--secondary)] rounded-full px-2 py-0.5 tabular-nums">{queue.length}</span>
+          <span className="text-xs text-[var(--muted)] bg-[var(--secondary)] rounded-full px-2 py-0.5 tabular-nums">{totalCount.toLocaleString()}</span>
           <div className="flex gap-1 ml-3">
             {(['all', 'admin'] as const).map(f => (
               <button key={f} onClick={() => setCompanyFilter(f)}
@@ -457,7 +608,16 @@ export default function WhatsAppAdmin() {
             ))}
           </div>
           <div className="ml-auto flex gap-1.5">
-            <button onClick={fetchQueue} className="p-1.5 rounded-lg hover:bg-[var(--secondary)] transition-colors" title="Refresh">
+            <button
+              onClick={handleExportReport}
+              disabled={exportingReport}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--muted)] hover:bg-[var(--secondary)] transition-colors disabled:opacity-50"
+              title="Export campaign report as PDF"
+            >
+              {exportingReport ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+              Export PDF
+            </button>
+            <button onClick={() => { fetchQueue(); fetchStats() }} className="p-1.5 rounded-lg hover:bg-[var(--secondary)] transition-colors" title="Refresh">
               <RefreshCw className="w-3.5 h-3.5 text-[var(--muted)]" />
             </button>
             <button onClick={() => setConfirmClear(true)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-500 text-[var(--muted)] transition-colors" title="Clear history">
@@ -475,9 +635,9 @@ export default function WhatsAppAdmin() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
-              {displayQueue.length === 0 ? (
+              {queue.length === 0 ? (
                 <tr><td colSpan={6} className="px-5 py-16 text-center text-sm text-[var(--muted)]">No messages in queue</td></tr>
-              ) : displayQueue.map(msg => (
+              ) : queue.map(msg => (
                 <tr key={msg.id} className="hover:bg-[var(--secondary)] transition-colors group">
                   <td className="px-5 py-3.5">
                     <p className="font-mono text-xs text-[var(--foreground)]">{msg.to_number}</p>
@@ -514,6 +674,29 @@ export default function WhatsAppAdmin() {
             </tbody>
           </table>
         </div>
+        {totalCount > PAGE_SIZE && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--border)]">
+            <p className="text-xs text-[var(--muted)]">
+              Page {page + 1} of {totalPages} · {totalCount.toLocaleString()} total
+            </p>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--muted)] hover:bg-[var(--secondary)] disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--muted)] hover:bg-[var(--secondary)] disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Send form modal */}
@@ -655,6 +838,22 @@ export default function WhatsAppAdmin() {
                         className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none focus:border-blue-500 transition-colors resize-none" />
                     </div>
                   )}
+                  {bulkHeaders.length > 0 && bulkPhoneCol && bulkMessage.trim() && (
+                    <div>
+                      <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1.5">4. Preview &amp; edit per contact</span>
+                      <ContactPreviewList
+                        contacts={bulkRawRows.map(row => ({ phone: row[bulkPhoneCol] ?? '', name: bulkNameCol ? (row[bulkNameCol] ?? '') : '' }))}
+                        template={bulkMessage}
+                        overrides={bulkOverrides}
+                        onOverrideChange={(key, message) => setBulkOverrides(prev => {
+                          const next = { ...prev }
+                          if (message === null) delete next[key]
+                          else next[key] = message
+                          return next
+                        })}
+                      />
+                    </div>
+                  )}
                   {bulkError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 border border-red-200">{bulkError}</p>}
                   {bulkResult && (
                     <div className="p-3 rounded-xl bg-green-50 border border-green-200">
@@ -697,7 +896,7 @@ export default function WhatsAppAdmin() {
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">2. Extracted contacts ({aiExtracted.length})</span>
-                          <button onClick={() => { setAiExtracted([]); setAiResult(null) }}
+                          <button onClick={() => { setAiExtracted([]); setAiResult(null); setAiOverrides({}) }}
                             className="text-xs text-[var(--muted)] hover:text-red-500 transition-colors">Clear</button>
                         </div>
                         <div className="max-h-36 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--background)] divide-y divide-[var(--border)]">
@@ -721,6 +920,23 @@ export default function WhatsAppAdmin() {
                           placeholder="Hi {{name}}, this is from Levitate…"
                           className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none focus:border-purple-500 transition-colors resize-none" />
                       </div>
+
+                      {aiMessage.trim() && (
+                        <div>
+                          <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1.5">4. Preview &amp; edit per contact</span>
+                          <ContactPreviewList
+                            contacts={aiExtracted}
+                            template={aiMessage}
+                            overrides={aiOverrides}
+                            onOverrideChange={(key, message) => setAiOverrides(prev => {
+                              const next = { ...prev }
+                              if (message === null) delete next[key]
+                              else next[key] = message
+                              return next
+                            })}
+                          />
+                        </div>
+                      )}
                     </>
                   )}
 

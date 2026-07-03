@@ -7,7 +7,7 @@ import {
   TrendingUp, CheckCircle2, MessageSquare,
   Loader2, AlertCircle, Target, Activity, Star,
   Sparkles, Users, Search, ExternalLink, Send,
-  FileText, FileSpreadsheet, FileDown,
+  FileText, FileSpreadsheet, FileDown, Trash2,
 } from 'lucide-react'
 import { exportLeadsCSV, exportLeadsXLSX, exportLeadsPDF } from '@/lib/bizharvest-export'
 
@@ -176,9 +176,13 @@ const CHAT_EXAMPLES = [
   'all salons, sorted by rating',
 ]
 
-function ChatResultsTable({ leads, query }: { leads: ChatLead[]; query: string }) {
+function ChatResultsTable({ leads, query, onDeleted }: { leads: ChatLead[]; query: string; onDeleted: (ids: string[]) => void }) {
   const [exporting, setExporting] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
   const filenameBase = `bizharvest_${query.replace(/[^a-z0-9]+/gi, '_').toLowerCase().slice(0, 40).replace(/^_+|_+$/g, '') || 'leads'}_${new Date().toISOString().slice(0, 10)}`
+  const visible = leads.slice(0, 100)
+  const allVisibleSelected = visible.length > 0 && visible.every(l => selected.has(l.id))
 
   const handleExport = async (fmt: 'csv' | 'xlsx' | 'pdf') => {
     setExporting(fmt)
@@ -191,11 +195,69 @@ function ChatResultsTable({ leads, query }: { leads: ChatLead[]; query: string }
     }
   }
 
+  const toggleOne = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleAllVisible = () => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (allVisibleSelected) visible.forEach(l => next.delete(l.id))
+      else visible.forEach(l => next.add(l.id))
+      return next
+    })
+  }
+
+  const handleDelete = async () => {
+    if (selected.size === 0) return
+    if (!confirm(`Delete ${selected.size} lead${selected.size === 1 ? '' : 's'} from the database? This cannot be undone.`)) return
+    setDeleting(true)
+    try {
+      const ids = Array.from(selected)
+      const res = await fetch('/api/admin/bizharvest/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+      onDeleted(ids)
+      setSelected(new Set())
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to delete leads')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="mt-3 rounded-xl border border-gray-200 bg-white overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50/50">
-        <span className="text-[11px] font-semibold text-gray-500">{leads.length} result{leads.length === 1 ? '' : 's'}</span>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold text-gray-500">{leads.length} result{leads.length === 1 ? '' : 's'}</span>
+          {selected.size > 0 && (
+            <>
+              <span className="text-[11px] text-[#B08D57] font-semibold">{selected.size} selected</span>
+              <button onClick={() => setSelected(new Set())} className="text-[11px] text-gray-400 hover:text-gray-600">Clear</button>
+            </>
+          )}
+          {selected.size < leads.length && (
+            <button onClick={() => setSelected(new Set(leads.map(l => l.id)))} className="text-[11px] text-gray-400 hover:text-[#B08D57]">
+              Select all {leads.length}
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-1.5">
+          {selected.size > 0 && (
+            <button onClick={handleDelete} disabled={deleting} className="flex items-center gap-1 text-[11px] rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-red-600 hover:bg-red-100 disabled:opacity-40">
+              {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Delete {selected.size}
+            </button>
+          )}
           <button onClick={() => handleExport('csv')} disabled={!!exporting} className="flex items-center gap-1 text-[11px] rounded-lg border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
             {exporting === 'csv' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} CSV
           </button>
@@ -211,6 +273,9 @@ function ChatResultsTable({ leads, query }: { leads: ChatLead[]; query: string }
         <table className="w-full text-[12px]">
           <thead className="sticky top-0 bg-white">
             <tr className="text-left text-gray-400 border-b border-gray-100">
+              <th className="px-3 py-1.5 font-semibold w-8">
+                <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="rounded border-gray-300" />
+              </th>
               <th className="px-3 py-1.5 font-semibold">Name</th>
               <th className="px-3 py-1.5 font-semibold">Phone</th>
               <th className="px-3 py-1.5 font-semibold">City</th>
@@ -219,8 +284,11 @@ function ChatResultsTable({ leads, query }: { leads: ChatLead[]; query: string }
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {leads.slice(0, 100).map(l => (
-              <tr key={l.id} className="text-gray-700">
+            {visible.map(l => (
+              <tr key={l.id} className={`text-gray-700 ${selected.has(l.id) ? 'bg-[#B08D57]/5' : ''}`}>
+                <td className="px-3 py-1.5">
+                  <input type="checkbox" checked={selected.has(l.id)} onChange={() => toggleOne(l.id)} className="rounded border-gray-300" />
+                </td>
                 <td className="px-3 py-1.5 max-w-[160px] truncate">{l.name}</td>
                 <td className="px-3 py-1.5 whitespace-nowrap">{l.phone || '—'}</td>
                 <td className="px-3 py-1.5">{l.city || '—'}</td>
@@ -231,7 +299,7 @@ function ChatResultsTable({ leads, query }: { leads: ChatLead[]; query: string }
           </tbody>
         </table>
         {leads.length > 100 && (
-          <p className="px-3 py-2 text-[11px] text-gray-400">Showing first 100 in preview — export for the full {leads.length}.</p>
+          <p className="px-3 py-2 text-[11px] text-gray-400">Showing first 100 in preview — export or "select all" covers the full {leads.length}.</p>
         )}
       </div>
     </div>
@@ -271,12 +339,20 @@ function BizHarvestChat() {
     }
   }, [messages, loading])
 
+  const handleDeleted = useCallback((msgIndex: number, ids: string[]) => {
+    setMessages(prev => prev.map((m, idx) => {
+      if (idx !== msgIndex || !m.leads) return m
+      const remaining = m.leads.filter(l => !ids.includes(l.id))
+      return { ...m, leads: remaining, total: Math.max(0, (m.total ?? remaining.length) - ids.length) }
+    }))
+  }, [])
+
   return (
     <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
         <Sparkles className="h-4 w-4 text-[#B08D57]" />
         <p className="text-[13px] font-semibold text-gray-700">Ask BizHarvest</p>
-        <span className="text-[11px] text-gray-400 hidden sm:inline">— ask for leads in plain English, export the results</span>
+        <span className="text-[11px] text-gray-400 hidden sm:inline">— ask for leads in plain English, export or curate the results</span>
       </div>
 
       <div ref={scrollRef} className="max-h-[420px] overflow-y-auto px-5 py-4 space-y-4">
@@ -303,7 +379,7 @@ function BizHarvestChat() {
             }`}>
               <p className="whitespace-pre-line">{m.content}</p>
               {m.leads && m.leads.length > 0 && (
-                <ChatResultsTable leads={m.leads} query={messages[i - 1]?.content ?? 'leads'} />
+                <ChatResultsTable leads={m.leads} query={messages[i - 1]?.content ?? 'leads'} onDeleted={ids => handleDeleted(i, ids)} />
               )}
             </div>
           </div>
