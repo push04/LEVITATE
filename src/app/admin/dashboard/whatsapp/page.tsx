@@ -537,16 +537,16 @@ export default function WhatsAppAdmin() {
     <div className="min-h-screen bg-[var(--background)] p-6 md:p-8">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-4">
-          <div className="p-3 rounded-2xl bg-green-500/10 border border-green-500/20">
-            <MessageSquare className="w-6 h-6 text-green-600" />
+      <div className="flex flex-col gap-4 mb-8">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-green-500/10 border border-green-500/20 shrink-0">
+            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--foreground)]">WhatsApp Bridge</h1>
-            <p className="text-sm text-[var(--muted)] mt-0.5">Shared local daemon — admin + business outreach</p>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-2xl font-bold text-[var(--foreground)]">WhatsApp Bridge</h1>
+            <p className="text-xs sm:text-sm text-[var(--muted)] mt-0.5">Shared local daemon — admin + business outreach</p>
           </div>
-          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${
+          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0 ${
             isConnected ? 'bg-green-50 text-green-700 border-green-200' :
             isOffline   ? 'bg-red-50 text-red-600 border-red-200' :
             daemonStatus === 'checking' ? 'bg-[var(--secondary)] text-[var(--muted)] border-[var(--border)]' :
@@ -556,7 +556,7 @@ export default function WhatsAppAdmin() {
             {daemonStatus === 'checking' ? 'Checking' : daemonStatus === 'connected' ? 'Connected' : daemonStatus === 'needs_auth' ? 'Needs auth' : 'Offline'}
           </span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {dbStats.failed > 0 && (
             <button onClick={retryFailed}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors">
@@ -602,15 +602,15 @@ export default function WhatsAppAdmin() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
         {[
           { label: 'Pending', value: dbStats.pending, cls: 'bg-amber-50 border-amber-200 text-amber-700' },
           { label: 'Sent',    value: dbStats.sent,    cls: 'bg-green-50 border-green-200 text-green-700' },
           { label: 'Failed',  value: dbStats.failed,  cls: 'bg-red-50 border-red-200 text-red-700' },
         ].map(s => (
-          <div key={s.label} className={`p-4 rounded-2xl border text-center ${s.cls}`}>
-            <p className="text-2xl font-bold tabular-nums">{s.value}</p>
-            <p className="text-xs font-medium mt-0.5 opacity-70">{s.label}</p>
+          <div key={s.label} className={`p-2.5 sm:p-4 rounded-2xl border text-center ${s.cls}`}>
+            <p className="text-lg sm:text-2xl font-bold tabular-nums">{s.value.toLocaleString()}</p>
+            <p className="text-[11px] sm:text-xs font-medium mt-0.5 opacity-70">{s.label}</p>
           </div>
         ))}
       </div>
@@ -691,18 +691,20 @@ export default function WhatsAppAdmin() {
 
       {/* Queue table */}
       <div className="rounded-2xl bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--border)]">
-          <h2 className="font-semibold text-sm text-[var(--foreground)]">Message Queue</h2>
-          <span className="text-xs text-[var(--muted)] bg-[var(--secondary)] rounded-full px-2 py-0.5 tabular-nums">{totalCount.toLocaleString()}</span>
-          <div className="flex gap-1 ml-3">
-            {(['all', 'admin'] as const).map(f => (
-              <button key={f} onClick={() => setCompanyFilter(f)}
-                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${companyFilter === f ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)] hover:bg-[var(--secondary)]'}`}>
-                {f === 'all' ? 'All' : 'Admin only'}
-              </button>
-            ))}
+        <div className="flex flex-col gap-3 px-4 sm:px-5 py-4 border-b border-[var(--border)] sm:flex-row sm:items-center">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-semibold text-sm text-[var(--foreground)]">Message Queue</h2>
+            <span className="text-xs text-[var(--muted)] bg-[var(--secondary)] rounded-full px-2 py-0.5 tabular-nums">{totalCount.toLocaleString()}</span>
+            <div className="flex gap-1">
+              {(['all', 'admin'] as const).map(f => (
+                <button key={f} onClick={() => setCompanyFilter(f)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors ${companyFilter === f ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--muted)] hover:bg-[var(--secondary)]'}`}>
+                  {f === 'all' ? 'All' : 'Admin only'}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="ml-auto flex gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
             <button
               onClick={handleExportReport}
               disabled={exportingReport}
@@ -710,7 +712,7 @@ export default function WhatsAppAdmin() {
               title="Export campaign report as PDF"
             >
               {exportingReport ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
-              Export PDF
+              <span className="hidden sm:inline">Export PDF</span>
             </button>
             <button onClick={() => { fetchQueue(); fetchStats() }} className="p-1.5 rounded-lg hover:bg-[var(--secondary)] transition-colors" title="Refresh">
               <RefreshCw className="w-3.5 h-3.5 text-[var(--muted)]" />
@@ -722,7 +724,7 @@ export default function WhatsAppAdmin() {
                 title="Cancel all pending (not-yet-sent) messages"
               >
                 <Ban className="w-3.5 h-3.5" />
-                Clear pending ({dbStats.pending.toLocaleString()})
+                <span className="hidden sm:inline">Clear pending </span>({dbStats.pending.toLocaleString()})
               </button>
             )}
             <button onClick={() => setConfirmClear(true)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-500 text-[var(--muted)] transition-colors" title="Clear sent/failed history">
@@ -730,7 +732,46 @@ export default function WhatsAppAdmin() {
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* Mobile: card list */}
+        <div className="md:hidden divide-y divide-[var(--border)]">
+          {queue.length === 0 ? (
+            <p className="px-5 py-16 text-center text-sm text-[var(--muted)]">No messages in queue</p>
+          ) : queue.map(msg => (
+            <div key={msg.id} className="px-4 py-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-mono text-xs text-[var(--foreground)]">{msg.to_number}</p>
+                  {msg.contact_name && <p className="text-xs text-[var(--muted)] mt-0.5 truncate">{msg.contact_name}</p>}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_PILL[msg.status] ?? STATUS_PILL.pending}`}>
+                    {msg.status === 'sent'    && <CheckCircle2 className="w-2.5 h-2.5" />}
+                    {msg.status === 'pending' && <Clock className="w-2.5 h-2.5" />}
+                    {msg.status === 'failed'  && <XCircle className="w-2.5 h-2.5" />}
+                    {msg.status.charAt(0).toUpperCase() + msg.status.slice(1)}
+                  </span>
+                  <button onClick={() => deleteMessage(msg.id)} className="p-1 rounded hover:bg-red-50 hover:text-red-500 text-[var(--muted)]">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              <p className="mt-1.5 text-xs text-[var(--muted)] line-clamp-2">{msg.message}</p>
+              {msg.error && <p className="mt-1 text-xs text-red-500">{msg.error}</p>}
+              <div className="mt-1.5 flex items-center justify-between">
+                <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border font-medium ${msg.company_id ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-[var(--secondary)] text-[var(--muted)] border-[var(--border)]'}`}>
+                  {msg.company_id ? <><Building2 className="w-2.5 h-2.5" />Business</> : 'Admin'}
+                </span>
+                <span className="text-[11px] text-[var(--muted)]">
+                  {new Date(msg.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--background)]">
@@ -780,7 +821,7 @@ export default function WhatsAppAdmin() {
           </table>
         </div>
         {totalCount > PAGE_SIZE && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--border)]">
+          <div className="flex flex-col gap-2 px-4 sm:px-5 py-3 border-t border-[var(--border)] sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-[var(--muted)]">
               Page {page + 1} of {totalPages} · {totalCount.toLocaleString()} total
             </p>
@@ -788,14 +829,14 @@ export default function WhatsAppAdmin() {
               <button
                 onClick={() => setPage(p => Math.max(0, p - 1))}
                 disabled={page === 0}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--muted)] hover:bg-[var(--secondary)] disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--muted)] hover:bg-[var(--secondary)] disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--muted)] hover:bg-[var(--secondary)] disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                className="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--muted)] hover:bg-[var(--secondary)] disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
               >
                 Next
               </button>
@@ -811,7 +852,7 @@ export default function WhatsAppAdmin() {
             className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
             onClick={e => { if (e.target === e.currentTarget) setShowSendForm(false) }}>
             <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 12, opacity: 0 }}
-              className="bg-[var(--surface)] rounded-2xl p-6 w-full max-w-md border border-[var(--border)] shadow-2xl">
+              className="bg-[var(--surface)] rounded-2xl p-4 sm:p-6 w-full max-w-md border border-[var(--border)] shadow-2xl">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="font-semibold text-[var(--foreground)]">Queue test message</h3>
                 <button onClick={() => setShowSendForm(false)} className="p-1.5 rounded-lg hover:bg-[var(--secondary)]">
@@ -833,7 +874,7 @@ export default function WhatsAppAdmin() {
                 </label>
                 {sendError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 border border-red-200">{sendError}</p>}
               </div>
-              <div className="flex justify-end gap-2 mt-5">
+              <div className="flex flex-wrap justify-end gap-2 mt-5">
                 <button onClick={() => setShowSendForm(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--muted)] hover:bg-[var(--secondary)] transition-colors">Cancel</button>
                 <button onClick={handleSend} disabled={sending || !sendNumber.trim() || !sendMessage.trim()}
                   className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
@@ -853,7 +894,7 @@ export default function WhatsAppAdmin() {
             className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
             onClick={e => { if (e.target === e.currentTarget) setShowBulkForm(false) }}>
             <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 12, opacity: 0 }}
-              className="bg-[var(--surface)] rounded-2xl p-6 w-full max-w-lg border border-[var(--border)] shadow-2xl max-h-[90vh] overflow-y-auto">
+              className="bg-[var(--surface)] rounded-2xl p-4 sm:p-6 w-full max-w-lg border border-[var(--border)] shadow-2xl max-h-[90vh] overflow-y-auto">
 
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-[var(--foreground)]">Bulk send</h3>
@@ -866,18 +907,20 @@ export default function WhatsAppAdmin() {
               <div className="flex gap-1 p-1 rounded-xl bg-[var(--secondary)] mb-5">
                 <button onClick={() => setBulkTab('file')}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${bulkTab === 'file' ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}>
-                  <Upload className="w-3.5 h-3.5" />
-                  Upload CSV / Excel
+                  <Upload className="w-3.5 h-3.5 shrink-0" />
+                  <span className="sm:hidden">Upload</span>
+                  <span className="hidden sm:inline">Upload CSV / Excel</span>
                 </button>
                 <button onClick={() => setBulkTab('ai')}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${bulkTab === 'ai' ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}>
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Smart extract (AI)
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <span className="sm:hidden">AI</span>
+                  <span className="hidden sm:inline">Smart extract (AI)</span>
                 </button>
                 <button onClick={() => setBulkTab('leads')}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${bulkTab === 'leads' ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}>
-                  <Users className="w-3.5 h-3.5" />
-                  From Leads
+                  <Users className="w-3.5 h-3.5 shrink-0" />
+                  Leads
                 </button>
               </div>
 
@@ -971,7 +1014,7 @@ export default function WhatsAppAdmin() {
                       {bulkResult.skipped > 0 && <p className="text-xs text-green-600 mt-0.5">{bulkResult.skipped} skipped (invalid numbers)</p>}
                     </div>
                   )}
-                  <div className="flex justify-end gap-2 pt-1">
+                  <div className="flex flex-wrap justify-end gap-2 pt-1">
                     <button onClick={() => setShowBulkForm(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--muted)] hover:bg-[var(--secondary)] transition-colors">{bulkResult ? 'Done' : 'Cancel'}</button>
                     {!bulkResult && (
                       <button onClick={handleBulkQueue}
@@ -1011,11 +1054,13 @@ export default function WhatsAppAdmin() {
                         </div>
                         <div className="max-h-36 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--background)] divide-y divide-[var(--border)]">
                           {aiExtracted.map((c, i) => (
-                            <div key={i} className="flex items-center justify-between px-3 py-2 text-xs group">
-                              <span className="font-mono text-[var(--foreground)]">{c.phone}</span>
-                              <span className="text-[var(--muted)]">{c.name || <em className="opacity-50">no name</em>}</span>
+                            <div key={i} className="flex items-center justify-between gap-2 px-3 py-2 text-xs group">
+                              <div className="min-w-0 flex-1 truncate">
+                                <span className="font-mono text-[var(--foreground)]">{c.phone}</span>
+                                <span className="text-[var(--muted)] ml-1.5">{c.name || <em className="opacity-50">no name</em>}</span>
+                              </div>
                               <button onClick={() => setAiExtracted(prev => prev.filter((_, j) => j !== i))}
-                                className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-[var(--muted)] hover:text-red-500 transition-all ml-2">
+                                className="shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-0.5 rounded text-[var(--muted)] hover:text-red-500 transition-all">
                                 <X className="w-3 h-3" />
                               </button>
                             </div>
@@ -1059,7 +1104,7 @@ export default function WhatsAppAdmin() {
                     </div>
                   )}
 
-                  <div className="flex justify-end gap-2 pt-1">
+                  <div className="flex flex-wrap justify-end gap-2 pt-1">
                     <button onClick={() => setShowBulkForm(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--muted)] hover:bg-[var(--secondary)] transition-colors">{aiResult ? 'Done' : 'Cancel'}</button>
                     {!aiResult && aiExtracted.length > 0 && (
                       <button onClick={handleAiQueue}
@@ -1126,10 +1171,10 @@ export default function WhatsAppAdmin() {
                                   else next.add(l.id)
                                   return next
                                 })}
-                                className="rounded border-[var(--border)]"
+                                className="rounded border-[var(--border)] shrink-0"
                               />
-                              <span className="font-mono text-[var(--foreground)]">{l.phone}</span>
-                              <span className="text-[var(--muted)] truncate">{l.name}{l.city ? ` · ${l.city}` : ''}</span>
+                              <span className="font-mono text-[var(--foreground)] shrink-0">{l.phone}</span>
+                              <span className="text-[var(--muted)] truncate min-w-0">{l.name}{l.city ? ` · ${l.city}` : ''}</span>
                             </label>
                           ))}
                         </div>
@@ -1171,7 +1216,7 @@ export default function WhatsAppAdmin() {
                     </div>
                   )}
 
-                  <div className="flex justify-end gap-2 pt-1">
+                  <div className="flex flex-wrap justify-end gap-2 pt-1">
                     <button onClick={() => setShowBulkForm(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--muted)] hover:bg-[var(--secondary)] transition-colors">{leadsResult ? 'Done' : 'Cancel'}</button>
                     {!leadsResult && leadsResults.length > 0 && (
                       <button onClick={handleLeadsQueue}
@@ -1197,10 +1242,10 @@ export default function WhatsAppAdmin() {
             className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
             onClick={e => { if (e.target === e.currentTarget) setConfirmClear(false) }}>
             <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
-              className="bg-[var(--surface)] rounded-2xl p-6 w-full max-w-sm border border-[var(--border)] shadow-2xl">
+              className="bg-[var(--surface)] rounded-2xl p-4 sm:p-6 w-full max-w-sm border border-[var(--border)] shadow-2xl">
               <h3 className="font-semibold text-[var(--foreground)] mb-2">Clear history?</h3>
               <p className="text-sm text-[var(--muted)] mb-5">Removes all sent and failed messages. Pending messages are preserved.</p>
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <button onClick={() => setConfirmClear(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--muted)] hover:bg-[var(--secondary)] transition-colors">Cancel</button>
                 <button onClick={clearHistory} className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">Clear history</button>
               </div>
@@ -1216,18 +1261,18 @@ export default function WhatsAppAdmin() {
             className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
             onClick={e => { if (e.target === e.currentTarget) setConfirmClearPending(false) }}>
             <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
-              className="bg-[var(--surface)] rounded-2xl p-6 w-full max-w-sm border border-[var(--border)] shadow-2xl">
+              className="bg-[var(--surface)] rounded-2xl p-4 sm:p-6 w-full max-w-sm border border-[var(--border)] shadow-2xl">
               <h3 className="font-semibold text-[var(--foreground)] mb-2">Cancel all pending messages?</h3>
               <p className="text-sm text-[var(--muted)] mb-5">
                 Permanently cancels <strong>{dbStats.pending.toLocaleString()}</strong> message{dbStats.pending === 1 ? '' : 's'} that {dbStats.pending === 1 ? 'has' : 'have'} not been sent yet
                 {companyFilter === 'admin' ? ' (admin-only view)' : ''}. This cannot be undone — sent and failed messages are not affected.
               </p>
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <button onClick={() => setConfirmClearPending(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--muted)] hover:bg-[var(--secondary)] transition-colors">Cancel</button>
                 <button
                   onClick={clearPending}
                   disabled={clearingPending}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 transition-colors"
                 >
                   {clearingPending ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
                   {clearingPending ? 'Cancelling…' : `Cancel ${dbStats.pending.toLocaleString()} pending`}

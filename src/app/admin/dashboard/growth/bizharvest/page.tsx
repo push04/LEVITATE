@@ -61,16 +61,16 @@ function StatCard({ label, value, sub, icon: Icon, accent = '#B08D57' }: {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+      className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 shadow-sm"
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">{label}</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{typeof value === 'number' ? value.toLocaleString() : value}</p>
-          {sub && <p className="mt-0.5 text-[12px] text-gray-400">{sub}</p>}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-widest text-gray-400 truncate">{label}</p>
+          <p className="mt-1 text-xl sm:text-3xl font-bold text-gray-900 truncate">{typeof value === 'number' ? value.toLocaleString() : value}</p>
+          {sub && <p className="mt-0.5 text-[11px] sm:text-[12px] text-gray-400 truncate">{sub}</p>}
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${accent}18` }}>
-          <Icon className="h-5 w-5" style={{ color: accent }} />
+        <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: `${accent}18` }}>
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: accent }} />
         </div>
       </div>
     </motion.div>
@@ -80,12 +80,12 @@ function StatCard({ label, value, sub, icon: Icon, accent = '#B08D57' }: {
 function HBar({ label, count, max, color }: { label: string; count: number; max: number; color: string }) {
   const pct = max > 0 ? (count / max) * 100 : 0
   return (
-    <div className="flex items-center gap-3">
-      <span className="w-36 shrink-0 truncate text-[12px] text-gray-600 text-right">{label}</span>
+    <div className="flex items-center gap-2 sm:gap-3">
+      <span className="w-20 sm:w-36 shrink-0 truncate text-[12px] text-gray-600 text-right">{label}</span>
       <div className="flex-1 rounded-full bg-gray-100 h-2">
         <div className="h-2 rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
       </div>
-      <span className="w-10 text-right text-[12px] font-semibold text-gray-700">{count}</span>
+      <span className="w-8 sm:w-10 text-right text-[12px] font-semibold text-gray-700">{count}</span>
     </div>
   )
 }
@@ -348,8 +348,8 @@ function ChatResultsTable({ leads, query, onDeleted }: { leads: ChatLead[]; quer
           )}
         </div>
       )}
-      <div className="max-h-64 overflow-y-auto">
-        <table className="w-full text-[12px]">
+      <div className="max-h-64 overflow-y-auto overflow-x-auto">
+        <table className="w-full min-w-[480px] text-[12px]">
           <thead className="sticky top-0 bg-white">
             <tr className="text-left text-gray-400 border-b border-gray-100">
               <th className="px-3 py-1.5 font-semibold w-8">
@@ -453,7 +453,7 @@ function BizHarvestChat() {
         )}
         {messages.map((m, i) => (
           <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] ${
+            <div className={`rounded-2xl px-4 py-2.5 text-[13px] ${m.leads?.length ? 'max-w-full sm:max-w-[85%]' : 'max-w-[90%] sm:max-w-[85%]'} ${
               m.role === 'user' ? 'bg-[#B08D57] text-white' : m.error ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-50 text-gray-700'
             }`}>
               <p className="whitespace-pre-line">{m.content}</p>
@@ -564,15 +564,15 @@ export default function BizHarvestAnalyticsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">BizHarvest Analytics</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">BizHarvest Analytics</h1>
           <p className="mt-0.5 text-[13px] text-gray-400">Local scraper — Google Maps + JustDial lead pipeline</p>
         </div>
         <button
           onClick={() => load(true)}
           disabled={refreshing}
-          className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-[13px] font-medium text-gray-600 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 sm:py-2 text-[13px] font-medium text-gray-600 shadow-sm hover:bg-gray-50 disabled:opacity-50 self-start"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
           Refresh
@@ -754,14 +754,14 @@ export default function BizHarvestAnalyticsPage() {
             <p className="text-[13px] font-semibold text-gray-700">Client Directory</p>
             <span className="text-[11px] text-gray-400">({filteredLeads.length} of {stats.recentLeads.length} shown)</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1 sm:flex-none">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search name, city, category..."
-                className="pl-8 pr-3 py-1.5 text-[12px] rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#B08D57] w-56"
+                className="w-full pl-8 pr-3 py-1.5 text-[12px] rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#B08D57] sm:w-56"
               />
             </div>
             <select
@@ -777,52 +777,89 @@ export default function BizHarvestAnalyticsPage() {
         {filteredLeads.length === 0 ? (
           <div className="flex h-20 items-center justify-center text-[13px] text-gray-400">No leads match your filters</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[12px]">
-              <thead>
-                <tr className="border-b border-gray-100 text-gray-400 text-left">
-                  <th className="pb-2 font-semibold">Business</th>
-                  <th className="pb-2 font-semibold">City / Category</th>
-                  <th className="pb-2 font-semibold">Contact</th>
-                  <th className="pb-2 font-semibold">Rating</th>
-                  <th className="pb-2 font-semibold">Status</th>
-                  <th className="pb-2 font-semibold">Source</th>
-                  <th className="pb-2 font-semibold">Scraped</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filteredLeads.map(l => (
-                  <tr key={l.id} className="hover:bg-gray-50/50">
-                    <td className="py-2 font-medium text-gray-800 max-w-[180px] truncate">{l.name}</td>
-                    <td className="py-2 text-gray-500">
-                      <div className="truncate max-w-[160px]">{l.city}</div>
-                      <div className="text-[11px] text-gray-400 truncate max-w-[160px]">{l.category}</div>
-                    </td>
-                    <td className="py-2">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        {l.phone ? <span>{l.phone}</span> : <span className="text-gray-300">—</span>}
-                        {l.website && (
-                          <a href={l.website} target="_blank" rel="noopener noreferrer" className="text-[#B08D57] hover:text-[#8f7145]">
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-2">
-                      {l.rating ? (
-                        <span className="flex items-center gap-1 text-gray-700">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />{l.rating}
-                        </span>
-                      ) : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="py-2"><LeadStatusPill status={l.status} /></td>
-                    <td className="py-2 text-gray-400 capitalize">{l.source}</td>
-                    <td className="py-2 text-gray-400 whitespace-nowrap">{timeAgo(l.createdAt)}</td>
+          <>
+            {/* Mobile: card list */}
+            <div className="space-y-2 md:hidden">
+              {filteredLeads.map(l => (
+                <div key={l.id} className="rounded-xl border border-gray-100 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-800 text-[13px] truncate">{l.name}</p>
+                      <p className="text-[11px] text-gray-400 truncate">{l.category || '—'} · {l.city || '—'}</p>
+                    </div>
+                    <LeadStatusPill status={l.status} />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[12px]">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      {l.phone ? <span>{l.phone}</span> : <span className="text-gray-300">No phone</span>}
+                      {l.website && (
+                        <a href={l.website} target="_blank" rel="noopener noreferrer" className="text-[#B08D57]">
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
+                    {l.rating ? (
+                      <span className="flex items-center gap-1 text-gray-700">
+                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />{l.rating}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between text-[11px] text-gray-400">
+                    <span className="capitalize">{l.source}</span>
+                    <span>{timeAgo(l.createdAt)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="border-b border-gray-100 text-gray-400 text-left">
+                    <th className="pb-2 font-semibold">Business</th>
+                    <th className="pb-2 font-semibold">City / Category</th>
+                    <th className="pb-2 font-semibold">Contact</th>
+                    <th className="pb-2 font-semibold">Rating</th>
+                    <th className="pb-2 font-semibold">Status</th>
+                    <th className="pb-2 font-semibold">Source</th>
+                    <th className="pb-2 font-semibold">Scraped</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filteredLeads.map(l => (
+                    <tr key={l.id} className="hover:bg-gray-50/50">
+                      <td className="py-2 font-medium text-gray-800 max-w-[180px] truncate">{l.name}</td>
+                      <td className="py-2 text-gray-500">
+                        <div className="truncate max-w-[160px]">{l.city}</div>
+                        <div className="text-[11px] text-gray-400 truncate max-w-[160px]">{l.category}</div>
+                      </td>
+                      <td className="py-2">
+                        <div className="flex items-center gap-2 text-gray-600">
+                          {l.phone ? <span>{l.phone}</span> : <span className="text-gray-300">—</span>}
+                          {l.website && (
+                            <a href={l.website} target="_blank" rel="noopener noreferrer" className="text-[#B08D57] hover:text-[#8f7145]">
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2">
+                        {l.rating ? (
+                          <span className="flex items-center gap-1 text-gray-700">
+                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />{l.rating}
+                          </span>
+                        ) : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="py-2"><LeadStatusPill status={l.status} /></td>
+                      <td className="py-2 text-gray-400 capitalize">{l.source}</td>
+                      <td className="py-2 text-gray-400 whitespace-nowrap">{timeAgo(l.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -837,30 +874,48 @@ export default function BizHarvestAnalyticsPage() {
             No runs logged yet — double-click Run_BizHarvest.bat to start
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[12px]">
-              <thead>
-                <tr className="border-b border-gray-100 text-gray-400 text-left">
-                  <th className="pb-2 font-semibold">Status</th>
-                  <th className="pb-2 font-semibold">Inserted</th>
-                  <th className="pb-2 font-semibold">Skipped</th>
-                  <th className="pb-2 font-semibold">Errors</th>
-                  <th className="pb-2 font-semibold">When</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {recentLogs.map(log => (
-                  <tr key={log.id} className="hover:bg-gray-50/50">
-                    <td className="py-2"><StatusPill status={log.status} /></td>
-                    <td className="py-2 font-medium text-green-600">+{log.inserted}</td>
-                    <td className="py-2 text-gray-400">{log.skipped}</td>
-                    <td className="py-2 text-red-400">{log.errors}</td>
-                    <td className="py-2 text-gray-400">{timeAgo(log.created_at)}</td>
+          <>
+            {/* Mobile: compact rows */}
+            <div className="sm:hidden divide-y divide-gray-50">
+              {recentLogs.map(log => (
+                <div key={log.id} className="flex items-center justify-between gap-2 py-2 text-[12px]">
+                  <StatusPill status={log.status} />
+                  <div className="flex items-center gap-2.5 text-gray-500">
+                    <span className="text-green-600 font-medium">+{log.inserted}</span>
+                    <span>{log.skipped} skip</span>
+                    <span className="text-red-400">{log.errors} err</span>
+                  </div>
+                  <span className="text-gray-400 text-[11px] shrink-0">{timeAgo(log.created_at)}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr className="border-b border-gray-100 text-gray-400 text-left">
+                    <th className="pb-2 font-semibold">Status</th>
+                    <th className="pb-2 font-semibold">Inserted</th>
+                    <th className="pb-2 font-semibold">Skipped</th>
+                    <th className="pb-2 font-semibold">Errors</th>
+                    <th className="pb-2 font-semibold">When</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {recentLogs.map(log => (
+                    <tr key={log.id} className="hover:bg-gray-50/50">
+                      <td className="py-2"><StatusPill status={log.status} /></td>
+                      <td className="py-2 font-medium text-green-600">+{log.inserted}</td>
+                      <td className="py-2 text-gray-400">{log.skipped}</td>
+                      <td className="py-2 text-red-400">{log.errors}</td>
+                      <td className="py-2 text-gray-400">{timeAgo(log.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
