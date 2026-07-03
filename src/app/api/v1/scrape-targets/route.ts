@@ -28,14 +28,20 @@ export async function GET(req: NextRequest) {
     .from('bizharvest_targets')
     .select('id, city, business_type, priority')
     .eq('is_active', true)
-    .order('priority', { ascending: false })
-    .order('created_at', { ascending: true })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ targets: data ?? [], count: (data ?? []).length })
+  // Shuffle so every run hits targets in a different order (was always Mumbai-first
+  // when sorted deterministically by priority/created_at).
+  const targets = data ?? []
+  for (let i = targets.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[targets[i], targets[j]] = [targets[j], targets[i]]
+  }
+
+  return NextResponse.json({ targets, count: targets.length })
 }
 
 export async function POST(req: NextRequest) {
