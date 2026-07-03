@@ -1,0 +1,676 @@
+[
+  {
+    "name": "GePNIC — Jharkhand State Portal",
+    "family": "gepnic",
+    "base_url": "https://jharkhandtenders.gov.in/",
+    "state": "Jharkhand",
+    "district": null,
+    "org_type": "state_dept",
+    "poll_frequency_minutes": 30
+  },
+  {
+    "name": "GePNIC — PMGSY Bihar",
+    "family": "gepnic",
+    "base_url": "https://www.pmgsytendersbih.gov.in/nicgep/app",
+    "state": "Bihar",
+    "district": null,
+    "org_type": "state_dept",
+    "poll_frequency_minutes": 30
+  },
+  {
+    "name": "eProc2 Bihar — All Departments",
+    "family": "eproc2_bihar",
+    "base_url": "https://eproc2.bihar.gov.in/EPSV2Web/openarea/tenderListingPage.action",
+    "state": "Bihar",
+    "district": null,
+    "org_type": "state_dept",
+    "poll_frequency_minutes": 30
+  },
+  {
+    "name": "S3WaaS — Araria (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://araria.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Araria",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Arwal (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://arwal.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Arwal",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Aurangabad (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://aurangabad.bih.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Aurangabad",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Banka (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://banka.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Banka",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Begusarai (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://begusarai.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Begusarai",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Bhagalpur (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://bhagalpur.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Bhagalpur",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Bhojpur (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://bhojpur.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Bhojpur",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Buxar (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://buxar.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Buxar",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Darbhanga (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://darbhanga.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Darbhanga",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — East Champaran (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://eastchamparan.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "East Champaran",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Gaya (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://gaya.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Gaya",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Gopalganj (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://gopalganj.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Gopalganj",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Jamui (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://jamui.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Jamui",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Jehanabad (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://jehanabad.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Jehanabad",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Kaimur (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://kaimur.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Kaimur",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Katihar (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://katihar.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Katihar",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Khagaria (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://khagaria.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Khagaria",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Kishanganj (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://kishanganj.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Kishanganj",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Lakhisarai (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://lakhisarai.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Lakhisarai",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Madhepura (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://madhepura.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Madhepura",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Madhubani (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://madhubani.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Madhubani",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Munger (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://munger.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Munger",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Muzaffarpur (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://muzaffarpur.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Muzaffarpur",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Nalanda (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://nalanda.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Nalanda",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Nawada (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://nawada.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Nawada",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Patna (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://patna.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Patna",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Purnea (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://purnea.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Purnea",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Rohtas (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://rohtas.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Rohtas",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Saharsa (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://saharsa.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Saharsa",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Samastipur (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://samastipur.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Samastipur",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Saran (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://saran.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Saran",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Sheikhpura (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://sheikhpura.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Sheikhpura",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Sheohar (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://sheohar.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Sheohar",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Sitamarhi (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://sitamarhi.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Sitamarhi",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Siwan (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://siwan.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Siwan",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Supaul (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://supaul.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Supaul",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Vaishali (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://vaishali.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "Vaishali",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — West Champaran (Bihar) District",
+    "family": "s3waas",
+    "base_url": "https://westchamparan.nic.in/notice_category/tenders/",
+    "state": "Bihar",
+    "district": "West Champaran",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Bokaro (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://bokaro.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Bokaro",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Chaibasa (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://chaibasa.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Chaibasa",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Chatra (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://chatra.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Chatra",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Deoghar (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://deoghar.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Deoghar",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Dhanbad (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://dhanbad.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Dhanbad",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Dumka (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://dumka.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Dumka",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Garhwa (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://garhwa.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Garhwa",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Giridih (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://giridih.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Giridih",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Godda (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://godda.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Godda",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Gumla (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://gumla.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Gumla",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Hazaribag (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://hazaribag.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Hazaribag",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Jamshedpur (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://jamshedpur.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Jamshedpur",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Jamtara (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://jamtara.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Jamtara",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Khunti (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://khunti.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Khunti",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Koderma (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://koderma.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Koderma",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Latehar (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://latehar.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Latehar",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Lohardaga (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://lohardaga.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Lohardaga",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Pakur (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://pakur.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Pakur",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Palamu (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://palamu.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Palamu",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Ramgarh (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://ramgarh.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Ramgarh",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Ranchi (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://ranchi.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Ranchi",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Sahibganj (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://sahibganj.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Sahibganj",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Seraikela (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://seraikela.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Seraikela",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "S3WaaS — Simdega (Jharkhand) District",
+    "family": "s3waas",
+    "base_url": "https://simdega.nic.in/notice_category/tenders/",
+    "state": "Jharkhand",
+    "district": "Simdega",
+    "org_type": "district",
+    "poll_frequency_minutes": 240
+  },
+  {
+    "name": "State Health Society, Bihar (SHSB)",
+    "family": "standalone",
+    "variant": "shsb",
+    "base_url": "https://shs.bihar.gov.in/Tender",
+    "state": "Bihar",
+    "district": null,
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Bihar Medical Services & Infrastructure Corp (BMSICL) — Drugs",
+    "family": "standalone",
+    "variant": "bmsicl",
+    "base_url": "http://bmsicl.gov.in/new/drugs/drug-tenders/drug-current-tenders/",
+    "state": "Bihar",
+    "district": null,
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Bihar Medical Services & Infrastructure Corp (BMSICL) — Equipment",
+    "family": "standalone",
+    "variant": "bmsicl",
+    "base_url": "http://bmsicl.gov.in/new/equipments/equipment-tenders/equipment-current-tenders/",
+    "state": "Bihar",
+    "district": null,
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Bihar Medical Services & Infrastructure Corp (BMSICL) — Infrastructure",
+    "family": "standalone",
+    "variant": "bmsicl",
+    "base_url": "http://bmsicl.gov.in/new/infrastructure/infrastructure-tenders/infrastructure-current-tenders/",
+    "state": "Bihar",
+    "district": null,
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Jharkhand Rural Health Mission Society (JRHMS)",
+    "family": "standalone",
+    "variant": "jrhms",
+    "base_url": "https://jrhms.jharkhand.gov.in/Home/Tender",
+    "state": "Jharkhand",
+    "district": null,
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "IGIMS Patna",
+    "family": "standalone",
+    "variant": "igims",
+    "base_url": "https://www.igims.org/tender",
+    "state": "Bihar",
+    "district": "Patna",
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "AIIMS Patna",
+    "family": "standalone",
+    "variant": "aiims_patna",
+    "base_url": "https://aiimspatna.edu.in/tender/",
+    "state": "Bihar",
+    "district": "Patna",
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "RIMS Ranchi",
+    "family": "standalone",
+    "variant": "rims_ranchi",
+    "base_url": "https://rimsranchi.org/tenders.html",
+    "state": "Jharkhand",
+    "district": "Ranchi",
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "GeM — Public Bids (Bihar/Jharkhand filtered client-side)",
+    "family": "gem",
+    "base_url": "https://bidplus.gem.gov.in/all-bids",
+    "state": "Central",
+    "district": null,
+    "org_type": "psu",
+    "poll_frequency_minutes": 60
+  }
+]
