@@ -180,9 +180,16 @@ function ChatResultsTable({ leads, query, onDeleted }: { leads: ChatLead[]; quer
   const [exporting, setExporting] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
+  const [showSendPanel, setShowSendPanel] = useState(false)
+  const [sendMessage, setSendMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sendResult, setSendResult] = useState<{ queued: number; skipped: number } | null>(null)
+  const [sendErr, setSendErr] = useState('')
   const filenameBase = `bizharvest_${query.replace(/[^a-z0-9]+/gi, '_').toLowerCase().slice(0, 40).replace(/^_+|_+$/g, '') || 'leads'}_${new Date().toISOString().slice(0, 10)}`
   const visible = leads.slice(0, 100)
   const allVisibleSelected = visible.length > 0 && visible.every(l => selected.has(l.id))
+  const targetLeads = selected.size > 0 ? leads.filter(l => selected.has(l.id)) : leads
+  const sendableCount = targetLeads.filter(l => l.phone).length
 
   const handleExport = async (fmt: 'csv' | 'xlsx' | 'pdf') => {
     setExporting(fmt)
@@ -235,6 +242,29 @@ function ChatResultsTable({ leads, query, onDeleted }: { leads: ChatLead[]; quer
     }
   }
 
+  const handleSendWhatsApp = async () => {
+    if (!sendMessage.trim() || sendableCount === 0) return
+    setSending(true)
+    setSendErr('')
+    try {
+      const contacts = targetLeads
+        .filter(l => l.phone)
+        .map(l => ({ phone: l.phone as string, name: l.name }))
+      const res = await fetch('/api/admin/whatsapp/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contacts, message: sendMessage }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+      setSendResult({ queued: data.queued, skipped: data.skipped })
+    } catch (e: any) {
+      setSendErr(e.message ?? 'Failed to queue messages')
+    } finally {
+      setSending(false)
+    }
+  }
+
   return (
     <div className="mt-3 rounded-xl border border-gray-200 bg-white overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50/50">
@@ -258,6 +288,14 @@ function ChatResultsTable({ leads, query, onDeleted }: { leads: ChatLead[]; quer
               {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />} Delete {selected.size}
             </button>
           )}
+          {sendableCount > 0 && (
+            <button
+              onClick={() => { setShowSendPanel(v => !v); setSendResult(null); setSendErr('') }}
+              className={`flex items-center gap-1 text-[11px] rounded-lg border px-2 py-1 ${showSendPanel ? 'border-green-300 bg-green-100 text-green-700' : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'}`}
+            >
+              <MessageSquare className="h-3 w-3" /> Send WhatsApp ({sendableCount})
+            </button>
+          )}
           <button onClick={() => handleExport('csv')} disabled={!!exporting} className="flex items-center gap-1 text-[11px] rounded-lg border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
             {exporting === 'csv' ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3 w-3" />} CSV
           </button>
@@ -269,6 +307,47 @@ function ChatResultsTable({ leads, query, onDeleted }: { leads: ChatLead[]; quer
           </button>
         </div>
       </div>
+      {showSendPanel && (
+        <div className="px-3 py-3 border-b border-gray-100 bg-green-50/40 space-y-2">
+          {sendResult ? (
+            <div className="flex items-center justify-between">
+              <p className="text-[12px] text-green-700">
+                <CheckCircle2 className="h-3.5 w-3.5 inline mr-1" />
+                {sendResult.queued.toLocaleString()} message{sendResult.queued === 1 ? '' : 's'} queued
+                {sendResult.skipped > 0 && ` (${sendResult.skipped} skipped — invalid numbers)`}.
+                {' '}Check the WhatsApp Bridge page to track sending.
+              </p>
+              <button onClick={() => { setShowSendPanel(false); setSendResult(null); setSendMessage('') }} className="text-[11px] text-gray-500 hover:text-gray-700">Close</button>
+            </div>
+          ) : (
+            <>
+              <p className="text-[11px] text-gray-500">
+                Will queue a WhatsApp message to <strong>{sendableCount}</strong> of {targetLeads.length} {selected.size > 0 ? 'selected' : 'matching'} lead{targetLeads.length === 1 ? '' : 's'} that have a phone number.
+                {targetLeads.length - sendableCount > 0 && ` ${targetLeads.length - sendableCount} skipped (no phone).`}
+              </p>
+              <textarea
+                value={sendMessage}
+                onChange={e => setSendMessage(e.target.value)}
+                rows={3}
+                placeholder="Hi {{name}}, this is from Levitate…"
+                className="w-full text-[12px] rounded-lg border border-gray-200 px-2.5 py-2 outline-none focus:border-green-500 resize-none"
+              />
+              {sendErr && <p className="text-[11px] text-red-500">{sendErr}</p>}
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setShowSendPanel(false)} className="text-[11px] px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-100">Cancel</button>
+                <button
+                  onClick={handleSendWhatsApp}
+                  disabled={sending || !sendMessage.trim()}
+                  className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 disabled:opacity-40"
+                >
+                  {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageSquare className="h-3 w-3" />}
+                  {sending ? 'Queuing…' : `Queue ${sendableCount} message${sendableCount === 1 ? '' : 's'}`}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
       <div className="max-h-64 overflow-y-auto">
         <table className="w-full text-[12px]">
           <thead className="sticky top-0 bg-white">
