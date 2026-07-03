@@ -7,7 +7,7 @@ import {
   Trash2, RefreshCw, X, RotateCcw, Activity,
   MessageSquare, Building2, AlertTriangle, Wifi,
   Upload, Users, FileText, ChevronDown, Sparkles, RotateCw,
-  FileDown, Pencil,
+  FileDown, Pencil, Ban, Search,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { exportWhatsAppReportPDF } from '@/lib/whatsapp-export'
@@ -134,14 +134,16 @@ export default function WhatsAppAdmin() {
   const [sendError, setSendError] = useState('')
 
   const [confirmClear, setConfirmClear] = useState(false)
+  const [confirmClearPending, setConfirmClearPending] = useState(false)
+  const [clearingPending, setClearingPending] = useState(false)
   const [companyFilter, setCompanyFilter] = useState<'all' | 'admin'>('all')
   const [page, setPage] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
   const [exportingReport, setExportingReport] = useState(false)
 
-  // CSV / AI bulk send
+  // CSV / AI / Leads bulk send
   const [showBulkForm, setShowBulkForm] = useState(false)
-  const [bulkTab, setBulkTab] = useState<'file' | 'ai'>('file')
+  const [bulkTab, setBulkTab] = useState<'file' | 'ai' | 'leads'>('file')
   const [bulkHeaders, setBulkHeaders] = useState<string[]>([])
   const [bulkRawRows, setBulkRawRows] = useState<Record<string, string>[]>([])
   const [bulkPhoneCol, setBulkPhoneCol] = useState('')
@@ -162,6 +164,18 @@ export default function WhatsAppAdmin() {
   const [aiQueuing, setAiQueuing] = useState(false)
   const [aiResult, setAiResult] = useState<{ queued: number; skipped: number } | null>(null)
   const [aiOverrides, setAiOverrides] = useState<Record<string, string>>({})
+  // Load selectively from BizHarvest leads (reuses the same NL filter chat uses)
+  const [leadsQuery, setLeadsQuery] = useState('')
+  const [leadsSearching, setLeadsSearching] = useState(false)
+  const [leadsSearchError, setLeadsSearchError] = useState('')
+  const [leadsReply, setLeadsReply] = useState('')
+  const [leadsResults, setLeadsResults] = useState<{ id: string; name: string; phone: string; city: string | null; category: string | null }[]>([])
+  const [leadsSelected, setLeadsSelected] = useState<Set<string>>(new Set())
+  const [leadsMessage, setLeadsMessage] = useState('')
+  const [leadsOverrides, setLeadsOverrides] = useState<Record<string, string>>({})
+  const [leadsQueuing, setLeadsQueuing] = useState(false)
+  const [leadsResult, setLeadsResult] = useState<{ queued: number; skipped: number } | null>(null)
+  const [leadsQueueError, setLeadsQueueError] = useState('')
   // Reset QR session
   const [resettingSession, setResettingSession] = useState(false)
 
@@ -291,11 +305,31 @@ export default function WhatsAppAdmin() {
   }
 
   const clearHistory = async () => {
-    await supabase.from('whatsapp_queue').delete().in('status', ['sent', 'failed'])
+    let q = supabase.from('whatsapp_queue').delete().in('status', ['sent', 'failed'])
+    if (companyFilter === 'admin') q = q.is('company_id', null)
+    await q
     setConfirmClear(false)
     setPage(0)
     fetchQueue()
     fetchStats()
+  }
+
+  // Cancels every message still queued to send — distinct from clearHistory
+  // (which only removes already-resolved sent/failed rows). This deletes
+  // work that hasn't happened yet, so it gets its own confirm dialog.
+  const clearPending = async () => {
+    setClearingPending(true)
+    try {
+      let q = supabase.from('whatsapp_queue').delete().eq('status', 'pending')
+      if (companyFilter === 'admin') q = q.is('company_id', null)
+      await q
+      setConfirmClearPending(false)
+      setPage(0)
+      fetchQueue()
+      fetchStats()
+    } finally {
+      setClearingPending(false)
+    }
   }
 
   const handleBulkFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -407,6 +441,61 @@ export default function WhatsAppAdmin() {
     }
   }
 
+  const handleLeadsSearch = async () => {
+    if (!leadsQuery.trim()) return
+    setLeadsSearching(true)
+    setLeadsSearchError('')
+    setLeadsResults([])
+    setLeadsSelected(new Set())
+    setLeadsResult(null)
+    try {
+      const res = await fetch('/api/admin/bizharvest/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: leadsQuery }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+      setLeadsReply(data.reply ?? '')
+      // Only rows with a phone number are actionable here — WhatsApp needs one.
+      const withPhone = (data.leads ?? []).filter((l: any) => l.phone)
+      setLeadsResults(withPhone)
+      // Selected by default so the queue count matches what's visibly checked.
+      setLeadsSelected(new Set(withPhone.map((l: any) => l.id)))
+    } catch (err) {
+      setLeadsSearchError(err instanceof Error ? err.message : 'Search failed')
+    } finally {
+      setLeadsSearching(false)
+    }
+  }
+
+  const handleLeadsQueue = async () => {
+    const targets = leadsResults.filter(l => leadsSelected.has(l.id))
+    if (!targets.length || !leadsMessage.trim()) return
+    setLeadsQueuing(true)
+    setLeadsQueueError('')
+    try {
+      const contacts = targets.map(l => {
+        const override = leadsOverrides[l.phone]
+        return override !== undefined ? { phone: l.phone, name: l.name, message: override } : { phone: l.phone, name: l.name }
+      })
+      const res = await fetch('/api/admin/whatsapp/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contacts, message: leadsMessage }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+      setLeadsResult({ queued: data.queued, skipped: data.skipped })
+      fetchQueue()
+      fetchStats()
+    } catch (err) {
+      setLeadsQueueError(err instanceof Error ? err.message : 'Failed to queue messages')
+    } finally {
+      setLeadsQueuing(false)
+    }
+  }
+
   const handleResetSession = async () => {
     if (!confirm('Reset WhatsApp session? This will disconnect and generate a new QR code.')) return
     setResettingSession(true)
@@ -475,7 +564,13 @@ export default function WhatsAppAdmin() {
               Retry failed ({dbStats.failed})
             </button>
           )}
-          <button onClick={() => { setShowBulkForm(true); setBulkResult(null); setBulkError(''); setBulkOverrides({}); setAiResult(null); setAiError(''); setAiExtracted([]); setAiRawText(''); setAiMessage(''); setAiOverrides({}); setBulkTab('file') }}
+          <button onClick={() => {
+            setShowBulkForm(true)
+            setBulkResult(null); setBulkError(''); setBulkOverrides({})
+            setAiResult(null); setAiError(''); setAiExtracted([]); setAiRawText(''); setAiMessage(''); setAiOverrides({})
+            setLeadsResult(null); setLeadsQueueError(''); setLeadsSearchError(''); setLeadsResults([]); setLeadsSelected(new Set()); setLeadsQuery(''); setLeadsMessage(''); setLeadsOverrides({}); setLeadsReply('')
+            setBulkTab('file')
+          }}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm">
             <Upload className="w-4 h-4" />
             Bulk send CSV
@@ -620,7 +715,17 @@ export default function WhatsAppAdmin() {
             <button onClick={() => { fetchQueue(); fetchStats() }} className="p-1.5 rounded-lg hover:bg-[var(--secondary)] transition-colors" title="Refresh">
               <RefreshCw className="w-3.5 h-3.5 text-[var(--muted)]" />
             </button>
-            <button onClick={() => setConfirmClear(true)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-500 text-[var(--muted)] transition-colors" title="Clear history">
+            {dbStats.pending > 0 && (
+              <button
+                onClick={() => setConfirmClearPending(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-600 hover:bg-amber-50 transition-colors"
+                title="Cancel all pending (not-yet-sent) messages"
+              >
+                <Ban className="w-3.5 h-3.5" />
+                Clear pending ({dbStats.pending.toLocaleString()})
+              </button>
+            )}
+            <button onClick={() => setConfirmClear(true)} className="p-1.5 rounded-lg hover:bg-red-50 hover:text-red-500 text-[var(--muted)] transition-colors" title="Clear sent/failed history">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -768,6 +873,11 @@ export default function WhatsAppAdmin() {
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${bulkTab === 'ai' ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}>
                   <Sparkles className="w-3.5 h-3.5" />
                   Smart extract (AI)
+                </button>
+                <button onClick={() => setBulkTab('leads')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${bulkTab === 'leads' ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}>
+                  <Users className="w-3.5 h-3.5" />
+                  From Leads
                 </button>
               </div>
 
@@ -963,6 +1073,118 @@ export default function WhatsAppAdmin() {
                 </div>
               )}
 
+              {/* ── Load from Leads tab ── */}
+              {bulkTab === 'leads' && (
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1.5">1. Search the lead database</span>
+                    <p className="text-xs text-[var(--muted)] mb-2">Describe who you want in plain English — e.g. "restaurants in Patna", "clinics with no website".</p>
+                    <div className="flex gap-2">
+                      <input
+                        value={leadsQuery}
+                        onChange={e => setLeadsQuery(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleLeadsSearch() }}
+                        placeholder="restaurants in Patna"
+                        className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none focus:border-green-500 transition-colors"
+                      />
+                      <button onClick={handleLeadsSearch} disabled={leadsSearching || !leadsQuery.trim()}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        {leadsSearching ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                        {leadsSearching ? 'Searching…' : 'Search'}
+                      </button>
+                    </div>
+                    {leadsSearchError && <p className="mt-2 text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 border border-red-200">{leadsSearchError}</p>}
+                  </div>
+
+                  {leadsReply && (
+                    <p className="text-xs text-[var(--muted)] bg-[var(--background)] rounded-xl border border-[var(--border)] px-3 py-2">{leadsReply}</p>
+                  )}
+
+                  {leadsResults.length > 0 && (
+                    <>
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
+                            2. Select contacts ({leadsSelected.size} of {leadsResults.length} with phone number)
+                          </span>
+                          <button
+                            onClick={() => setLeadsSelected(prev => prev.size === leadsResults.length ? new Set() : new Set(leadsResults.map(l => l.id)))}
+                            className="text-xs text-[var(--muted)] hover:text-green-600 transition-colors"
+                          >
+                            {leadsSelected.size === leadsResults.length ? 'Deselect all' : 'Select all'}
+                          </button>
+                        </div>
+                        <div className="max-h-40 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--background)] divide-y divide-[var(--border)]">
+                          {leadsResults.map(l => (
+                            <label key={l.id} className="flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-[var(--secondary)]">
+                              <input
+                                type="checkbox"
+                                checked={leadsSelected.has(l.id)}
+                                onChange={() => setLeadsSelected(prev => {
+                                  const next = new Set(prev)
+                                  if (next.has(l.id)) next.delete(l.id)
+                                  else next.add(l.id)
+                                  return next
+                                })}
+                                className="rounded border-[var(--border)]"
+                              />
+                              <span className="font-mono text-[var(--foreground)]">{l.phone}</span>
+                              <span className="text-[var(--muted)] truncate">{l.name}{l.city ? ` · ${l.city}` : ''}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1.5">3. Message</span>
+                        <p className="text-xs text-[var(--muted)] mb-2">Use <code className="bg-[var(--secondary)] px-1 rounded">{'{{name}}'}</code> for personalization</p>
+                        <textarea value={leadsMessage} onChange={e => setLeadsMessage(e.target.value)} rows={5}
+                          placeholder="Hi {{name}}, this is from Levitate…"
+                          className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none focus:border-green-500 transition-colors resize-none" />
+                      </div>
+
+                      {leadsMessage.trim() && (
+                        <div>
+                          <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1.5">4. Preview &amp; edit per contact</span>
+                          <ContactPreviewList
+                            contacts={leadsResults.filter(l => leadsSelected.has(l.id)).map(l => ({ phone: l.phone, name: l.name }))}
+                            template={leadsMessage}
+                            overrides={leadsOverrides}
+                            onOverrideChange={(key, message) => setLeadsOverrides(prev => {
+                              const next = { ...prev }
+                              if (message === null) delete next[key]
+                              else next[key] = message
+                              return next
+                            })}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {leadsQueueError && <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 border border-red-200">{leadsQueueError}</p>}
+
+                  {leadsResult && (
+                    <div className="p-3 rounded-xl bg-green-50 border border-green-200">
+                      <p className="text-sm font-semibold text-green-700 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" />{leadsResult.queued.toLocaleString()} messages queued!</p>
+                      {leadsResult.skipped > 0 && <p className="text-xs text-green-600 mt-0.5">{leadsResult.skipped} skipped (invalid numbers)</p>}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button onClick={() => setShowBulkForm(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--muted)] hover:bg-[var(--secondary)] transition-colors">{leadsResult ? 'Done' : 'Cancel'}</button>
+                    {!leadsResult && leadsResults.length > 0 && (
+                      <button onClick={handleLeadsQueue}
+                        disabled={leadsQueuing || !leadsMessage.trim() || leadsSelected.size === 0}
+                        className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        <Send className="w-3.5 h-3.5" />
+                        {leadsQueuing ? 'Queuing…' : `Queue ${leadsSelected.size} message${leadsSelected.size === 1 ? '' : 's'}`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </motion.div>
           </motion.div>
         )}
@@ -981,6 +1203,35 @@ export default function WhatsAppAdmin() {
               <div className="flex justify-end gap-2">
                 <button onClick={() => setConfirmClear(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--muted)] hover:bg-[var(--secondary)] transition-colors">Cancel</button>
                 <button onClick={clearHistory} className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors">Clear history</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Clear pending confirm */}
+      <AnimatePresence>
+        {confirmClearPending && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={e => { if (e.target === e.currentTarget) setConfirmClearPending(false) }}>
+            <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
+              className="bg-[var(--surface)] rounded-2xl p-6 w-full max-w-sm border border-[var(--border)] shadow-2xl">
+              <h3 className="font-semibold text-[var(--foreground)] mb-2">Cancel all pending messages?</h3>
+              <p className="text-sm text-[var(--muted)] mb-5">
+                Permanently cancels <strong>{dbStats.pending.toLocaleString()}</strong> message{dbStats.pending === 1 ? '' : 's'} that {dbStats.pending === 1 ? 'has' : 'have'} not been sent yet
+                {companyFilter === 'admin' ? ' (admin-only view)' : ''}. This cannot be undone — sent and failed messages are not affected.
+              </p>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setConfirmClearPending(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-[var(--muted)] hover:bg-[var(--secondary)] transition-colors">Cancel</button>
+                <button
+                  onClick={clearPending}
+                  disabled={clearingPending}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                >
+                  {clearingPending ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                  {clearingPending ? 'Cancelling…' : `Cancel ${dbStats.pending.toLocaleString()} pending`}
+                </button>
               </div>
             </motion.div>
           </motion.div>
