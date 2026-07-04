@@ -18,44 +18,55 @@ export interface ParsedFilters {
   max_value?: number;
 }
 
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+// Ordered lightest/fastest first — on a 429 (per-model RPM limit) we rotate
+// to the next model rather than failing the whole search.
+const GROQ_MODELS = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "gemma2-9b-it"];
+
+const SYSTEM_PROMPT =
+  "Extract structured search filters from a tender-search query. Respond with strict JSON only: " +
+  '{"categories": string[] (from civil_works, supply, services, it, mining, health, education, other), ' +
+  '"districts": string[], "keywords": string[], "min_value": number|null, "max_value": number|null}. ' +
+  "\"keywords\" matching is literal substring search against tender titles, so a bare topic word misses " +
+  "relevant tenders that use different wording. Expand the query's subject into the specific things a real " +
+  'Indian government tender title would actually say — e.g. "medical equipment" should expand to concrete ' +
+  'items like "x-ray", "ultrasound", "ventilator", "autoclave", "ot table", "ecg", "surgical instrument", ' +
+  '"diagnostic machine"; "road construction" should expand to "road", "rcc", "pcc", "culvert", "bridge", ' +
+  '"widening", "strengthening". Include the original phrase plus 6-12 concrete expansions — stay on-topic, ' +
+  "don't drift into unrelated categories. Omit fields you can't infer by leaving arrays empty and numbers null.";
 
 export async function parseQueryWithGroq(query: string): Promise<ParsedFilters | null> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null;
 
-  try {
-    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Extract structured search filters from a tender-search query. Respond with strict JSON only: " +
-              '{"categories": string[] (from civil_works, supply, services, it, mining, health, education, other), ' +
-              '"districts": string[], "keywords": string[], "min_value": number|null, "max_value": number|null}. ' +
-              "Omit fields you can't infer by leaving arrays empty and numbers null.",
-          },
-          { role: "user", content: query },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0,
-      }),
-    });
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) return null;
-    return JSON.parse(content);
-  } catch {
-    return null; // network/quota issue — caller falls back to fuzzy search
+  for (const model of GROQ_MODELS) {
+    try {
+      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: query },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0,
+        }),
+      });
+      if (resp.status === 429) continue; // this model's per-minute quota is hit — try the next one
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) return null;
+      return JSON.parse(content);
+    } catch {
+      return null; // network/quota issue — caller falls back to fuzzy search
+    }
   }
+  return null; // every model rate-limited — caller falls back to fuzzy search
 }
 
 function hasUsableFilters(f: ParsedFilters): boolean {
