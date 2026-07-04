@@ -173,6 +173,7 @@ export async function getBizharvestAnalytics(supabase: ReturnType<typeof getServ
     dealValue: l.deal_value,
     source: bizharvestSourceLabel(l.source),
     createdAt: l.created_at,
+    address: l.meta.address ?? null,
   }))
 
   const distinctCities = Object.keys(cityMap).length

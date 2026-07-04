@@ -24,6 +24,7 @@ interface RecentLead {
   dealValue: number | null
   source: string
   createdAt: string
+  address: string | null
 }
 
 interface TopRated {
@@ -787,6 +788,7 @@ export default function BizHarvestAnalyticsPage() {
                     <div className="min-w-0">
                       <p className="font-medium text-gray-800 text-[13px] truncate">{l.name}</p>
                       <p className="text-[11px] text-gray-400 truncate">{l.category || '—'} · {l.city || '—'}</p>
+                      {l.address && <p className="text-[11px] text-gray-400 truncate">{l.address}</p>}
                     </div>
                     <LeadStatusPill status={l.status} />
                   </div>
@@ -830,7 +832,10 @@ export default function BizHarvestAnalyticsPage() {
                 <tbody className="divide-y divide-gray-50">
                   {filteredLeads.map(l => (
                     <tr key={l.id} className="hover:bg-gray-50/50">
-                      <td className="py-2 font-medium text-gray-800 max-w-[180px] truncate">{l.name}</td>
+                      <td className="py-2 max-w-[180px]">
+                        <div className="font-medium text-gray-800 truncate">{l.name}</div>
+                        {l.address && <div className="text-[11px] text-gray-400 truncate">{l.address}</div>}
+                      </td>
                       <td className="py-2 text-gray-500">
                         <div className="truncate max-w-[160px]">{l.city}</div>
                         <div className="text-[11px] text-gray-400 truncate max-w-[160px]">{l.category}</div>
