@@ -98,8 +98,22 @@ function HBar({ data, max }: { data: { name: string; count: number }[]; max?: nu
   )
 }
 
-function DeadlinePill({ deadline }: { deadline: string | null }) {
-  if (!deadline) return <span className="text-xs text-gray-400">No deadline</span>
+function DeadlinePill({ deadline, publishDate }: { deadline: string | null; publishDate?: string | null }) {
+  if (!deadline) {
+    // Some sources (e.g. BSBCCL, BPBCC, JLNMCH) only ever expose an issue/
+    // publish date, not a closing date — show that instead of nothing.
+    if (publishDate) {
+      return (
+        <span
+          className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-400"
+          title="This source doesn't list a closing date — showing publish date instead"
+        >
+          Pub {new Date(publishDate).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
+        </span>
+      )
+    }
+    return <span className="text-xs text-gray-400">No date</span>
+  }
   const d = new Date(deadline)
   const days = Math.ceil((d.getTime() - Date.now()) / 86400000)
   let cls = 'bg-gray-50 text-gray-600 border-gray-200'
@@ -377,7 +391,6 @@ export default function TenderPulsePage() {
             {aiNotice && !aiSummary && (
               <p className="mt-2 text-xs text-gray-400">{aiNotice}</p>
             )}
-            )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded-lg border border-gray-200 px-2 py-1 text-xs">
                 <option value="">All categories</option>
@@ -464,7 +477,7 @@ export default function TenderPulsePage() {
                         {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
                       </select>
                     </td>
-                    <td className="p-3"><DeadlinePill deadline={t.bid_submission_deadline} /></td>
+                    <td className="p-3"><DeadlinePill deadline={t.bid_submission_deadline} publishDate={t.publish_date} /></td>
                     <td className="p-3 max-w-[140px] truncate text-xs text-gray-400">{t.sources?.name}</td>
                     <td className="p-3" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => handleHideToggle(t)} className="text-gray-400 hover:text-red-500">
@@ -489,7 +502,7 @@ export default function TenderPulsePage() {
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[11px] text-gray-600">{CATEGORY_LABELS[t.category || 'other']}</span>
                       {t.district && <span className="text-[11px] text-gray-400">{t.district}</span>}
-                      <DeadlinePill deadline={t.bid_submission_deadline} />
+                      <DeadlinePill deadline={t.bid_submission_deadline} publishDate={t.publish_date} />
                     </div>
                   </div>
                   <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />

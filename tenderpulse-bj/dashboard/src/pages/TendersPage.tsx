@@ -351,7 +351,7 @@ export default function TendersPage() {
                   </select>
                 </td>
                 <td className="p-3 align-top">
-                  <DeadlineBadge deadline={t.bid_submission_deadline} />
+                  <DeadlineBadge deadline={t.bid_submission_deadline} publishDate={t.publish_date} />
                 </td>
                 <td className="p-3 align-top text-xs text-ink-muted max-w-[160px] truncate" title={t.source_name}>
                   {t.source_name}
@@ -403,7 +403,7 @@ export default function TendersPage() {
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   <CategoryChip category={t.category} />
                   {t.district && <span className="text-xs text-ink-secondary dark:text-ink-secondary-dark">{t.district}</span>}
-                  <DeadlineBadge deadline={t.bid_submission_deadline} />
+                  <DeadlineBadge deadline={t.bid_submission_deadline} publishDate={t.publish_date} />
                 </div>
                 <div className="flex gap-3 mt-2 text-xs" onClick={(e) => e.stopPropagation()}>
                   {t.nit_document_url && (

@@ -202,10 +202,21 @@ async function scrapeBsbccl(page: Page): Promise<RawTender[]> {
           external_ref: refNo || title.slice(0, 250),
           title,
           nit_document_url: link?.href || null,
+          dateText: cells[1]?.textContent?.replace(/\s+/g, " ").trim() || "",
         };
       })
       .filter((t) => t.title && t.external_ref);
-  });
+  }).then((rows) =>
+    rows.map((r) => ({
+      external_ref: r.external_ref,
+      title: r.title,
+      nit_document_url: r.nit_document_url,
+      // No closing/deadline column on this listing (only the NIT's issue
+      // date, DD/MM/YYYY) — captured as publish_date so at least one date
+      // surfaces rather than showing no date at all.
+      publish_date: parseSlashDate(r.dateText),
+    }))
+  );
 }
 
 // Bihar Rajya Pul Nirman Nigam Ltd (BRPNNL) — bridge-construction PSU;
@@ -426,10 +437,24 @@ async function scrapeBsrdcl(page: Page): Promise<RawTender[]> {
         const refNo = cells[1]?.textContent?.replace(/\s+/g, " ").trim() || "";
         const title = cells[3]?.textContent?.replace(/\s+/g, " ").trim() || "";
         const link = cells[4]?.querySelector("a") as HTMLAnchorElement | null;
-        return { external_ref: refNo || title.slice(0, 250), title, nit_document_url: link?.href || null };
+        return {
+          external_ref: refNo || title.slice(0, 250),
+          title,
+          nit_document_url: link?.href || null,
+          dateText: cells[2]?.textContent?.replace(/\s+/g, " ").trim() || "",
+        };
       })
       .filter((t) => t.title && t.external_ref);
-  });
+  }).then((rows) =>
+    rows.map((r) => ({
+      external_ref: r.external_ref,
+      title: r.title,
+      nit_document_url: r.nit_document_url,
+      // "Open Date" (DD-MM-YYYY) is when the NIT was opened for bidding, not
+      // a closing date — captured as publish_date, same reasoning as BSBCCL.
+      publish_date: parseDdMmYyyy(r.dateText),
+    }))
+  );
 }
 
 // Patna Smart City Ltd — server-rendered table: Sl No | NIT No | Tender
@@ -674,21 +699,29 @@ async function scrapeDspmuRanchi(page: Page): Promise<RawTender[]> {
 // as one procurable item — that matches how the university actually lists
 // them (13 separate department equipment lists under one notice number).
 async function scrapePupPatna(page: Page): Promise<RawTender[]> {
+  // Multiple historical notices can appear on this one page, each as its own
+  // <table> (or nested table) with its own "Place, Time & Date of receiving
+  // of Quotation" row — scope the deadline lookup to the same table as each
+  // download link rather than taking one page-wide value, otherwise a line
+  // item from an older notice would inherit a newer notice's deadline.
   const rows = await page.evaluate(() => {
-    const out: { title: string; href: string }[] = [];
+    const out: { title: string; href: string; deadlineText: string }[] = [];
     document.querySelectorAll("td").forEach((td) => {
       const link = td.querySelector("a") as HTMLAnchorElement | null;
       if (!link || !/download/i.test(link.textContent || "")) return;
       const row = td.closest("tr");
+      const table = td.closest("table");
       if (!row) return;
       const cells = Array.from(row.querySelectorAll("td"));
-      // Prefer a sibling cell that looks like a work/item description
-      // (longer free text, not a bare number or currency amount).
       const desc = cells
         .map((c) => c.textContent?.replace(/\s+/g, " ").trim() || "")
         .find((t) => t.length > 15 && !/^[\d,.\-/₹\s]+$/.test(t) && !/^download/i.test(t));
       if (!desc) return;
-      out.push({ title: desc, href: link.href });
+
+      const deadlineRow = table
+        ? Array.from(table.querySelectorAll("tr")).find((tr) => /receiving of Quotation/i.test(tr.textContent || ""))
+        : null;
+      out.push({ title: desc, href: link.href, deadlineText: deadlineRow?.textContent?.replace(/\s+/g, " ").trim() || "" });
     });
     return out;
   });
@@ -702,6 +735,7 @@ async function scrapePupPatna(page: Page): Promise<RawTender[]> {
         external_ref: (fileName || r.title).slice(0, 250),
         title: r.title.slice(0, 500),
         nit_document_url: r.href || null,
+        bid_submission_deadline: parseSlashDate(r.deadlineText.match(/(\d{2}\/\d{2}\/\d{4})/)?.[1]),
       } satisfies RawTender;
     });
 }

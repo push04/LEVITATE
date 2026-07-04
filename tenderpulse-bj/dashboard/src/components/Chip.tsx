@@ -31,8 +31,20 @@ export function CategoryChip({ category }: { category?: string }) {
 
 export { CATEGORY_LABELS };
 
-export function DeadlineBadge({ deadline }: { deadline?: string | null }) {
-  if (!deadline) return <span className="text-ink-muted text-xs">No deadline</span>;
+export function DeadlineBadge({ deadline, publishDate }: { deadline?: string | null; publishDate?: string | null }) {
+  if (!deadline) {
+    // No closing date on the source listing — fall back to when the notice
+    // was published rather than showing nothing, since that's still real,
+    // useful information (some sources only ever expose an issue date).
+    if (publishDate) {
+      return (
+        <span className="text-ink-muted text-xs" title="This source doesn't list a closing date — showing publish date instead">
+          Published {new Date(publishDate).toLocaleDateString(undefined, { day: "2-digit", month: "short" })}
+        </span>
+      );
+    }
+    return <span className="text-ink-muted text-xs">No date listed</span>;
+  }
   const d = new Date(deadline);
   const now = new Date();
   const daysLeft = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
