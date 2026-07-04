@@ -35,6 +35,10 @@ function formatMsg(text: string): string {
     .replace(/\n/g, '<br/>');
 }
 
+function chatStorageKey(companyId: string) {
+  return `levitate_business_chat_${companyId}`;
+}
+
 export default function ChatPage() {
   const portal = useCompanyPortalState();
   const [messages, setMessages] = useState<Msg[]>([
@@ -43,8 +47,32 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [hydrated, setHydrated] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load any saved conversation for this company once we know who they are.
+  useEffect(() => {
+    if (!portal.companyId || hydrated) return;
+    try {
+      const saved = window.localStorage.getItem(chatStorageKey(portal.companyId));
+      if (saved) {
+        const parsed = JSON.parse(saved) as Msg[];
+        if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
+      }
+    } catch { /* ignore corrupt storage */ } finally {
+      setHydrated(true);
+    }
+  }, [portal.companyId, hydrated]);
+
+  // Persist on every change, once hydration has happened (avoids clobbering
+  // saved history with the default welcome message before it's loaded).
+  useEffect(() => {
+    if (!portal.companyId || !hydrated) return;
+    try {
+      window.localStorage.setItem(chatStorageKey(portal.companyId), JSON.stringify(messages));
+    } catch { /* storage full or unavailable — non-fatal */ }
+  }, [messages, portal.companyId, hydrated]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

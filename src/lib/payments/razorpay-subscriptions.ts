@@ -47,7 +47,19 @@ export async function createRazorpaySubscription(params: {
   customerEmail: string
   referenceId: string
   notes?: Record<string, string>
+  setupFeeInRupees?: number
+  setupFeeLabel?: string
 }) {
+  const addons = params.setupFeeInRupees && params.setupFeeInRupees > 0
+    ? [{
+        item: {
+          name: params.setupFeeLabel ?? 'One-time setup fee',
+          amount: Math.round(params.setupFeeInRupees * 100),
+          currency: 'INR'
+        }
+      }]
+    : undefined
+
   const res = await fetch(`${RAZORPAY_BASE}/subscriptions`, {
     method: 'POST',
     headers: {
@@ -60,6 +72,7 @@ export async function createRazorpaySubscription(params: {
       customer_notify: 1,
       customer_name: params.customerName,
       customer_email: params.customerEmail,
+      ...(addons ? { addons } : {}),
       notes: {
         reference_id: params.referenceId,
         ...(params.notes ?? {})
@@ -87,5 +100,9 @@ export function verifyRazorpaySubscriptionSignature(params: {
     .update(`${params.paymentId}|${params.subscriptionId}`)
     .digest('hex')
 
-  return expected === params.signature
+  const expectedBuf = Buffer.from(expected, 'hex')
+  const givenBuf = Buffer.from(params.signature, 'hex')
+  if (expectedBuf.length !== givenBuf.length) return false
+
+  return crypto.timingSafeEqual(expectedBuf, givenBuf)
 }

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { requireBusinessCompany } from '@/lib/business-intelligence-server';
 
-async function getCompanyId(supabase: ReturnType<typeof createServerClient>) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('companies').select('id').eq('owner_id', user.id).maybeSingle();
-  return data?.id ?? null;
+async function getCompanyId(_supabase: ReturnType<typeof createServerClient>) {
+  try {
+    return (await requireBusinessCompany('whatsapp')).companyId;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET() {

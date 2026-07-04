@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { getServiceSupabase } from '@/lib/supabase';
 import { fetchRecentEmails } from '@/lib/imap-client';
 import { callAI } from '@/lib/ai/router';
 import { checkAdminAuth } from '@/lib/auth';
+import { parseCompanyEmailAlias, resolveCompanyByWorkspaceSlug } from '@/lib/company-email';
+import { sendEmail } from '@/lib/email/client';
 
 export async function POST() {
     const { isAuthenticated } = await checkAdminAuth();
@@ -15,6 +18,56 @@ export async function POST() {
 
         for (const email of emails) {
             const inboundFrom = String(email.from || '').toLowerCase().trim();
+
+            // Business email alias routing: mail addressed to
+            // business.<workspace-slug>@levitatelabs.online belongs to that
+            // company's own mailbox — file it there and stop. It must NOT also
+            // become a "lead" in Levitate's own internal admin CRM/agent_emails
+            // below (wrong data, and wastes an AI categorization call per email).
+            const workspaceSlug = parseCompanyEmailAlias(String(email.to || ''));
+            if (workspaceSlug) {
+                const companyInfo = await resolveCompanyByWorkspaceSlug(workspaceSlug);
+                if (companyInfo) {
+                    const serviceSupabase = getServiceSupabase();
+                    const { data: duplicateCompanyEmail } = await serviceSupabase
+                        .from('company_emails')
+                        .select('id')
+                        .eq('company_id', companyInfo.companyId)
+                        .eq('subject', email.subject)
+                        .eq('from_email', inboundFrom)
+                        .eq('created_at', email.date.toISOString())
+                        .maybeSingle();
+
+                    if (!duplicateCompanyEmail) {
+                        const { error: companyEmailError } = await serviceSupabase.from('company_emails').insert({
+                            company_id: companyInfo.companyId,
+                            direction: 'inbound',
+                            from_email: inboundFrom,
+                            to_email: email.to,
+                            subject: email.subject,
+                            body: email.text,
+                            status: 'received',
+                            created_at: email.date.toISOString(),
+                        });
+                        if (companyEmailError) {
+                            console.error('[Mailbox Sync] Failed to file company_emails row:', companyEmailError.message);
+                        }
+
+                        // Redirect a copy straight to the business owner's own inbox
+                        // so they see it immediately without needing to open the dashboard.
+                        if (companyInfo.ownerEmail) {
+                            await sendEmail(
+                                companyInfo.ownerEmail,
+                                `[${companyInfo.alias}] ${email.subject}`,
+                                `Forwarded message sent to your business email (${companyInfo.alias})\nFrom: ${inboundFrom}\n\n${email.text}`
+                            );
+                        }
+                        processedCount++;
+                    }
+                    continue;
+                }
+            }
+
             // To allow dedup without schema change for now, let's query by specific content signature or just skip check if simplistic
             // Better: Add `provider_message_id` to schema. But since I can't run SQL easily, I'll rely on a composite check.
             const { data: duplicate } = await supabase

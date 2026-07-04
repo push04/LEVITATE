@@ -1,11 +1,17 @@
 /**
  * GET /api/business/whatsapp/queue/next
- * Returns the next pending message that is ready to send (respects scheduled_at).
- * Called by the Electron EXE on its poll interval.
+ * Returns the next pending message ready to send (respects scheduled_at).
+ * Called by the Electron EXE / whatsapp-host daemon on its poll interval.
+ *
+ * Security: daemon secret required via x-daemon-secret header.
+ * Admin mode (?admin=1) is ONLY available when no company_id is provided
+ * and cannot be used to cross-read another company's queue.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,16 +28,20 @@ export async function GET(req: NextRequest) {
   }
 
   const company_id = req.nextUrl.searchParams.get('company_id');
-  const isAdmin = req.nextUrl.searchParams.get('admin') === '1';
+  const isAdmin = !company_id && req.nextUrl.searchParams.get('admin') === '1';
 
   if (!company_id && !isAdmin) {
-    return NextResponse.json({ error: 'company_id required' }, { status: 400 });
+    return NextResponse.json({ error: 'company_id or admin=1 required' }, { status: 400 });
+  }
+
+  // Validate UUID format to prevent injection via query string
+  if (company_id && !UUID_RE.test(company_id)) {
+    return NextResponse.json({ error: 'Invalid company_id format' }, { status: 400 });
   }
 
   try {
     const now = new Date().toISOString();
 
-    // Admin mode: fetch messages where company_id IS NULL
     let query = supabaseAdmin
       .from('whatsapp_queue')
       .select('*')

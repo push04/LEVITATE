@@ -26,15 +26,21 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { company_id, connected, qr_code, whatsapp_number, daemon_last_ping } = body;
+    const { company_id, connected, qr_code, whatsapp_number } = body;
 
     if (!company_id) return NextResponse.json({ error: 'company_id required' }, { status: 400 });
 
-    const patch: Record<string, unknown> = {};
+    // Verify company exists to prevent phantom config rows
+    const { data: co } = await supabaseAdmin.from('companies').select('id').eq('id', company_id).maybeSingle();
+    if (!co) return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+
+    const patch: Record<string, unknown> = {
+      // Always set server-side — daemon cannot supply a fake timestamp
+      daemon_last_ping: new Date().toISOString(),
+    };
     if (typeof connected === 'boolean') patch.connected = connected;
     if (qr_code !== undefined) patch.qr_code = qr_code;
     if (whatsapp_number !== undefined) patch.whatsapp_number = whatsapp_number;
-    if (daemon_last_ping !== undefined) patch.daemon_last_ping = daemon_last_ping;
 
     const { error } = await supabaseAdmin
       .from('company_whatsapp_config')
@@ -43,8 +49,9 @@ export async function POST(req: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    console.error('[agent/ping]', e);
-    return NextResponse.json({ error: e?.message || 'Internal error' }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Internal error';
+    console.error('[agent/ping]', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

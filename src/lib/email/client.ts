@@ -18,11 +18,26 @@ function getTransporter() {
   })
 }
 
-export async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
+type SendEmailOptions = {
+  /** Display name to use in the From header, e.g. a business's own name. */
+  fromName?: string
+  /**
+   * Overrides the From address (e.g. a business.<slug>@levitatelabs.online alias).
+   * Still sent via the same authenticated SMTP account — this only changes the
+   * visible From header, not the envelope sender.
+   */
+  fromAddress?: string
+  replyTo?: string
+}
+
+export async function sendEmail(to: string, subject: string, body: string, options?: SendEmailOptions): Promise<boolean> {
   try {
     const transporter = getTransporter()
+    const fromAddress = options?.fromAddress || process.env.SMTP_USER
+    const fromName = options?.fromName || 'Levitate Labs'
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || `"Levitate Labs" <${process.env.SMTP_USER}>`,
+      from: process.env.SMTP_FROM && !options?.fromAddress ? process.env.SMTP_FROM : `"${fromName}" <${fromAddress}>`,
+      ...(options?.replyTo ? { replyTo: options.replyTo } : {}),
       to,
       subject,
       text: body,

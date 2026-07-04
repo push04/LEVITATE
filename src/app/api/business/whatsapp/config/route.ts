@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { requireBusinessCompany } from '@/lib/business-intelligence-server';
 
-async function getCompanyId(supabase: ReturnType<typeof createServerClient>) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase.from('companies').select('id').eq('owner_id', user.id).maybeSingle();
-  return data?.id ?? null;
+async function getCompanyId(_supabase: ReturnType<typeof createServerClient>) {
+  try {
+    return (await requireBusinessCompany('whatsapp')).companyId;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET() {
@@ -22,7 +24,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('company_whatsapp_config')
-    .select('id, connected, ai_agent_enabled, ai_agent_name, ai_agent_tone, ai_agent_system_prompt, ai_agent_faq, ai_agent_escalation_keywords, ai_agent_escalation_email, phone_number_id, verify_token, qr_code, daemon_last_ping, whatsapp_number')
+    .select('id, connected, ai_agent_enabled, ai_agent_name, ai_agent_tone, ai_agent_system_prompt, ai_agent_faq, ai_agent_escalation_keywords, ai_agent_escalation_email, phone_number_id, qr_code, daemon_last_ping, whatsapp_number')
     .eq('company_id', companyId)
     .maybeSingle();
 
@@ -43,9 +45,9 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
 
-  // Only allow updating safe fields (never expose raw access_token in GET)
+  // Only allow updating safe fields; 'connected' is daemon-only (via agent/ping)
   const allowed = [
-    'phone_number_id', 'access_token', 'app_secret', 'verify_token', 'connected',
+    'phone_number_id', 'access_token', 'app_secret', 'verify_token',
     'ai_agent_enabled', 'ai_agent_name', 'ai_agent_tone', 'ai_agent_system_prompt',
     'ai_agent_faq', 'ai_agent_escalation_keywords', 'ai_agent_escalation_email',
   ];

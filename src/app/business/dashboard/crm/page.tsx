@@ -6,6 +6,7 @@ import { Copy, Database, IndianRupee, MapPinned, PencilLine, TrendingUp, Users }
 import { useCompanyPortalState } from '@/hooks/useCompanyPortalState';
 import { type CompanyCrmLead, useCompanyCrmLeads } from '@/hooks/useCompanyCrmLeads';
 import BusinessPortalLocked from '@/components/business/BusinessPortalLocked';
+import { downloadCsv } from '@/lib/csv-export';
 import { GoldButton, PipelineBar, SearchInput, SkeletonBlock, StatCard, Toast } from '@/components/business/ui';
 import styles from '@/components/business/ui/DashboardPrimitives.module.css';
 
@@ -441,7 +442,33 @@ export default function BusinessCrmPage() {
                   Copied leads live here. Open any record to update stage, value, pricing, and notes for your own business workflow.
                 </p>
               </div>
-              <SearchInput value={search} onChange={setSearch} placeholder="Search copied CRM leads..." className="w-full max-w-[320px]" />
+              <div className="flex flex-wrap items-center gap-3">
+                <SearchInput value={search} onChange={setSearch} placeholder="Search copied CRM leads..." className="w-full max-w-[320px]" />
+                <button
+                  type="button"
+                  onClick={() => downloadCsv(
+                    `crm-leads-${new Date().toISOString().slice(0, 10)}.csv`,
+                    [
+                      { key: 'name', label: 'Name' },
+                      { key: 'company_name', label: 'Company' },
+                      { key: 'email', label: 'Email' },
+                      { key: 'phone', label: 'Phone' },
+                      { key: 'whatsapp', label: 'WhatsApp' },
+                      { key: 'city', label: 'City' },
+                      { key: 'service_category', label: 'Category' },
+                      { key: 'status', label: 'Status' },
+                      { key: 'pipeline_stage', label: 'Pipeline Stage' },
+                      { key: 'estimated_value', label: 'Estimated Value' },
+                      { key: 'tags', label: 'Tags' },
+                      { key: 'notes', label: 'Notes' },
+                    ],
+                    filteredLeads
+                  )}
+                  className="whitespace-nowrap rounded-[10px] border border-[var(--border-default)] px-4 py-2.5 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+                >
+                  Export CSV
+                </button>
+              </div>
             </div>
 
             <div className="mt-5 space-y-3">

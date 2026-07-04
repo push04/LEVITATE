@@ -45,6 +45,21 @@ export const PORTAL_FEATURES = [
     key: 'whatsapp',
     label: 'WhatsApp',
     description: 'WhatsApp outreach campaigns and AI agent for automated conversations.'
+  },
+  {
+    key: 'brandedEmail',
+    label: 'Branded Email',
+    description: 'A dedicated business.<yourname>@levitatelabs.online address for sending and receiving business email.'
+  },
+  {
+    key: 'tenders',
+    label: 'Government Tenders',
+    description: 'Browse and filter live government tender listings matched to your industry and district.'
+  },
+  {
+    key: 'marketplace',
+    label: 'Marketplace Listings',
+    description: 'Get your products listed on Amazon, Flipkart, and Meesho — with optional photography and tagging add-ons.'
   }
 ] as const
 
@@ -62,6 +77,15 @@ export const DEFAULT_PLAN_FEATURE_ACCESS: PortalFeatureAccess = {
   reportHistory: true,
   profileSettings: true,
   whatsapp: true,
+  // Fails closed (unlike the other flags above): a costed, per-mailbox perk that
+  // should never silently unlock just because a plan's feature_controls row is
+  // missing this newer key.
+  brandedEmail: false,
+  tenders: false,
+  // Fails closed like brandedEmail/tenders above — every real plan explicitly
+  // sets this true today, but a future plan created without configuring
+  // feature_controls should not silently get a real-money feature for free.
+  marketplace: false,
 }
 
 export type BusinessModelType =

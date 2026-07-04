@@ -300,6 +300,7 @@ export default function ApiKeysPage() {
   const [revealed, setRevealed] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [revokingId, setRevokingId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const fetchKeys = useCallback(async () => {
@@ -351,6 +352,29 @@ export default function ApiKeysPage() {
       setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleRevoke = async (id: string) => {
+    if (revokingId) return
+    if (!window.confirm('Revoke this API key? Any integration using it will stop working immediately.')) return
+    setRevokingId(id)
+    setError(null)
+    try {
+      const res = await fetch('/api/business/api-keys', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      const json: unknown = await res.json()
+      if (!res.ok || typeof json !== 'object' || json === null) throw new Error('Failed to revoke key')
+      const payload = json as { success: boolean; error?: string }
+      if (!payload.success) throw new Error(payload.error ?? 'Failed to revoke key')
+      await fetchKeys()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setRevokingId(null)
     }
   }
 
@@ -500,8 +524,17 @@ export default function ApiKeysPage() {
                         {k.lastUsedAt && <span>Last used {new Date(k.lastUsedAt).toLocaleDateString()}</span>}
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1 text-gray-300">
-                      <span title="Contact support to revoke keys"><Trash2 className="h-3.5 w-3.5 cursor-not-allowed" /></span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {k.isActive && (
+                        <button
+                          onClick={() => handleRevoke(k.id)}
+                          disabled={revokingId === k.id}
+                          title="Revoke key"
+                          className="rounded p-1 text-gray-300 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                        >
+                          {revokingId === k.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </li>

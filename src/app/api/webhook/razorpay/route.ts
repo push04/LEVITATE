@@ -30,6 +30,33 @@ export async function POST(req: Request) {
       const amountINR = payment.amount / 100
       const referenceId: string = payment.description ?? ''
 
+      // Marketplace listing purchases (Amazon/Flipkart/Meesho) — paid via a
+      // dedicated Razorpay Payment Link, matched by that link's id.
+      if (payment.payment_link_id) {
+        const { data: marketplaceRequest } = await supabase
+          .from('marketplace_requests')
+          .select('id, payment_status')
+          .eq('razorpay_payment_link_id', payment.payment_link_id)
+          .maybeSingle()
+
+        if (marketplaceRequest) {
+          if (marketplaceRequest.payment_status !== 'paid') {
+            const { error: mpUpdateError } = await supabase
+              .from('marketplace_requests')
+              .update({ payment_status: 'paid', razorpay_payment_id: payment.id, updated_at: new Date().toISOString() })
+              .eq('id', marketplaceRequest.id)
+            if (mpUpdateError) {
+              console.error('[Razorpay Webhook] Failed to mark marketplace request paid:', mpUpdateError.message)
+            } else {
+              await sendWhatsAppToOwner(
+                `MARKETPLACE LISTING PAID\n₹${amountINR.toLocaleString('en-IN')}\nRequest ${marketplaceRequest.id}\nCheck /admin/dashboard/marketplace`
+              )
+            }
+          }
+          return new NextResponse('OK', { status: 200 })
+        }
+      }
+
       // Find the proposal this payment is for
       let proposal = null
 
@@ -46,6 +73,18 @@ export async function POST(req: Request) {
       }
 
       if (proposal) {
+        // Idempotency: Razorpay can redeliver the same event; a payment_id already
+        // recorded in revenue means this webhook call was already fully processed.
+        const { data: existingRevenue } = await supabase
+          .from('revenue')
+          .select('id')
+          .eq('razorpay_payment_id', payment.id)
+          .maybeSingle()
+
+        if (existingRevenue) {
+          return new NextResponse('OK (already processed)', { status: 200 })
+        }
+
         // Mark proposal accepted
         await supabase.from('proposals').update({
           status: 'accepted',
@@ -90,18 +129,21 @@ export async function POST(req: Request) {
           current_agent: 'onboarding'
         }).select().single()
 
-        // Record revenue
-        await supabase.from('revenue').insert({
+        // Record revenue (only real columns on this table — client_id/invoice_id/
+        // razorpay_order_id/payment_method don't exist and previously made this
+        // insert fail silently on every payment)
+        const { error: revenueError } = await supabase.from('revenue').insert({
           project_id: project?.id,
-          client_id: client?.id,
-          invoice_id: null,
+          lead_id: lead.id,
+          client_name: lead.business_name,
           amount: amountINR,
           type: 'advance',
           razorpay_payment_id: payment.id,
-          razorpay_order_id: payment.order_id,
-          payment_method: payment.method,
           received_at: new Date().toISOString()
         })
+        if (revenueError) {
+          console.error('[Razorpay Webhook] Failed to record revenue:', revenueError.message)
+        }
 
         // Update client financials
         await supabase.from('clients').update({ total_paid: amountINR }).eq('id', client?.id)
@@ -156,7 +198,6 @@ export async function POST(req: Request) {
         if (signup) {
           const notes = (signup.notes && typeof signup.notes === 'object' ? signup.notes : {}) as Record<string, unknown>
           const planName = typeof notes.plan_name === 'string' ? notes.plan_name : 'Onboarding Plan'
-          const shouldSendEmail = !notes.confirmation_sent
           const userId = typeof notes.user_id === 'string' ? notes.user_id : null
           const workspaceUrl =
             (typeof signup.workspace_backlink_url === 'string' && signup.workspace_backlink_url) ||
@@ -164,21 +205,101 @@ export async function POST(req: Request) {
             (typeof notes.workspace_url === 'string' && notes.workspace_url) ||
             signup.subdomain_url
 
-          const { data: updatedSignup, error: signupUpdateError } = await supabase.from('onboarding_subscriptions').update({
-            status: 'active',
-            notes: {
-              ...notes,
-              subscription_status: subscription.status ?? 'active',
-              confirmation_sent: true,
-              confirmed_at: new Date().toISOString()
-            }
-          }).eq('id', signup.id).select('*').single()
+          // Atomic claim: only rows where confirmation_sent isn't already true get
+          // updated here, so concurrent/duplicate webhook deliveries can't both
+          // decide to send the confirmation email.
+          const { data: claimedRows, error: claimError } = await supabase
+            .from('onboarding_subscriptions')
+            .update({
+              status: 'active',
+              notes: {
+                ...notes,
+                subscription_status: subscription.status ?? 'active',
+                confirmation_sent: true,
+                confirmed_at: new Date().toISOString()
+              }
+            })
+            .eq('id', signup.id)
+            .or('notes->>confirmation_sent.is.null,notes->>confirmation_sent.neq.true')
+            .select('*')
 
-          if (signupUpdateError || !updatedSignup) {
-            throw new Error(signupUpdateError?.message ?? 'Unable to activate onboarding subscription')
+          if (claimError) {
+            throw new Error(claimError.message)
           }
 
-          await finalizeOnboardingCouponRedemption(updatedSignup)
+          const shouldSendEmail = Boolean(claimedRows && claimedRows.length > 0)
+
+          let updatedSignup = claimedRows?.[0]
+          if (!updatedSignup) {
+            // Already claimed by a concurrent delivery — just re-read current state
+            // so status stays consistent for the coupon finalization step below.
+            const { data: current, error: currentError } = await supabase
+              .from('onboarding_subscriptions')
+              .select('*')
+              .eq('id', signup.id)
+              .single()
+
+            if (currentError || !current) {
+              throw new Error(currentError?.message ?? 'Unable to load onboarding subscription')
+            }
+            updatedSignup = current
+          }
+
+          // onboarding_subscriptions has no coupon_id/user_id/company_id/discount_amount/
+          // final_amount columns — that data only ever lives in notes (see
+          // src/app/api/onboard/checkout/route.ts), so build the redemption
+          // input from there rather than the row's (nonexistent) direct fields.
+          const updatedNotes = (updatedSignup.notes && typeof updatedSignup.notes === 'object' ? updatedSignup.notes : {}) as Record<string, unknown>
+          await finalizeOnboardingCouponRedemption({
+            id: updatedSignup.id,
+            coupon_id: typeof updatedNotes.coupon_id === 'string' ? updatedNotes.coupon_id : null,
+            coupon_code: typeof updatedNotes.coupon_code === 'string' ? updatedNotes.coupon_code : null,
+            user_id: typeof updatedNotes.user_id === 'string' ? updatedNotes.user_id : null,
+            company_id: typeof updatedNotes.company_id === 'string' ? updatedNotes.company_id : null,
+            amount: updatedSignup.amount,
+            discount_amount: typeof updatedNotes.discount_amount === 'number' ? updatedNotes.discount_amount : null,
+            final_amount: typeof updatedNotes.final_amount === 'number' ? updatedNotes.final_amount : updatedSignup.amount,
+          })
+
+          // Per-charge ledger for reconciliation against Razorpay. Table is created by
+          // supabase/migrations/20260704_01_onboarding_transactions.sql — insert is
+          // best-effort so a missing/not-yet-applied migration never blocks activation.
+          //
+          // Idempotency: `subscription.charged` events always carry a real payment
+          // entity, so the table's UNIQUE(razorpay_payment_id) constraint naturally
+          // dedupes retried deliveries. `subscription.activated` has no payment
+          // entity (razorpay_payment_id is NULL, which the unique constraint does
+          // NOT dedupe), so — since activation should only ever log once per
+          // subscription — explicitly check for an existing activation row first
+          // rather than gating on `shouldSendEmail` (which would also suppress
+          // every later month's legitimate `subscription.charged` ledger row, since
+          // confirmation_sent stays true after the first activation).
+          const chargePayment = event.payload?.payment?.entity ?? null
+          let shouldLogLedger = true
+          if (!chargePayment) {
+            const { data: existingActivation } = await supabase
+              .from('onboarding_transactions')
+              .select('id')
+              .eq('subscription_id', signup.id)
+              .eq('event_type', event.event)
+              .maybeSingle()
+            shouldLogLedger = !existingActivation
+          }
+
+          if (shouldLogLedger) {
+            const { error: ledgerError } = await supabase.from('onboarding_transactions').insert({
+              subscription_id: signup.id,
+              company_id: typeof notes.company_id === 'string' ? notes.company_id : null,
+              razorpay_subscription_id: subscription.id,
+              razorpay_payment_id: chargePayment?.id ?? null,
+              event_type: event.event,
+              amount: chargePayment ? chargePayment.amount / 100 : Number(updatedSignup.final_amount ?? updatedSignup.amount ?? signup.amount),
+              status: chargePayment?.status ?? 'captured'
+            })
+            if (ledgerError) {
+              console.error('[Razorpay Webhook] Failed to record transaction ledger entry:', ledgerError.message)
+            }
+          }
 
           if (userId) {
             const profileResult = await upsertBusinessProfile(supabase, {
@@ -210,7 +331,10 @@ export async function POST(req: Request) {
     }
 
     if (event.event === 'payment_link.paid') {
-      // Alternative event format - forward to same handler
+      // Informational only — Razorpay always also fires payment.captured for the
+      // same payment, which is what actually processes proposal/marketplace
+      // payments above. This branch just logs for visibility, it does not
+      // duplicate that processing.
       console.log('[Razorpay] payment_link.paid:', event.payload)
     }
 

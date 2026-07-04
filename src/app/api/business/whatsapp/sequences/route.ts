@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { requireBusinessCompany } from '@/lib/business-intelligence-server';
 
 async function auth() {
   const cookieStore = await cookies();
@@ -9,10 +10,12 @@ async function auth() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   );
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { supabase, company: null };
-  const { data: company } = await supabase.from('companies').select('id').eq('owner_id', user.id).maybeSingle();
-  return { supabase, company };
+  try {
+    const { companyId } = await requireBusinessCompany('whatsapp');
+    return { supabase, company: { id: companyId } };
+  } catch {
+    return { supabase, company: null };
+  }
 }
 
 // GET — list sequences
@@ -63,12 +66,20 @@ export async function PATCH(req: NextRequest) {
   const { supabase, company } = await auth();
   if (!company) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id, ...updates } = await req.json() as { id: string; [k: string]: unknown };
+  const body = await req.json() as { id: string; name?: string; steps?: unknown; status?: string };
+  const { id } = body;
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  // Allowlist — never allow overwriting company_id or other sensitive fields
+  const ALLOWED_PATCH = ['name', 'steps', 'status'] as const;
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  for (const key of ALLOWED_PATCH) {
+    if (key in body && body[key] !== undefined) patch[key] = body[key];
+  }
 
   const { error } = await supabase
     .from('company_whatsapp_sequences')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(patch)
     .eq('id', id)
     .eq('company_id', company.id);
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { businessApiErrorResponse, requireBusinessCompany } from '@/lib/business-intelligence-server';
 
 // Replace {{var}} placeholders in a message for a specific recipient
 function personalize(template: string, vars: Record<string, string>): string {
@@ -16,18 +17,20 @@ function normalizePhone(raw: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  let companyId: string;
+  try {
+    ({ companyId } = await requireBusinessCompany('whatsapp'));
+  } catch (err) {
+    return businessApiErrorResponse(err);
+  }
+  const company = { id: companyId };
+
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { data: company } = await supabase.from('companies').select('id').eq('owner_id', user.id).maybeSingle();
-  if (!company) return NextResponse.json({ error: 'No company' }, { status: 404 });
 
   const body = await req.json() as {
     campaign_id: string;

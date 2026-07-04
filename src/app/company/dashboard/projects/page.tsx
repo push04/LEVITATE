@@ -1,5 +1,5 @@
 ﻿import { redirect } from 'next/navigation';
 
 export default function CompanyAliasRedirectPage() {
-  redirect('/business/dashboard/projects');
+  redirect('/business/dashboard/leads');
 }

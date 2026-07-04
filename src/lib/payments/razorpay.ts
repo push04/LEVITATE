@@ -26,8 +26,10 @@ export async function createPaymentLink(params: {
   description: string
   name: string
   contact: string
+  email?: string
   referenceId: string  // proposal or invoice ID
 }): Promise<RazorpayLink> {
+  const contact = params.contact.replace(/[^0-9]/g, '')
   const res = await fetch(`${RAZORPAY_BASE}/payment_links`, {
     method: 'POST',
     headers: {
@@ -40,9 +42,13 @@ export async function createPaymentLink(params: {
       description: params.description,
       customer: {
         name: params.name,
-        contact: params.contact.replace(/[^0-9]/g, '')
+        ...(contact ? { contact } : {}),
+        ...(params.email ? { email: params.email } : {}),
       },
-      notify: { sms: true, email: false },
+      // Only ask Razorpay to SMS/email a reminder if we actually have that
+      // contact detail — a blank contact with sms:true can be rejected by
+      // the API for a customer with no phone on file.
+      notify: { sms: Boolean(contact), email: Boolean(params.email) },
       reminder_enable: true,
       reference_id: params.referenceId,
       expire_by: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 7 days
@@ -52,7 +58,7 @@ export async function createPaymentLink(params: {
         checkout: {
           name: 'Levitate Labs',
           description: params.description,
-          prefill: { name: params.name, contact: params.contact }
+          prefill: { name: params.name, ...(contact ? { contact } : {}), ...(params.email ? { email: params.email } : {}) }
         }
       }
     })

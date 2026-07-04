@@ -8,10 +8,18 @@ import {
   MessageSquare, Send, Clock, CheckCircle2, XCircle,
   RefreshCw, X, Plus, Megaphone, FileText, Wifi, WifiOff,
   Activity, Users, ChevronRight, Trash2, Bot, Terminal,
-  QrCode, Copy, ChevronDown, ChevronUp, MessageCircle, Repeat2, UserCheck,
+  QrCode, Copy, ChevronDown, ChevronUp, MessageCircle, Repeat2, UserCheck, Upload,
 } from 'lucide-react';
-import SequencesTab from '@/components/business/whatsapp/SequencesTab';
-import ReEngagementPanel from '@/components/business/whatsapp/ReEngagementPanel';
+import dynamic from 'next/dynamic';
+
+// Both tabs are only ever mounted once the user actually clicks into them —
+// lazy-loading keeps their code out of the WhatsApp page's initial bundle.
+const SequencesTab = dynamic(() => import('@/components/business/whatsapp/SequencesTab'), {
+  loading: () => <div className="h-40 animate-pulse rounded-xl bg-gray-100" />,
+});
+const ReEngagementPanel = dynamic(() => import('@/components/business/whatsapp/ReEngagementPanel'), {
+  loading: () => <div className="h-40 animate-pulse rounded-xl bg-gray-100" />,
+});
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface WaConfig {
@@ -120,9 +128,17 @@ export default function WhatsAppPage() {
 
   // Campaign builder
   const [showCampaignForm, setShowCampaignForm] = useState(false);
-  const [newCampaign, setNewCampaign] = useState({ name: '', custom_message: '', target_type: 'manual' as 'manual' | 'leads', target_manual_numbers: '' });
+  const [newCampaign, setNewCampaign] = useState({ name: '', custom_message: '', target_type: 'manual' as 'manual' | 'leads' | 'csv', target_manual_numbers: '' });
   const [campaignSaving, setCampaignSaving] = useState(false);
   const [launchingId, setLaunchingId] = useState<string | null>(null);
+
+  // CSV campaign upload
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [csvRawRows, setCsvRawRows] = useState<Record<string, string>[]>([]);
+  const [csvPhoneCol, setCsvPhoneCol] = useState('');
+  const [csvNameCol, setCsvNameCol] = useState('');
+  const [csvParsing, setCsvParsing] = useState(false);
+  const csvFileRef = useRef<HTMLInputElement | null>(null);
 
   // Template builder
   const [showTemplateForm, setShowTemplateForm] = useState(false);
@@ -207,7 +223,9 @@ export default function WhatsAppPage() {
       return;
     }
     if (config?.connected) return;
-    qrPollRef.current = setInterval(loadConfig, 5000);
+    qrPollRef.current = setInterval(() => {
+      if (document.visibilityState === 'visible') loadConfig();
+    }, 5000);
     return () => { if (qrPollRef.current) clearInterval(qrPollRef.current); };
   }, [tab, config?.connected, loadConfig]);
 
@@ -228,20 +246,71 @@ export default function WhatsAppPage() {
     } finally { setSending(false); }
   };
 
+  const handleCsvFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvParsing(true);
+    setCsvHeaders([]);
+    setCsvRawRows([]);
+    try {
+      const { parseFile } = await import('@/lib/import/fileParser');
+      const parsed = await parseFile(file);
+      const headers = parsed.headers.filter(h => h && !h.startsWith('__EMPTY'));
+      setCsvHeaders(headers);
+      setCsvRawRows(parsed.rows);
+      const phoneRe = /phone|mobile|whatsapp|contact|cell|tel/i;
+      const nameRe = /name|person|contact/i;
+      const autoPhone = headers.find(h => phoneRe.test(h)) ?? '';
+      const autoName = headers.find(h => nameRe.test(h) && !phoneRe.test(h)) ?? '';
+      setCsvPhoneCol(autoPhone);
+      setCsvNameCol(autoName);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to parse file');
+    } finally {
+      setCsvParsing(false);
+      if (csvFileRef.current) csvFileRef.current.value = '';
+    }
+  };
+
   const handleCreateCampaign = async () => {
     if (!newCampaign.name.trim() || !newCampaign.custom_message.trim()) return;
     setCampaignSaving(true);
     try {
-      const numbers = newCampaign.target_manual_numbers.split('\n').map(n => n.trim()).filter(Boolean);
-      const res = await fetch('/api/business/whatsapp/campaigns', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newCampaign.name, custom_message: newCampaign.custom_message, target_type: newCampaign.target_type, target_manual_numbers: newCampaign.target_type === 'manual' ? numbers : [] }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setCampaigns(prev => [data.campaign, ...prev]);
+      if (newCampaign.target_type === 'csv') {
+        if (!csvPhoneCol || csvRawRows.length === 0) throw new Error('No contacts loaded from CSV');
+        // Create campaign first
+        const createRes = await fetch('/api/business/whatsapp/campaigns', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newCampaign.name, custom_message: newCampaign.custom_message, target_type: 'manual', target_manual_numbers: [] }),
+        });
+        const createData = await createRes.json();
+        if (createData.error) throw new Error(createData.error);
+        // Extract contacts from CSV
+        const contactData = csvRawRows
+          .map(row => ({ phone: row[csvPhoneCol] ?? '', name: csvNameCol ? (row[csvNameCol] ?? '') : '' }))
+          .filter(c => c.phone);
+        // Launch immediately with contact_data
+        const launchRes = await fetch('/api/business/whatsapp/campaigns/launch', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campaign_id: createData.campaign.id, contact_data: contactData }),
+        });
+        const launchData = await launchRes.json();
+        if (launchData.error) throw new Error(launchData.error);
+        setCampaigns(prev => [{ ...createData.campaign, status: 'running', total_recipients: launchData.queued }, ...prev]);
+      } else {
+        const numbers = newCampaign.target_manual_numbers.split('\n').map(n => n.trim()).filter(Boolean);
+        const res = await fetch('/api/business/whatsapp/campaigns', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newCampaign.name, custom_message: newCampaign.custom_message, target_type: newCampaign.target_type, target_manual_numbers: newCampaign.target_type === 'manual' ? numbers : [] }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        setCampaigns(prev => [data.campaign, ...prev]);
+      }
       setShowCampaignForm(false);
       setNewCampaign({ name: '', custom_message: '', target_type: 'manual', target_manual_numbers: '' });
+      setCsvHeaders([]); setCsvRawRows([]); setCsvPhoneCol(''); setCsvNameCol('');
+      loadQueueAndMore();
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to create campaign'); }
     finally { setCampaignSaving(false); }
   };
@@ -910,10 +979,10 @@ export default function WhatsAppPage() {
                           <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                             <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Target</span>
                             <div style={{ display: 'flex', gap: 8 }}>
-                              {(['manual', 'leads'] as const).map(t => (
+                              {(['manual', 'leads', 'csv'] as const).map(t => (
                                 <button key={t} onClick={() => setNewCampaign(p => ({ ...p, target_type: t }))}
                                   style={{ flex: 1, padding: '8px', borderRadius: 8, border: `1.5px solid ${newCampaign.target_type === t ? '#16a34a' : '#D1D5DB'}`, background: newCampaign.target_type === t ? '#F0FDF4' : '#fff', color: newCampaign.target_type === t ? '#15803d' : '#6B7280', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-                                  {t === 'manual' ? 'Manual numbers' : 'CRM leads'}
+                                  {t === 'manual' ? 'Manual' : t === 'leads' ? 'CRM leads' : 'CSV / Excel'}
                                 </button>
                               ))}
                             </div>
@@ -926,15 +995,63 @@ export default function WhatsAppPage() {
                                 style={{ padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 9, fontSize: 13, fontFamily: 'monospace', outline: 'none', resize: 'vertical' }} />
                             </label>
                           )}
+                          {newCampaign.target_type === 'csv' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                              {/* File upload */}
+                              <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '20px 16px', border: `2px dashed ${csvRawRows.length > 0 ? '#16a34a' : '#D1D5DB'}`, borderRadius: 10, cursor: 'pointer', background: csvRawRows.length > 0 ? '#F0FDF4' : '#FAFAFA' }}>
+                                {csvParsing ? (
+                                  <><div style={{ width: 18, height: 18, border: '2px solid #D1D5DB', borderTopColor: '#16a34a', borderRadius: '50%', animation: 'wa-spin 0.8s linear infinite' }} /><span style={{ fontSize: 13, color: '#16a34a' }}>Parsing…</span></>
+                                ) : csvRawRows.length > 0 ? (
+                                  <><CheckCircle2 size={18} color="#16a34a" /><span style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>{csvRawRows.length.toLocaleString()} contacts loaded</span><span style={{ fontSize: 11, color: '#6B7280' }}>Click to replace file</span></>
+                                ) : (
+                                  <><Upload size={18} color="#9CA3AF" /><span style={{ fontSize: 13, color: '#9CA3AF' }}>Upload CSV or Excel file</span></>
+                                )}
+                                <input ref={csvFileRef} type="file" accept=".csv,.xlsx,.xls,.tsv" onChange={handleCsvFileChange} style={{ display: 'none' }} />
+                              </label>
+                              {/* Column selectors */}
+                              {csvHeaders.length > 0 && (
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#374151' }}>Phone column *</span>
+                                    <select value={csvPhoneCol} onChange={e => setCsvPhoneCol(e.target.value)}
+                                      style={{ padding: '8px 10px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none' }}>
+                                      <option value="">— select —</option>
+                                      {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                    </select>
+                                  </label>
+                                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#374151' }}>Name column</span>
+                                    <select value={csvNameCol} onChange={e => setCsvNameCol(e.target.value)}
+                                      style={{ padding: '8px 10px', border: '1px solid #D1D5DB', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none' }}>
+                                      <option value="">— none —</option>
+                                      {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                                    </select>
+                                  </label>
+                                </div>
+                              )}
+                              {csvPhoneCol && csvRawRows.length > 0 && (
+                                <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px' }}>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', marginBottom: 6 }}>Preview (first 3)</div>
+                                  {csvRawRows.slice(0, 3).map((row, i) => (
+                                    <div key={i} style={{ fontSize: 12, color: '#374151', display: 'flex', gap: 8, marginBottom: 2 }}>
+                                      <span style={{ fontFamily: 'monospace' }}>{row[csvPhoneCol] || '—'}</span>
+                                      {csvNameCol && <span style={{ color: '#9CA3AF' }}>· {row[csvNameCol] || '—'}</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div style={{ marginTop: 22, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                           <button onClick={() => setShowCampaignForm(false)}
                             style={{ padding: '10px 18px', borderRadius: 9, border: '1px solid #D1D5DB', background: '#fff', color: '#374151', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
                             Cancel
                           </button>
-                          <button onClick={handleCreateCampaign} disabled={campaignSaving || !newCampaign.name.trim() || !newCampaign.custom_message.trim()}
-                            style={{ padding: '10px 22px', borderRadius: 9, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', opacity: (campaignSaving || !newCampaign.name.trim() || !newCampaign.custom_message.trim()) ? 0.55 : 1 }}>
-                            {campaignSaving ? 'Saving…' : 'Create campaign'}
+                          <button onClick={handleCreateCampaign}
+                            disabled={campaignSaving || !newCampaign.name.trim() || !newCampaign.custom_message.trim() || (newCampaign.target_type === 'csv' && (!csvPhoneCol || csvRawRows.length === 0))}
+                            style={{ padding: '10px 22px', borderRadius: 9, border: 'none', background: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', opacity: (campaignSaving || !newCampaign.name.trim() || !newCampaign.custom_message.trim() || (newCampaign.target_type === 'csv' && (!csvPhoneCol || csvRawRows.length === 0))) ? 0.55 : 1 }}>
+                            {campaignSaving ? 'Creating…' : newCampaign.target_type === 'csv' ? `Create & launch (${csvRawRows.length.toLocaleString()} contacts)` : 'Create campaign'}
                           </button>
                         </div>
                       </motion.div>

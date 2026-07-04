@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { load } from 'cheerio'
@@ -1407,6 +1408,49 @@ export async function getBusinessApiContext(requiredFeature?: PortalFeatureKey):
     accountEmail: user.email?.toLowerCase() ?? null,
     portal,
   }
+}
+
+/**
+ * Shared auth entry point for company-scoped business API routes (WhatsApp,
+ * mailbox, etc.) that previously each hand-rolled their own
+ * `try { getBusinessApiContext(...) } catch { return NextResponse.json(...) }`
+ * wrapper — collapses that boilerplate to one call and keeps the
+ * error-to-status mapping consistent across every route that uses it.
+ * On failure, throws a `BusinessApiError` — catch it and call
+ * `businessApiErrorResponse(err)` to build the NextResponse.
+ */
+export class BusinessApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.status = status
+  }
+}
+
+export async function requireBusinessCompany(feature?: PortalFeatureKey) {
+  let context: BusinessApiContext
+  try {
+    context = await getBusinessApiContext(feature)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unauthorized'
+    const status = message === 'Active subscription required' || message === 'This feature is not enabled for the active plan'
+      ? 403
+      : 401
+    throw new BusinessApiError(message, status)
+  }
+
+  if (!context.portal.companyId) {
+    throw new BusinessApiError('No company found', 404)
+  }
+
+  return { companyId: context.portal.companyId, portal: context.portal, accountEmail: context.accountEmail }
+}
+
+export function businessApiErrorResponse(err: unknown) {
+  if (err instanceof BusinessApiError) {
+    return NextResponse.json({ error: err.message }, { status: err.status })
+  }
+  return NextResponse.json({ error: err instanceof Error ? err.message : 'Unauthorized' }, { status: 401 })
 }
 
 export async function getResearchQuota(userId: string, timeZone: string) {

@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
   }
 
   const company_id = ctx.portal.companyId;
+  if (!company_id) return NextResponse.json({ success: false, error: 'No company found' }, { status: 404 });
 
   let leads: LeadRow[];
   try {

@@ -571,30 +571,31 @@ ${filters}
 );
 out tags center ${limit * 3};`
 
-    let results = await withTimeout(runQuery(primaryQuery), 11000, [])
+    // Keep inner timeouts short — outer withTimeout(6000) in orchestrator is the real cap
+    let results = await withTimeout(runQuery(primaryQuery), 4000, [])
 
     // Fallback 1: relax admin_level constraint
     if (results.length < 3) {
-      const fallbackQuery = `[out:json][timeout:10];
+      const fallbackQuery = `[out:json][timeout:8];
 area[name~"^${city}$",i]->.city;
 (
 ${filters}
 );
 out tags center ${limit * 3};`
-      const fallbackResults = await withTimeout(runQuery(fallbackQuery), 10000, [])
+      const fallbackResults = await withTimeout(runQuery(fallbackQuery), 3000, [])
       if (fallbackResults.length > results.length) results = fallbackResults
     }
 
     // Fallback 2: text-search by city name in address tags (works without admin boundaries)
     if (results.length < 3 && osmTags.length > 0) {
       const [k, v] = osmTags[0].split('=')
-      const textQuery = `[out:json][timeout:10];
+      const textQuery = `[out:json][timeout:8];
 (
   nwr[${k}=${v}]["addr:city"~"${city}",i];
   nwr[${k}=${v}]["is_in:city"~"${city}",i];
 );
 out tags center ${limit * 3};`
-      const textResults = await withTimeout(runQuery(textQuery), 10000, [])
+      const textResults = await withTimeout(runQuery(textQuery), 3000, [])
       if (textResults.length > results.length) results = textResults
     }
 
@@ -1008,7 +1009,7 @@ const ZOMATO_CITY_MAP: Record<string, string> = {
   'Goa': 'goa',
   'Panaji': 'goa',
   'Mysuru': 'mysore',
-  'Vadodara': 'baroda',
+  'Vadodara': 'vadodara',
   'Visakhapatnam': 'vizag',
   'Noida': 'ncr',
   'Gurugram': 'ncr',
@@ -1061,7 +1062,7 @@ const PRACTO_CITY_MAP: Record<string, string> = {
   'Lucknow': 'lucknow', 'Noida': 'noida', 'Gurugram': 'gurgaon',
   'Visakhapatnam': 'vizag', 'Coimbatore': 'coimbatore',
   'Navi Mumbai': 'navi-mumbai', 'Thane': 'thane',
-  'Mysuru': 'mysore', 'Vadodara': 'baroda', 'Goa': 'goa',
+  'Mysuru': 'mysore', 'Vadodara': 'vadodara', 'Goa': 'goa',
 }
 
 // Practo's own booking numbers that appear on every listing — not actual clinic phones
@@ -1381,7 +1382,11 @@ export async function fetchBingLeads(city: string, category: string, limit: numb
           // Title from <h2>
           const title = block.match(/<h2[^>]*>(?:<a[^>]*>)?([^<]{3,80})/)?.[1]?.trim()
           if (!title) continue
-          const cleanName = title.split('|')[0].split(' - ')[0].split('–')[0].trim().slice(0, 80)
+          // Split on separators; pick the first non-generic segment.
+          // Handles "Home - BusinessName" and "BusinessName | Home" formats.
+          const GENERIC_SEGMENT = /^(home|about|contact|welcome|index|login|sign in|menu|products|services|gallery|portfolio)$/i
+          const segments = title.split(/\s*[\|–\-]\s*/).map(s => s.trim()).filter(s => s.length >= 3)
+          const cleanName = (segments.find(s => !GENERIC_SEGMENT.test(s)) ?? segments[0] ?? '').slice(0, 80)
           // Skip generic web page titles — not business names
           if (cleanName.length < 4 || GENERIC_TITLE.test(cleanName)) continue
           const key = normalizeName(cleanName)
@@ -1533,10 +1538,11 @@ export async function scrapeLeads(
 ): Promise<ScrapedLead[]> {
   const perSource = Math.ceil(limit * 2)
 
-  // 7 sources in parallel — all capped individually so total wall-time ≤ 8s (Netlify Free 10s budget)
+  // 8 sources in parallel — all capped individually so total wall-time ≤ 8s (Netlify Free 10s budget)
   // Overpass/OSM  — location data, addresses, some phones (always runs)
   // Nominatim     — OSM geocoding, coordinates (always runs)
   // Bing          — web search snippets via directory site: queries (always runs)
+  // DDG           — HTML search; returns [] on 202 captcha (server IPs blocked) (always runs)
   // JustDial      — India's #1 SMB directory; returns [] on bot-block (always runs)
   // Sulekha       — Indian SMB directory with real phones (always runs)
   // Zomato        — food categories only; returns [] otherwise
@@ -1545,6 +1551,7 @@ export async function scrapeLeads(
     withTimeout(fetchOverpassLeads(city, category, perSource), 6000, []),
     withTimeout(fetchNominatimLeads(city, category, perSource), 5000, []),
     withTimeout(fetchBingLeads(city, category, Math.ceil(limit / 2)), 5000, []),
+    withTimeout(fetchDDGLeads(city, category, Math.ceil(limit / 2)), 4500, []),
     withTimeout(fetchJustDialLeads(city, category, perSource), 5500, []),
     withTimeout(fetchSulekhaLeads(city, category, perSource), 6000, []),
     withTimeout(fetchZomatoLeads(city, category, perSource), 5000, []),

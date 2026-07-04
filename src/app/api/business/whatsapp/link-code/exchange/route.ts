@@ -45,14 +45,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Atomic update: only succeeds if the row still has used=false (prevents TOCTOU race)
-    const { count } = await supabaseAdmin
+    const { data: updatedRows } = await supabaseAdmin
       .from('wa_link_codes')
       .update({ used: true })
       .eq('code', cleanCode)
       .eq('used', false)
-      .select('id', { count: 'exact', head: true });
+      .select('id');
 
-    if (!count || count === 0) {
+    if (!updatedRows || updatedRows.length === 0) {
       return NextResponse.json({ error: 'Code already used. Generate a new code from your dashboard.' }, { status: 400 });
     }
 

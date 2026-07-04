@@ -8,6 +8,7 @@ import {
   BillingCycle,
   ensureWorkspaceSlug,
   getPlanPrice,
+  getPlanSetupFee,
   getWorkspacePath,
   getWorkspaceUrl,
   isReservedWorkspaceSlug,
@@ -120,6 +121,7 @@ export async function POST(request: Request) {
         })
       : null
     const finalAmount = appliedCoupon?.finalAmount ?? baseAmount
+    const setupFee = getPlanSetupFee(selectedPlan, billingCycle)
     const durationLabel = billingCycle === 'annual' ? 'yearly' : 'monthly'
     const razorpayPlanIdField = billingCycle === 'annual' ? 'annual_razorpay_plan_id' : 'monthly_razorpay_plan_id'
     let razorpayPlanId = selectedPlan[razorpayPlanIdField]
@@ -175,6 +177,8 @@ export async function POST(request: Request) {
       customerName: ownerName,
       customerEmail: email,
       referenceId,
+      setupFeeInRupees: setupFee,
+      setupFeeLabel: `${selectedPlan.name} - one-time setup fee`,
       notes: {
         plan_slug: selectedPlan.slug,
         company_name: companyName,
@@ -182,10 +186,19 @@ export async function POST(request: Request) {
         workspace_slug: workspaceSlug,
         workspace_url: workspaceUrl,
         backlink_url: workspaceUrl,
-        coupon_code: appliedCoupon?.code ?? ''
+        coupon_code: appliedCoupon?.code ?? '',
+        setup_fee: String(setupFee)
       }
     })
 
+    // NOTE: onboarding_subscriptions does NOT have company_id/user_id/coupon_*/
+    // discount_amount/final_amount/workspace_path/workspace_mode/backlink_enabled
+    // columns (verified against the live schema) — inserting them here used to
+    // make this call fail with "column does not exist" on every checkout,
+    // silently blocking every new signup after the Razorpay subscription was
+    // already created. Everything that data represents is preserved in `notes`
+    // instead, which the rest of the codebase (business-portal.ts, the
+    // Razorpay webhook) already reads from as the source of truth.
     const { data: signup, error: signupError } = await supabase.from('onboarding_subscriptions').insert({
       plan_id: selectedPlan.id,
       company_name: companyName,
@@ -198,21 +211,10 @@ export async function POST(request: Request) {
       subdomain_slug: workspaceSlug,
       subdomain_url: workspaceUrl,
       workspace_slug: workspaceSlug,
-      workspace_path: workspacePath,
       workspace_backlink_url: workspaceUrl,
-      workspace_mode: 'backlink',
-      backlink_enabled: true,
       razorpay_plan_id: razorpayPlanId,
       razorpay_subscription_id: subscription.id,
       razorpay_short_url: subscription.short_url ?? null,
-      user_id: user.id,
-      company_id: companyId,
-      coupon_id: appliedCoupon?.id ?? null,
-      coupon_code: appliedCoupon?.code ?? null,
-      coupon_discount_type: appliedCoupon?.discountType ?? null,
-      coupon_discount_value: appliedCoupon?.discountValue ?? null,
-      discount_amount: appliedCoupon?.discountAmount ?? 0,
-      final_amount: finalAmount,
       notes: {
         reference_id: referenceId,
         plan_name: selectedPlan.name,
@@ -222,11 +224,18 @@ export async function POST(request: Request) {
         workspace_slug: workspaceSlug,
         workspace_url: workspaceUrl,
         backlink_url: workspaceUrl,
+        workspace_path: workspacePath,
+        workspace_mode: 'backlink',
+        backlink_enabled: true,
         original_amount: baseAmount,
         final_amount: finalAmount,
+        setup_fee_amount: setupFee,
         discount_amount: appliedCoupon?.discountAmount ?? 0,
+        coupon_id: appliedCoupon?.id ?? null,
         coupon_code: appliedCoupon?.code ?? null,
-        coupon_name: appliedCoupon?.name ?? null
+        coupon_name: appliedCoupon?.name ?? null,
+        coupon_discount_type: appliedCoupon?.discountType ?? null,
+        coupon_discount_value: appliedCoupon?.discountValue ?? null
       }
     }).select().single()
 
@@ -250,6 +259,7 @@ export async function POST(request: Request) {
       pricing: {
         originalAmount: baseAmount,
         finalAmount,
+        setupFee,
         discountAmount: appliedCoupon?.discountAmount ?? 0,
         couponCode: appliedCoupon?.code ?? null
       }

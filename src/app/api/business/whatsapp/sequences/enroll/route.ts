@@ -7,6 +7,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { businessApiErrorResponse, requireBusinessCompany } from '@/lib/business-intelligence-server';
+
+const MAX_CONTACTS_PER_REQUEST = 500;
 
 function personalize(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? vars[k.toLowerCase()] ?? `{{${k}}}`);
@@ -18,17 +21,20 @@ function addDays(base: Date, days: number): string {
 }
 
 export async function POST(req: NextRequest) {
+  let companyId: string;
+  try {
+    ({ companyId } = await requireBusinessCompany('whatsapp'));
+  } catch (err) {
+    return businessApiErrorResponse(err);
+  }
+  const company = { id: companyId };
+
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   );
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { data: company } = await supabase.from('companies').select('id').eq('owner_id', user.id).maybeSingle();
-  if (!company) return NextResponse.json({ error: 'No company' }, { status: 404 });
 
   const { sequence_id, contacts } = await req.json() as {
     sequence_id: string;
@@ -38,15 +44,22 @@ export async function POST(req: NextRequest) {
   if (!sequence_id || !contacts?.length)
     return NextResponse.json({ error: 'sequence_id and contacts required' }, { status: 400 });
 
-  // Load sequence
+  if (contacts.length > MAX_CONTACTS_PER_REQUEST) {
+    return NextResponse.json({ error: `Max ${MAX_CONTACTS_PER_REQUEST} contacts per request` }, { status: 400 });
+  }
+
+  // Load sequence — verify ownership and active status
   const { data: seq } = await supabase
     .from('company_whatsapp_sequences')
-    .select('steps')
+    .select('steps, status')
     .eq('id', sequence_id)
     .eq('company_id', company.id)
     .maybeSingle();
 
   if (!seq) return NextResponse.json({ error: 'Sequence not found' }, { status: 404 });
+  if (seq.status && seq.status !== 'active') {
+    return NextResponse.json({ error: `Sequence is ${seq.status} — only active sequences can be enrolled` }, { status: 400 });
+  }
 
   interface Step { day: number; message: string }
   const steps = (seq.steps as Step[]).sort((a, b) => a.day - b.day);
@@ -55,6 +68,7 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   let enrolled = 0;
   let queued = 0;
+  const errors: string[] = [];
   const BATCH = 50;
 
   // Enroll rows
@@ -73,7 +87,15 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase
       .from('company_whatsapp_sequence_contacts')
       .insert(enrollRows.slice(i, i + BATCH));
-    if (!error) enrolled += Math.min(BATCH, enrollRows.length - i);
+    if (error) {
+      errors.push(`Enroll batch ${Math.floor(i / BATCH) + 1}: ${error.message}`);
+      break;
+    }
+    enrolled += Math.min(BATCH, enrollRows.length - i);
+  }
+
+  if (enrolled === 0 && errors.length) {
+    return NextResponse.json({ error: 'Enrollment failed', details: errors }, { status: 500 });
   }
 
   // Pre-queue ALL steps for ALL contacts immediately (with future scheduled_at)
@@ -102,8 +124,12 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < queueRows.length; i += BATCH) {
     const { error } = await supabase.from('whatsapp_queue').insert(queueRows.slice(i, i + BATCH));
-    if (!error) queued += Math.min(BATCH, queueRows.length - i);
+    if (error) {
+      errors.push(`Queue batch ${Math.floor(i / BATCH) + 1}: ${error.message}`);
+      break;
+    }
+    queued += Math.min(BATCH, queueRows.length - i);
   }
 
-  return NextResponse.json({ success: true, enrolled, queued });
+  return NextResponse.json({ success: true, enrolled, queued, ...(errors.length ? { warnings: errors } : {}) });
 }

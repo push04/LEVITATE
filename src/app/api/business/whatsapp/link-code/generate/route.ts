@@ -8,12 +8,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { randomBytes } from 'crypto';
+import { businessApiErrorResponse, requireBusinessCompany } from '@/lib/business-intelligence-server';
 
 function genCode(): string {
   return randomBytes(4).toString('hex').toUpperCase();
 }
 
 export async function POST(_req: NextRequest) {
+  let companyId: string;
+  try {
+    ({ companyId } = await requireBusinessCompany('whatsapp'));
+  } catch (err) {
+    return businessApiErrorResponse(err);
+  }
+
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -22,18 +30,6 @@ export async function POST(_req: NextRequest) {
       { cookies: { getAll: () => cookieStore.getAll(), setAll: (cs) => cs.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } }
     );
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    // Get company_id for this user
-    const { data: company, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('owner_id', user.id)
-      .single();
-
-    if (companyError || !company) return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-
     const code = genCode();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
 
@@ -41,7 +37,7 @@ export async function POST(_req: NextRequest) {
     const { error: upsertError } = await supabase
       .from('wa_link_codes')
       .upsert({
-        company_id: company.id,
+        company_id: companyId,
         code,
         expires_at: expiresAt,
         used: false,

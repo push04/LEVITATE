@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Check, ExternalLink, Loader2, Lock, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import styles from '@/components/business/ui/DashboardPrimitives.module.css';
-import { BillingCycle, OnboardingContent, OnboardingPlan, getPlanPrice } from '@/lib/onboarding';
+import { BillingCycle, OnboardingContent, OnboardingPlan, getPlanPrice, getPlanSetupFee } from '@/lib/onboarding';
 
 // Razorpay types are globally declared in src/types/declarations.d.ts
 
@@ -94,6 +94,7 @@ export default function OnboardingCheckout({
   const selectedPlanIsContact = selectedPlan ? isContactOnlyPlan(selectedPlan, billingCycle) : false;
   const selectedPlanPrice = selectedPlan ? getPlanPrice(selectedPlan, billingCycle) : 0;
   const effectivePrice = appliedCoupon?.finalAmount ?? selectedPlanPrice;
+  const selectedPlanSetupFee = selectedPlan ? getPlanSetupFee(selectedPlan, billingCycle) : 0;
   const companyInvalid = submitted && isAuthenticated && !selectedPlanIsContact && !form.companyName.trim();
   const ownerInvalid = submitted && isAuthenticated && !selectedPlanIsContact && !form.ownerName.trim();
 
@@ -304,6 +305,7 @@ export default function OnboardingCheckout({
             const isSelected = plan.id === selectedPlanId;
             const isContactPlan = isContactOnlyPlan(plan, billingCycle);
             const price = getPlanPrice(plan, billingCycle);
+            const setupFee = getPlanSetupFee(plan, billingCycle);
 
             return (
               <motion.button
@@ -338,6 +340,11 @@ export default function OnboardingCheckout({
                     <div className="mt-2 type-caption">
                       {isContactPlan ? 'Enterprise scope call' : billingCycle === 'monthly' ? 'Billed monthly' : 'Billed yearly'}
                     </div>
+                    {!isContactPlan && setupFee > 0 ? (
+                      <div className="mt-1 type-caption text-[var(--text-tertiary)]">
+                        + Rs. {setupFee.toLocaleString('en-IN')} one-time setup fee (charged with first payment)
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="mt-5 space-y-3">
@@ -509,6 +516,11 @@ export default function OnboardingCheckout({
                 <div className="mt-3 space-y-1">
                   <div className="type-caption">Original: Rs. {selectedPlanPrice.toLocaleString('en-IN')}</div>
                   <div className="type-caption">Discount: Rs. {appliedCoupon.discountAmount.toLocaleString('en-IN')}</div>
+                </div>
+              ) : null}
+              {!selectedPlanIsContact && selectedPlanSetupFee > 0 ? (
+                <div className="mt-3 type-caption text-[var(--text-tertiary)]">
+                  + Rs. {selectedPlanSetupFee.toLocaleString('en-IN')} one-time setup fee charged with the first payment
                 </div>
               ) : null}
             </div>

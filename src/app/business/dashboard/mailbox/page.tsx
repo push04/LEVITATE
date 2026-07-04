@@ -2,14 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Inbox, Mail, RefreshCw, Send, User, X } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { useCompanyPortalState } from '@/hooks/useCompanyPortalState';
 import BusinessPortalLocked from '@/components/business/BusinessPortalLocked';
 
 interface AgentEmail {
   id: string;
-  lead_id: string | null;
-  agent_name: string;
   direction: 'inbound' | 'outbound';
   to_email: string | null;
   from_email: string | null;
@@ -33,11 +30,18 @@ function getStatusMeta(status: string) {
 export default function BusinessMailboxPage() {
   const portal = useCompanyPortalState();
   const [rawEmails, setRawEmails] = useState<AgentEmail[]>([]);
+  const [alias, setAlias] = useState<string | null>(null);
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<'all' | 'inbound' | 'outbound'>('all');
+  const [showCompose, setShowCompose] = useState(false);
+  const [composeTo, setComposeTo] = useState('');
+  const [composeSubject, setComposeSubject] = useState('');
+  const [composeBody, setComposeBody] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   async function fetchEmails(showRefreshState = true) {
     if (showRefreshState) {
@@ -45,8 +49,14 @@ export default function BusinessMailboxPage() {
     }
 
     setIsLoading(true);
-    const { data } = await supabase.from('agent_emails').select('*').order('created_at', { ascending: false }).limit(500);
-    setRawEmails((data ?? []) as AgentEmail[]);
+    try {
+      const res = await fetch('/api/business/mailbox');
+      const json = await res.json() as { emails?: AgentEmail[]; alias?: string | null; error?: string };
+      setRawEmails(json.emails ?? []);
+      setAlias(json.alias ?? null);
+    } catch {
+      setRawEmails([]);
+    }
     setIsLoading(false);
     setIsRefreshing(false);
   }
@@ -56,22 +66,34 @@ export default function BusinessMailboxPage() {
       return;
     }
 
-    const initialLoad = window.setTimeout(() => {
-      void fetchEmails();
-    }, 0);
-
-    const sub = supabase
-      .channel('business_mailbox_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'agent_emails' }, () => {
-        void fetchEmails(false);
-      })
-      .subscribe();
-
-    return () => {
-      window.clearTimeout(initialLoad);
-      supabase.removeChannel(sub);
-    };
+    void fetchEmails();
+    const interval = window.setInterval(() => void fetchEmails(false), 30000);
+    return () => window.clearInterval(interval);
   }, [portal.hasPaidAccess, portal.loading]);
+
+  async function handleSend() {
+    if (!composeTo.trim() || !composeSubject.trim() || !composeBody.trim()) return;
+    setSending(true);
+    setSendError(null);
+    try {
+      const res = await fetch('/api/business/mailbox', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: composeTo.trim(), subject: composeSubject.trim(), body: composeBody.trim() }),
+      });
+      const json = await res.json() as { success?: boolean; error?: string };
+      if (!res.ok || !json.success) throw new Error(json.error ?? 'Failed to send');
+      setComposeTo('');
+      setComposeSubject('');
+      setComposeBody('');
+      setShowCompose(false);
+      await fetchEmails(false);
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : 'Failed to send');
+    } finally {
+      setSending(false);
+    }
+  }
 
   const threads = useMemo(() => {
     const groups: Record<string, AgentEmail[]> = {};
@@ -157,16 +179,81 @@ export default function BusinessMailboxPage() {
             <p className="mt-2 max-w-3xl text-[var(--muted)]">
               Conversation history, delivery status, and outreach context for the business workspace.
             </p>
+            {alias ? (
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                Your business email: <span className="font-mono text-[#e5c487]">{alias}</span>
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                A dedicated business.&lt;yourname&gt;@levitatelabs.online address is available on Growth OS and above.
+              </p>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => void fetchEmails()}
-            className={`inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition-colors hover:border-[#c8a96e]/40 hover:text-[#e5c487] ${isRefreshing ? 'opacity-80' : ''}`}
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh mailbox
-          </button>
+          <div className="flex items-center gap-3">
+            {alias && (
+              <button
+                type="button"
+                onClick={() => setShowCompose((v) => !v)}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#c8a96e] px-5 py-3 text-sm font-semibold text-[#140f07] transition-colors hover:bg-[#dab97e]"
+              >
+                <Send className="h-4 w-4" />
+                Compose
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void fetchEmails()}
+              className={`inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition-colors hover:border-[#c8a96e]/40 hover:text-[#e5c487] ${isRefreshing ? 'opacity-80' : ''}`}
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh mailbox
+            </button>
+          </div>
         </div>
+
+        {showCompose && alias && (
+          <div className="mt-6 space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--background)] p-5">
+            {sendError && <div className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{sendError}</div>}
+            <input
+              type="email"
+              placeholder="To"
+              value={composeTo}
+              onChange={(e) => setComposeTo(e.target.value)}
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm outline-none focus:border-[#c8a96e]/40"
+            />
+            <input
+              type="text"
+              placeholder="Subject"
+              value={composeSubject}
+              onChange={(e) => setComposeSubject(e.target.value)}
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm outline-none focus:border-[#c8a96e]/40"
+            />
+            <textarea
+              placeholder="Message"
+              value={composeBody}
+              onChange={(e) => setComposeBody(e.target.value)}
+              rows={5}
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm outline-none focus:border-[#c8a96e]/40"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCompose(false)}
+                className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={sending}
+                onClick={() => void handleSend()}
+                className="rounded-xl bg-[#c8a96e] px-4 py-2 text-sm font-semibold text-[#140f07] hover:bg-[#dab97e] disabled:opacity-50"
+              >
+                {sending ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex min-h-[720px] gap-6">
@@ -175,7 +262,7 @@ export default function BusinessMailboxPage() {
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-lg flex items-center gap-2">
                 <Mail className="w-5 h-5 text-[#e5c487]" />
-                Global Inbox
+                Your Inbox
               </h2>
               <span className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">{filteredThreads.length} threads</span>
             </div>
@@ -223,11 +310,6 @@ export default function BusinessMailboxPage() {
                   </div>
                   <h3 className="text-sm font-medium mb-1 truncate">{thread.latest.subject || '(no subject)'}</h3>
                   <div className="flex items-center gap-2">
-                    {thread.latest.agent_name !== 'human_agent' && thread.latest.agent_name !== 'inbound_bot' && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#c8a96e]/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#e5c487]">
-                        <Mail className="w-3 h-3" /> {thread.latest.agent_name}
-                      </span>
-                    )}
                     <p className="line-clamp-1 flex-1 text-xs text-[var(--muted)]">{thread.latest.body}</p>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${getStatusMeta(thread.latest.status).className}`}>
                       {getStatusMeta(thread.latest.status).label}
@@ -269,7 +351,7 @@ export default function BusinessMailboxPage() {
                       <div className="flex justify-between items-center mb-2 gap-4 text-xs opacity-70">
                         <span className="font-semibold flex items-center gap-1">
                           {msg.direction === 'outbound' ? <Send className="w-3 h-3" /> : <Inbox className="w-3 h-3" />}
-                          {msg.direction === 'outbound' ? msg.agent_name : msg.from_email}
+                          {msg.direction === 'outbound' ? (alias ?? 'You') : msg.from_email}
                         </span>
                         <span>{new Date(msg.created_at).toLocaleString()}</span>
                       </div>

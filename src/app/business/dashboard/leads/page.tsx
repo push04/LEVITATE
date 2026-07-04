@@ -13,6 +13,7 @@ import styles from '@/components/business/ui/DashboardPrimitives.module.css';
 import { useCompanyPortalState } from '@/hooks/useCompanyPortalState';
 import { useCompanyCrmLeads } from '@/hooks/useCompanyCrmLeads';
 import { type BusinessLeadRecord, useBusinessLeadRecords } from '@/hooks/useBusinessLeadRecords';
+import { downloadCsv } from '@/lib/csv-export';
 
 type PageTab = 'my-leads' | 'find-leads' | 'browse-db';
 type LeadFilter = 'all' | 'new' | 'engaged' | 'closed';
@@ -114,6 +115,8 @@ export default function BusinessLeadsPage() {
   const [dbCategory, setDbCategory] = useState('');
   const [dbLoading, setDbLoading] = useState(false);
   const [dbAddState, setDbAddState] = useState<Record<string, 'idle' | 'adding' | 'added'>>({});
+  const [dbCapped, setDbCapped] = useState(false);
+  const [dbCapLimit, setDbCapLimit] = useState<number | null>(null);
 
   const loadDbLeads = useCallback(async (page = 1, city = dbCity, cat = dbCategory) => {
     setDbLoading(true);
@@ -123,10 +126,12 @@ export default function BusinessLeadsPage() {
       if (cat) params.set('category', cat);
       params.set('min_score', '5');
       const r = await fetch(`/api/business/leads/browse?${params}`);
-      const d = await r.json() as { data: ScrapedResult[]; total: number };
+      const d = await r.json() as { data: ScrapedResult[]; total: number; capped?: boolean; capLimit?: number | null };
       setDbLeads(d.data ?? []);
       setDbTotal(d.total ?? 0);
       setDbPage(page);
+      setDbCapped(Boolean(d.capped));
+      setDbCapLimit(d.capLimit ?? null);
     } catch { /* ignore */ } finally {
       setDbLoading(false);
     }
@@ -609,9 +614,30 @@ export default function BusinessLeadsPage() {
                 Search
               </button>
             </div>
-            <p className="text-xs text-[var(--text-secondary)]">
-              {dbTotal.toLocaleString('en-IN')} pre-scraped leads available — instantly searchable, no wait time.
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-[var(--text-secondary)]">
+                {dbTotal.toLocaleString('en-IN')} pre-scraped leads available — instantly searchable, no wait time.
+              </p>
+              <button
+                onClick={() => downloadCsv(
+                  `lead-database-${new Date().toISOString().slice(0, 10)}.csv`,
+                  [
+                    { key: 'business_name', label: 'Business Name' },
+                    { key: 'city', label: 'City' },
+                    { key: 'category', label: 'Category' },
+                    { key: 'phone', label: 'Phone' },
+                    { key: 'website', label: 'Website' },
+                    { key: 'address', label: 'Address' },
+                    { key: 'ai_score', label: 'AI Score' },
+                  ],
+                  dbLeads
+                )}
+                disabled={dbLeads.length === 0}
+                className="whitespace-nowrap rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Export this page (CSV)
+              </button>
+            </div>
           </section>
 
           {dbLoading && (
@@ -668,6 +694,13 @@ export default function BusinessLeadsPage() {
                   </div>
                 </div>
               )}
+
+              {dbCapped && (
+                <div className="rounded-2xl border border-[var(--gold-base)]/30 bg-[var(--gold-glow)] p-4 text-sm text-[var(--text-secondary)]">
+                  You&apos;re viewing the first {dbCapLimit?.toLocaleString('en-IN')} leads available on your plan.{' '}
+                  <a href="/business/dashboard/subscribe" className="font-semibold text-[var(--gold-bright)] underline">Upgrade your plan</a> to unlock the full lead database.
+                </div>
+              )}
             </div>
           )}
 
@@ -718,6 +751,32 @@ export default function BusinessLeadsPage() {
                 >
                   <Upload className="h-4 w-4" />
                   Import contacts
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadCsv(
+                    `my-leads-${new Date().toISOString().slice(0, 10)}.csv`,
+                    [
+                      { key: 'name', label: 'Name' },
+                      { key: 'email', label: 'Email' },
+                      { key: 'phone', label: 'Phone' },
+                      { key: 'business_type', label: 'Business Type' },
+                      { key: 'service_category', label: 'Category' },
+                      { key: 'city', label: 'City' },
+                      { key: 'status', label: 'Status' },
+                      { key: 'deal_value', label: 'Deal Value' },
+                      { key: 'budget', label: 'Budget' },
+                      { key: 'ai_score', label: 'AI Score' },
+                      { key: 'source', label: 'Source' },
+                      { key: 'notes', label: 'Notes' },
+                      { key: 'created_at', label: 'Created At' },
+                    ],
+                    filteredRecords
+                  )}
+                  disabled={filteredRecords.length === 0}
+                  className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-5 py-3 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-overlay)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Export CSV
                 </button>
               </div>
             </div>

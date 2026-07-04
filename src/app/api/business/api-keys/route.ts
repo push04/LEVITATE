@@ -115,3 +115,46 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const context = await getBusinessApiContext()
+    const supabase = getServiceSupabase()
+
+    const body: unknown = await request.json().catch(() => ({}))
+    const id =
+      body && typeof body === 'object' && 'id' in body && typeof (body as Record<string, unknown>).id === 'string'
+        ? (body as Record<string, unknown>).id as string
+        : null
+
+    if (!id) {
+      return NextResponse.json({ error: 'API key id is required' }, { status: 400 })
+    }
+
+    const { data: revoked, error: updateError } = await supabase
+      .from('api_keys')
+      .update({ is_active: false })
+      .eq('id', id)
+      .eq('user_id', context.userId)
+      .select('id')
+      .maybeSingle()
+
+    if (updateError) {
+      return NextResponse.json({ error: 'Failed to revoke API key' }, { status: 500 })
+    }
+    if (!revoked) {
+      return NextResponse.json({ error: 'API key not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    if (message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (message === 'Active subscription required') {
+      return NextResponse.json({ error: 'Active subscription required' }, { status: 403 })
+    }
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
