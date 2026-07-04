@@ -124,6 +124,7 @@ export default function TenderPulsePage() {
   const [query, setQuery] = useState('')
   const [aiFilters, setAiFilters] = useState<Record<string, any> | null>(null)
   const [aiSummary, setAiSummary] = useState<string | null>(null)
+  const [aiNotice, setAiNotice] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
   const [category, setCategory] = useState('')
   const [smartSort, setSmartSort] = useState(true)
@@ -155,8 +156,9 @@ export default function TenderPulsePage() {
   useEffect(() => { load() }, [load])
 
   async function runSmartSearch() {
-    if (!query.trim()) { setAiFilters(null); setAiSummary(null); return }
+    if (!query.trim()) { setAiFilters(null); setAiSummary(null); setAiNotice(null); return }
     setSearching(true)
+    setAiNotice(null)
     try {
       const res = await fetch('/api/admin/tenders/parse-query', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }),
@@ -164,30 +166,40 @@ export default function TenderPulsePage() {
       const data = await res.json()
       setAiFilters(data.filters)
       setAiSummary(data.filters?.summary || null)
+      if (data.error || !data.filters) {
+        setAiNotice('AI parsing unavailable — using plain keyword search instead.')
+      }
     } catch {
       setAiFilters(null)
+      setAiNotice('AI search request failed — using plain keyword search instead.')
     } finally {
       setSearching(false)
     }
   }
 
+  const hasUsableAiFilters = !!aiFilters && (
+    aiFilters.categories?.length || aiFilters.districts?.length || aiFilters.states?.length ||
+    aiFilters.keywords?.length || aiFilters.min_value != null || aiFilters.max_value != null ||
+    aiFilters.urgent_only
+  )
+
   const filtered = useMemo(() => {
     let list = tenders.filter((t) => showHidden || !t.is_hidden)
     if (category) list = list.filter((t) => t.category === category)
 
-    if (aiFilters) {
-      if (aiFilters.categories?.length) list = list.filter((t) => aiFilters.categories.includes(t.category))
-      if (aiFilters.districts?.length)
-        list = list.filter((t) => aiFilters.districts.some((d: string) => t.district?.toLowerCase().includes(d.toLowerCase())))
-      if (aiFilters.states?.length)
-        list = list.filter((t) => aiFilters.states.some((s: string) => t.sources?.state?.toLowerCase() === s.toLowerCase()))
-      if (aiFilters.keywords?.length) {
+    if (hasUsableAiFilters) {
+      if (aiFilters!.categories?.length) list = list.filter((t) => aiFilters!.categories.includes(t.category))
+      if (aiFilters!.districts?.length)
+        list = list.filter((t) => aiFilters!.districts.some((d: string) => t.district?.toLowerCase().includes(d.toLowerCase())))
+      if (aiFilters!.states?.length)
+        list = list.filter((t) => aiFilters!.states.some((s: string) => t.sources?.state?.toLowerCase() === s.toLowerCase()))
+      if (aiFilters!.keywords?.length) {
         list = list.filter((t) => {
           const hay = `${t.title} ${t.organization ?? ''}`.toLowerCase()
-          return aiFilters.keywords.some((k: string) => hay.includes(k.toLowerCase()))
+          return aiFilters!.keywords.some((k: string) => hay.includes(k.toLowerCase()))
         })
       }
-      if (aiFilters.urgent_only) {
+      if (aiFilters!.urgent_only) {
         list = list.filter((t) => {
           if (!t.bid_submission_deadline) return false
           const days = (new Date(t.bid_submission_deadline).getTime() - Date.now()) / 86400000
@@ -195,6 +207,9 @@ export default function TenderPulsePage() {
         })
       }
     } else if (query.trim() && !searching) {
+      // No usable AI-parsed filters (AI unavailable, or the query didn't map to
+      // any structured field) — fall back to plain substring search instead of
+      // silently showing the entire unfiltered list.
       const q = query.toLowerCase()
       list = list.filter((t) => `${t.title} ${t.organization ?? ''} ${t.district ?? ''}`.toLowerCase().includes(q))
     }
@@ -358,6 +373,10 @@ export default function TenderPulsePage() {
                   clear
                 </button>
               </p>
+            )}
+            {aiNotice && !aiSummary && (
+              <p className="mt-2 text-xs text-gray-400">{aiNotice}</p>
+            )}
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded-lg border border-gray-200 px-2 py-1 text-xs">

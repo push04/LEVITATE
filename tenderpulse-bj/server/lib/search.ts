@@ -58,11 +58,25 @@ export async function parseQueryWithGroq(query: string): Promise<ParsedFilters |
   }
 }
 
+function hasUsableFilters(f: ParsedFilters): boolean {
+  return !!(
+    f.categories?.length ||
+    f.districts?.length ||
+    f.keywords?.length ||
+    f.min_value != null ||
+    f.max_value != null
+  );
+}
+
 export async function smartSearch(tenders: Tender[], query: string): Promise<Tender[]> {
   if (!query.trim()) return tenders;
 
   const parsed = await parseQueryWithGroq(query);
-  if (parsed) {
+  // If the LLM returned an object but couldn't map the query to any
+  // structured field, treat it the same as "no parse" and fall through to
+  // Fuse — otherwise every constraint below gets skipped and this silently
+  // returns every tender, unfiltered.
+  if (parsed && hasUsableFilters(parsed)) {
     return tenders.filter((t) => {
       if (parsed.categories?.length && !parsed.categories.includes(t.category || "other")) return false;
       if (

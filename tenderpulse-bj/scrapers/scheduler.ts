@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { scrapeGepnic } from "./engines/gepnic.js";
 import { scrapeEproc2Bihar } from "./engines/eproc2_bihar.js";
 import { scrapeS3waasDistrict } from "./engines/s3waas_district.js";
-import { scrapeStandaloneHealth } from "./engines/standalone_health.js";
+import { scrapeStandalonePortal } from "./engines/standalone_portal.js";
 import { scrapeGemPublic } from "./engines/gem_public.js";
 import { normalize, type SourceConfig, type RawTender } from "./normalizer.js";
 import { dedupAndPersist, type StoredTender } from "./dedup.js";
@@ -94,7 +94,7 @@ const ENGINES: Record<string, (s: SourceConfig) => Promise<RawTender[]>> = {
   gepnic: scrapeGepnic,
   eproc2_bihar: scrapeEproc2Bihar,
   s3waas: scrapeS3waasDistrict,
-  standalone: scrapeStandaloneHealth,
+  standalone: scrapeStandalonePortal,
   gem: scrapeGemPublic,
   // ireps intentionally omitted — public search is JS-gated with no stable
   // href/API surface found yet; lowest priority per build order (Section 12).
@@ -111,6 +111,22 @@ interface SourceReport {
   duration_ms: number;
 }
 
+// Longest source in a normal run so far is ~90s (see data/crawl_report.json);
+// 3 minutes gives real headroom while still guaranteeing a hung engine (e.g.
+// a Playwright action stuck on a selector that never appears) can't hold a
+// concurrency slot — and therefore the whole crawl cycle — hostage forever.
+const SOURCE_TIMEOUT_MS = Number(process.env.CRAWL_SOURCE_TIMEOUT_MS || 180_000);
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms: ${label}`)), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
 async function runOne(source: SourceConfig): Promise<SourceReport> {
   const started = Date.now();
   const engine = ENGINES[source.family];
@@ -118,7 +134,7 @@ async function runOne(source: SourceConfig): Promise<SourceReport> {
     return { name: source.name, family: source.family, status: "failed", found: 0, new: 0, updated: 0, error: "no engine registered for family", duration_ms: 0 };
   }
   try {
-    const raw = await engine(source);
+    const raw = await withTimeout(engine(source), SOURCE_TIMEOUT_MS, source.name);
     const normalized = normalize(raw, source);
     const { newTenders, updatedTenders } = dedupAndPersist(source.name, normalized);
 

@@ -1,8 +1,9 @@
-// The PC server never talks to an SMTP/email API directly — per your setup,
-// actually sending email is the one job handed off to a small Netlify
-// function (netlify/functions/send-tender-email.ts), reached over HTTPS.
-// Point EMAIL_FUNCTION_URL at wherever that function is deployed
-// (https://yoursite.netlify.app/.netlify/functions/send-tender-email), plus
+// The PC server never talks to SMTP directly — actually sending email is
+// handed off to a Netlify function deployed as part of the main
+// levitatelabs.online site (LEVITATE-main/netlify/functions/send-tender-email.ts),
+// which sends via the site's existing SMTP_HOST/PORT/USER/PASS/FROM config.
+// Point EMAIL_FUNCTION_URL at that deployed function
+// (https://levitatelabs.online/.netlify/functions/send-tender-email), plus
 // EMAIL_FUNCTION_SECRET as a shared-secret header so randoms can't hit it.
 export interface SendEmailInput {
   to: string;

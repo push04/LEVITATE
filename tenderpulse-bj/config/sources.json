@@ -672,5 +672,145 @@
     "district": null,
     "org_type": "psu",
     "poll_frequency_minutes": 60
+  },
+  {
+    "name": "Bihar State Building Construction Corporation Ltd (BSBCCL)",
+    "family": "standalone",
+    "variant": "bsbccl",
+    "base_url": "https://bsbccl.bihar.gov.in/New_V/NewTenderDetails.aspx?TenderD=NewTenderDetails.aspx",
+    "state": "Bihar",
+    "district": null,
+    "org_type": "psu",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Bihar Rajya Pul Nirman Nigam Ltd (BRPNNL)",
+    "family": "standalone",
+    "variant": "brpnnl",
+    "base_url": "https://brpnnl.bihar.gov.in/Tenders.aspx",
+    "state": "Bihar",
+    "district": null,
+    "org_type": "psu",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Jawaharlal Nehru Medical College & Hospital, Bhagalpur (JLNMCH)",
+    "family": "standalone",
+    "variant": "jlnmch",
+    "base_url": "https://jlnmchbgp.org/tender.php",
+    "state": "Bihar",
+    "district": "Bhagalpur",
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Nalanda Medical College & Hospital, Patna (NMCH)",
+    "family": "standalone",
+    "variant": "nmch_patna",
+    "base_url": "https://www.nmchpatna.ac.in/tenders.php",
+    "state": "Bihar",
+    "district": "Patna",
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Government Medical College & Hospital, Purnea (GMCH)",
+    "family": "standalone",
+    "variant": "gmch_purnea",
+    "base_url": "https://gmchpurnea.com/notification/tenders/",
+    "state": "Bihar",
+    "district": "Purnea",
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Bhagwan Mahavir Institute of Medical Sciences, Pawapuri (VIMS Nalanda)",
+    "family": "standalone",
+    "variant": "vims_pawapuri",
+    "base_url": "https://vimspawapuri.org/tender/",
+    "state": "Bihar",
+    "district": "Nalanda",
+    "org_type": "hospital",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Bihar State Road Development Corporation Ltd (BSRDCL)",
+    "family": "standalone",
+    "variant": "bsrdcl",
+    "base_url": "https://bsrdcl.bihar.gov.in/tenders.aspx",
+    "state": "Bihar",
+    "district": null,
+    "org_type": "psu",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Patna Smart City Ltd",
+    "family": "standalone",
+    "variant": "patna_smart_city",
+    "base_url": "https://www.smartpatna.co.in/open_tenders.aspx",
+    "state": "Bihar",
+    "district": "Patna",
+    "org_type": "municipal",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Ranchi Smart City Corporation Ltd (RSCCL)",
+    "family": "standalone",
+    "variant": "ranchi_smart_city",
+    "base_url": "https://www.rsccl.in/CitizenPortal-Ranchi/tenders",
+    "state": "Jharkhand",
+    "district": "Ranchi",
+    "org_type": "municipal",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Indian Institute of Management, Ranchi (IIM Ranchi)",
+    "family": "standalone",
+    "variant": "iim_ranchi",
+    "base_url": "https://iimranchi.ac.in/tender/",
+    "state": "Jharkhand",
+    "district": "Ranchi",
+    "org_type": "state_dept",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Jharkhand State Pollution Control Board (JSPCB)",
+    "family": "standalone",
+    "variant": "jspcb",
+    "base_url": "https://jspcb.org.in/whats-new/",
+    "state": "Jharkhand",
+    "district": null,
+    "org_type": "state_dept",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Bihar Police Building Construction Corporation (BPBCC)",
+    "family": "standalone",
+    "variant": "bpbcc",
+    "base_url": "https://bpbcc.bihar.gov.in/Info/Tenders/",
+    "state": "Bihar",
+    "district": null,
+    "org_type": "psu",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Dr. Shyama Prasad Mukherjee University, Ranchi (DSPMU)",
+    "family": "standalone",
+    "variant": "dspmu_ranchi",
+    "base_url": "https://dspmuranchi.ac.in/Tender.aspx",
+    "state": "Jharkhand",
+    "district": "Ranchi",
+    "org_type": "state_dept",
+    "poll_frequency_minutes": 120
+  },
+  {
+    "name": "Patna University",
+    "family": "standalone",
+    "variant": "pup_patna",
+    "base_url": "https://www.pup.ac.in/TenderNew.aspx",
+    "state": "Bihar",
+    "district": "Patna",
+    "org_type": "state_dept",
+    "poll_frequency_minutes": 120
   }
 ]
