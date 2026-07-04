@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -74,7 +74,21 @@ function pwdStrength(p: string): { score: number; label: string; color: string }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function Onboard() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', background: '#08080E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 32, height: 32, border: '3px solid #2A2A3A', borderTopColor: '#C8A96E', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    }>
+      <OnboardInner />
+    </Suspense>
+  );
+}
+
+function OnboardInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -141,8 +155,11 @@ export default function Onboard() {
         const data = await res.json();
         if (data.success && Array.isArray(data.plans) && data.plans.length > 0) {
           setPlans(data.plans as DBPlan[]);
+          const requestedSlug = searchParams.get('plan');
+          const requested = requestedSlug ? data.plans.find((p: DBPlan) => p.slug === requestedSlug) : null;
           const featured = data.plans.find((p: DBPlan) => p.is_featured);
-          if (featured) setSelectedPlanSlug(featured.slug);
+          if (requested) setSelectedPlanSlug(requested.slug);
+          else if (featured) setSelectedPlanSlug(featured.slug);
         } else {
           setPlans(FALLBACK_PLANS);
         }
@@ -152,6 +169,7 @@ export default function Onboard() {
         setPlansLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const activePlan = plans.find(p => p.slug === selectedPlanSlug) ?? plans[0];
