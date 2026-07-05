@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ExternalLink, Loader2, TrendingDown, TrendingUp, Minus, TriangleAlert } from 'lucide-react';
+import { AlertTriangle, ExternalLink, Loader2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import styles from '@/components/business/ui/DashboardPrimitives.module.css';
-import PriceChart from '@/components/market-pulse/PriceChart';
-import { TechnicalVisuals, FundamentalsGrid, type Fundamentals } from '@/components/market-pulse/StockMetrics';
+import DigestCard from '@/components/market-pulse/DigestCard';
+import type { Fundamentals } from '@/components/market-pulse/StockMetrics';
 
 interface DigestRow {
   ticker: string;
@@ -74,72 +74,6 @@ function SentimentBadge({ sentiment }: { sentiment: string }) {
       <Icon className="h-3 w-3" />
       {sentiment}
     </span>
-  );
-}
-
-function RiskBadge({ level }: { level: string | null }) {
-  const style =
-    level === 'elevated'
-      ? 'border-[rgba(171,80,80,0.35)] bg-[rgba(171,80,80,0.1)] text-[#c97a7a]'
-      : level === 'low'
-        ? 'border-[rgba(61,122,92,0.35)] bg-[rgba(61,122,92,0.1)] text-[var(--status-closed)]'
-        : 'border-[var(--border-default)] bg-[var(--bg-overlay)] text-[var(--text-tertiary)]';
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${style}`}>
-      {level === 'elevated' && <TriangleAlert className="h-3 w-3" />}
-      {level ?? 'moderate'} risk
-    </span>
-  );
-}
-
-function DigestCard({ d }: { d: DigestRow }) {
-  return (
-    <details className="group rounded-[12px] border border-[var(--border-default)] bg-[var(--bg-elevated)]">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2.5 p-4">
-        <span className="font-medium text-[var(--text-primary)]">{d.company_name ?? d.ticker}</span>
-        <span className="type-caption text-[var(--text-tertiary)]">{d.ticker}{d.sector ? ` · ${d.sector}` : ''}</span>
-        <SentimentBadge sentiment={d.sentiment_trend} />
-        <span className={`font-medium ${d.price_change_pct != null && d.price_change_pct > 0 ? 'text-[var(--status-closed)]' : d.price_change_pct != null && d.price_change_pct < 0 ? 'text-[#c97a7a]' : 'text-[var(--text-secondary)]'}`}>
-          {d.price_change_pct != null ? `${d.price_change_pct > 0 ? '+' : ''}${d.price_change_pct.toFixed(2)}%` : '—'}
-        </span>
-        <span className="type-caption capitalize text-[var(--text-tertiary)]">{d.trend_signal} signal</span>
-        <RiskBadge level={d.risk_level} />
-        <span className="ml-auto type-caption text-[var(--gold-base)] group-open:hidden">Expand</span>
-        <span className="ml-auto hidden type-caption text-[var(--gold-base)] group-open:inline">Collapse</span>
-      </summary>
-      <div className="border-t border-[var(--border-default)] p-4">
-        <div className="rounded-[10px] bg-[var(--bg-overlay)] p-3">
-          <PriceChart ticker={d.ticker} priceEndpoint="/api/business/market-pulse/prices" />
-        </div>
-        <div className="mt-4">
-          <TechnicalVisuals
-            m={{
-              current_price: d.current_price, macd: d.macd, macd_signal: d.macd_signal,
-              sma_20: d.sma_20, sma_50: d.sma_50, adx_14: d.adx_14, atr_14: d.atr_14,
-              rsi_14: d.rsi_14, stoch_k: d.stoch_k, cci_20: d.cci_20, williams_r_14: d.williams_r_14,
-              volume: d.volume, avg_volume_20: d.avg_volume_20, high_52w: d.high_52w, low_52w: d.low_52w,
-            }}
-          />
-        </div>
-        {d.detailed_analysis && (
-          <div className="mt-4">
-            <div className="type-subheading text-[var(--text-tertiary)]">Technical read</div>
-            <p className="mt-1.5 type-body text-[var(--text-secondary)]">{d.detailed_analysis}</p>
-          </div>
-        )}
-        {d.risk_notes && <p className="mt-3 type-caption leading-5">{d.risk_notes}</p>}
-        {d.fundamentals && (
-          <div className="mt-4">
-            <FundamentalsGrid f={d.fundamentals} currentPrice={d.current_price} />
-          </div>
-        )}
-        {((d.insider_buy_count_30d ?? 0) > 0 || (d.insider_sell_count_30d ?? 0) > 0) && (
-          <div className="mt-3 type-caption text-[var(--text-tertiary)]">
-            Insider filings (30d): {d.insider_buy_count_30d ?? 0} buy / {d.insider_sell_count_30d ?? 0} sell
-          </div>
-        )}
-      </div>
-    </details>
   );
 }
 
@@ -251,7 +185,7 @@ export default function MarketPulseWorkspace() {
                 Sentiment and price are moving in opposite directions — the market may not have caught up yet, or the news reaction is overdone.
               </p>
               <div className="mt-4 space-y-3">
-                {divergences.map((d) => <DigestCard key={d.ticker} d={d} />)}
+                {divergences.map((d) => <DigestCard key={d.ticker} d={d} priceEndpoint="/api/business/market-pulse/prices" highlighted />)}
               </div>
             </div>
           )}
@@ -263,7 +197,7 @@ export default function MarketPulseWorkspace() {
               news trends — not a fixed list.
             </p>
             <div className="mt-4 space-y-3">
-              {rest.map((d) => <DigestCard key={d.ticker} d={d} />)}
+              {rest.map((d) => <DigestCard key={d.ticker} d={d} priceEndpoint="/api/business/market-pulse/prices" />)}
             </div>
           </div>
 

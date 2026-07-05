@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, ArrowUpRight, ArrowDownRight, Minus, TriangleAlert } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { getServiceSupabase } from '@/lib/supabase';
-import PriceChart from '@/components/market-pulse/PriceChart';
-import { TechnicalVisuals, FundamentalsGrid, type Fundamentals } from '@/components/market-pulse/StockMetrics';
+import DigestCard from '@/components/market-pulse/DigestCard';
+import type { Fundamentals } from '@/components/market-pulse/StockMetrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,44 +46,6 @@ type DigestRow = {
   low_52w: number | null;
   fundamentals: Fundamentals | null;
 };
-
-function formatPct(value: number | null) {
-  if (value == null) return '—';
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${value.toFixed(2)}%`;
-}
-
-function SentimentMark({ sentiment }: { sentiment: string }) {
-  if (sentiment === 'bullish') return <ArrowUpRight className="h-4 w-4 text-[var(--status-closed)]" />;
-  if (sentiment === 'bearish') return <ArrowDownRight className="h-4 w-4 text-[#9a5252]" />;
-  return <Minus className="h-4 w-4 text-[var(--text-tertiary)]" />;
-}
-
-function InsiderNote({ d }: { d: DigestRow }) {
-  const hasInsider = (d.insider_buy_count_30d ?? 0) > 0 || (d.insider_sell_count_30d ?? 0) > 0;
-  if (!hasInsider) return null;
-
-  return (
-    <div className="mt-3 type-caption text-[var(--text-tertiary)]">
-      Insider filings (30d): {d.insider_buy_count_30d ?? 0} buy / {d.insider_sell_count_30d ?? 0} sell
-    </div>
-  );
-}
-
-function RiskBadge({ level }: { level: string | null }) {
-  const style =
-    level === 'elevated'
-      ? 'border-[rgba(154,82,82,0.35)] bg-[rgba(154,82,82,0.08)] text-[#9a5252]'
-      : level === 'low'
-        ? 'border-[rgba(61,122,92,0.35)] bg-[rgba(61,122,92,0.08)] text-[var(--status-closed)]'
-        : 'border-[var(--border-default)] bg-[var(--bg-overlay)] text-[var(--text-tertiary)]';
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${style}`}>
-      {level === 'elevated' && <TriangleAlert className="h-3 w-3" />}
-      {level ?? 'moderate'} risk
-    </span>
-  );
-}
 
 async function getPublishedDigest() {
   const supabase = getServiceSupabase();
@@ -242,46 +204,7 @@ export default async function MarketPulsePage() {
                 </p>
                 <div className="mt-8 space-y-6">
                   {divergences.map((d) => (
-                    <div key={d.ticker} className="rounded-[16px] border border-[var(--border-strong)] bg-[var(--gold-glow)] p-5">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <SentimentMark sentiment={d.sentiment_trend} />
-                        <span className="type-heading text-[var(--text-primary)]">{d.company_name ?? d.ticker}</span>
-                        <span className="type-caption">{d.ticker}{d.sector ? ` · ${d.sector}` : ''}</span>
-                        <span className="ml-auto type-heading text-[var(--text-primary)]">{formatPct(d.price_change_pct)}</span>
-                      </div>
-                      <p className="mt-3 type-body text-[var(--text-secondary)]">{d.summary_text}</p>
-                      <div className="mt-4 rounded-[10px] bg-[var(--bg-elevated)] p-4">
-                        <PriceChart ticker={d.ticker} priceEndpoint="/api/market-pulse/prices" />
-                      </div>
-                      <div className="mt-4">
-                        <TechnicalVisuals
-                          m={{
-                            current_price: d.current_price, macd: d.macd, macd_signal: d.macd_signal,
-                            sma_20: d.sma_20, sma_50: d.sma_50, adx_14: d.adx_14, atr_14: d.atr_14,
-                            rsi_14: d.rsi_14, stoch_k: d.stoch_k, cci_20: d.cci_20, williams_r_14: d.williams_r_14,
-                            volume: d.volume, avg_volume_20: d.avg_volume_20, high_52w: d.high_52w, low_52w: d.low_52w,
-                          }}
-                        />
-                      </div>
-                      {d.detailed_analysis && (
-                        <div className="mt-4">
-                          <div className="type-subheading text-[var(--text-tertiary)]">Technical read</div>
-                          <p className="mt-1.5 type-body text-[var(--text-secondary)]">{d.detailed_analysis}</p>
-                        </div>
-                      )}
-                      {d.risk_notes && (
-                        <div className="mt-3 flex items-start gap-2">
-                          <RiskBadge level={d.risk_level} />
-                          <p className="type-caption leading-5">{d.risk_notes}</p>
-                        </div>
-                      )}
-                      {d.fundamentals && (
-                        <div className="mt-4">
-                          <FundamentalsGrid f={d.fundamentals} currentPrice={d.current_price} />
-                        </div>
-                      )}
-                      <InsiderNote d={d} />
-                    </div>
+                    <DigestCard key={d.ticker} d={d} priceEndpoint="/api/market-pulse/prices" highlighted />
                   ))}
                 </div>
               </div>
@@ -301,53 +224,7 @@ export default async function MarketPulsePage() {
 
               <div className="mt-8 space-y-4">
                 {rest.map((d) => (
-                  <details key={d.ticker} className="group rounded-[16px] border border-[var(--border-default)] bg-[var(--bg-elevated)]">
-                    <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-5">
-                      <span className="type-heading text-[var(--text-primary)]">{d.company_name ?? d.ticker}</span>
-                      <span className="type-caption">{d.ticker}{d.sector ? ` · ${d.sector}` : ''}</span>
-                      <span className="flex items-center gap-1.5 capitalize type-body text-[var(--text-secondary)]">
-                        <SentimentMark sentiment={d.sentiment_trend} />
-                        {d.sentiment_trend}
-                      </span>
-                      <span className={`type-heading ${d.price_change_pct != null && d.price_change_pct > 0 ? 'text-[var(--status-closed)]' : d.price_change_pct != null && d.price_change_pct < 0 ? 'text-[#9a5252]' : 'text-[var(--text-secondary)]'}`}>
-                        {formatPct(d.price_change_pct)}
-                      </span>
-                      <span className="capitalize type-caption">{d.trend_signal} signal</span>
-                      <RiskBadge level={d.risk_level} />
-                      <span className="ml-auto type-caption text-[var(--text-accent)] group-open:hidden">Expand ↓</span>
-                      <span className="ml-auto hidden type-caption text-[var(--text-accent)] group-open:inline">Collapse ↑</span>
-                    </summary>
-                    <div className="border-t border-[var(--border-default)] p-5">
-                      <div className="rounded-[10px] bg-[var(--bg-surface)] p-4">
-                        <PriceChart ticker={d.ticker} priceEndpoint="/api/market-pulse/prices" />
-                      </div>
-                      <div className="mt-4">
-                        <TechnicalVisuals
-                          m={{
-                            current_price: d.current_price, macd: d.macd, macd_signal: d.macd_signal,
-                            sma_20: d.sma_20, sma_50: d.sma_50, adx_14: d.adx_14, atr_14: d.atr_14,
-                            rsi_14: d.rsi_14, stoch_k: d.stoch_k, cci_20: d.cci_20, williams_r_14: d.williams_r_14,
-                            volume: d.volume, avg_volume_20: d.avg_volume_20, high_52w: d.high_52w, low_52w: d.low_52w,
-                          }}
-                        />
-                      </div>
-                      {d.detailed_analysis && (
-                        <div className="mt-4">
-                          <div className="type-subheading text-[var(--text-tertiary)]">Technical read</div>
-                          <p className="mt-1.5 type-body text-[var(--text-secondary)]">{d.detailed_analysis}</p>
-                        </div>
-                      )}
-                      {d.risk_notes && (
-                        <p className="mt-3 type-caption leading-5">{d.risk_notes}</p>
-                      )}
-                      {d.fundamentals && (
-                        <div className="mt-4">
-                          <FundamentalsGrid f={d.fundamentals} currentPrice={d.current_price} />
-                        </div>
-                      )}
-                      <InsiderNote d={d} />
-                    </div>
-                  </details>
+                  <DigestCard key={d.ticker} d={d} priceEndpoint="/api/market-pulse/prices" />
                 ))}
               </div>
             </div>
