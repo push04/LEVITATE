@@ -5,11 +5,17 @@
   "type": "module",
   "scripts": {
     "start": "tsx main.ts",
+    "universe": "tsx ingestion/universe_sync.ts",
     "news": "tsx ingestion/news_pull.ts",
+    "reddit": "tsx ingestion/reddit_pull.ts",
     "market": "tsx ingestion/market_data_pull.ts",
+    "movers": "tsx processing/market_movers.ts",
+    "watchlist": "tsx processing/watchlist_update.ts",
     "sentiment": "tsx processing/sentiment_score.ts",
     "technicals": "tsx processing/technicals.ts",
     "digest": "tsx processing/digest.ts",
+    "evaluate": "tsx processing/evaluate_predictions.ts",
+    "backtest": "tsx processing/backtest.ts",
     "build": "tsc -p ."
   },
   "dependencies": {

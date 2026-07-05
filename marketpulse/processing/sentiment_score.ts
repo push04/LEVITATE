@@ -1,22 +1,17 @@
 import "dotenv/config";
 import { pathToFileURL } from "node:url";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
 import { getSupabaseClient } from "../db/supabase_client.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { GROQ_MODELS } from "../groq_models.js";
 
 type UniverseEntry = { ticker: string; company_name: string; sector: string };
 
-function loadUniverse(): UniverseEntry[] {
-  const raw = readFileSync(path.join(__dirname, "..", "config", "nse_universe.json"), "utf-8");
-  return JSON.parse(raw);
+async function loadUniverse(supabase: ReturnType<typeof getSupabaseClient>): Promise<UniverseEntry[]> {
+  const { data, error } = await supabase.from("nse_universe").select("ticker, company_name, sector");
+  if (error) throw error;
+  return (data ?? []) as UniverseEntry[];
 }
 
 const DEFAULT_BATCH_LIMIT = 60;
-
-const MODELS = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile"];
 
 async function classify(
   apiKey: string,
@@ -35,7 +30,7 @@ Respond ONLY in JSON, no prose: {"ticker": "RELIANCE" or null, "sector": "Energy
 
   const user = `Headline: ${headline}\nSummary: ${summary || "(none)"}`;
 
-  for (const model of MODELS) {
+  for (const model of GROQ_MODELS) {
     try {
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -86,34 +81,31 @@ export async function scoreSentiment(): Promise<{ scored: number; skipped: numbe
   }
 
   const supabase = getSupabaseClient();
-  const universe = loadUniverse();
+  const universe = await loadUniverse(supabase);
   const validTickers = new Set(universe.map((u) => u.ticker));
   const limit = Number(process.env.SENTIMENT_BATCH_LIMIT ?? DEFAULT_BATCH_LIMIT);
 
-  // Articles that don't have a sentiment_scores row yet.
   const { data: scoredIds } = await supabase.from("sentiment_scores").select("source_id");
   const alreadyScored = new Set((scoredIds ?? []).map((r) => r.source_id).filter(Boolean));
-
-  const { data: candidates, error } = await supabase
-    .from("news_articles")
-    .select("id, title, raw_summary")
-    .order("published_at", { ascending: false })
-    .limit(limit * 3); // over-fetch since some will already be scored
-
-  if (error) throw error;
-
-  const toScore = (candidates ?? []).filter((c) => !alreadyScored.has(c.id)).slice(0, limit);
 
   let scored = 0;
   let skipped = 0;
 
-  for (const article of toScore) {
+  // News articles.
+  const { data: newsCandidates, error: newsError } = await supabase
+    .from("news_articles")
+    .select("id, title, raw_summary")
+    .order("published_at", { ascending: false })
+    .limit(limit * 3); // over-fetch since some will already be scored
+  if (newsError) throw newsError;
+
+  const newsToScore = (newsCandidates ?? []).filter((c) => !alreadyScored.has(c.id)).slice(0, limit);
+  for (const article of newsToScore) {
     const result = await classify(apiKey, article.title, article.raw_summary ?? "", validTickers);
     if (!result) {
       skipped++;
       continue;
     }
-
     const { error: insertError } = await supabase.from("sentiment_scores").insert({
       source_type: "news",
       source_id: article.id,
@@ -123,12 +115,42 @@ export async function scoreSentiment(): Promise<{ scored: number; skipped: numbe
       confidence: result.confidence,
       summary: result.summary,
     });
-
     if (insertError) skipped++;
     else scored++;
   }
 
-  console.log(`[sentiment_score] done — scored ${scored}, skipped ${skipped} (of ${toScore.length} candidates)`);
+  // Reddit posts — same classifier, title + selftext in place of headline + summary.
+  // Uses half the overall budget so news (generally higher-signal, lower-noise)
+  // isn't crowded out by a much larger volume of Reddit chatter.
+  const redditLimit = Math.floor(limit / 2);
+  const { data: redditCandidates, error: redditError } = await supabase
+    .from("reddit_posts")
+    .select("id, title, selftext")
+    .order("created_utc", { ascending: false })
+    .limit(redditLimit * 3);
+  if (redditError) throw redditError;
+
+  const redditToScore = (redditCandidates ?? []).filter((c) => !alreadyScored.has(c.id)).slice(0, redditLimit);
+  for (const post of redditToScore) {
+    const result = await classify(apiKey, post.title, post.selftext ?? "", validTickers);
+    if (!result) {
+      skipped++;
+      continue;
+    }
+    const { error: insertError } = await supabase.from("sentiment_scores").insert({
+      source_type: "reddit",
+      source_id: post.id,
+      ticker: result.ticker,
+      sector: result.sector,
+      sentiment: result.sentiment,
+      confidence: result.confidence,
+      summary: result.summary,
+    });
+    if (insertError) skipped++;
+    else scored++;
+  }
+
+  console.log(`[sentiment_score] done — scored ${scored}, skipped ${skipped} (${newsToScore.length} news + ${redditToScore.length} reddit candidates)`);
   return { scored, skipped };
 }
 

@@ -9,6 +9,6 @@
     "resolveJsonModule": true,
     "outDir": "dist"
   },
-  "include": ["ingestion", "processing", "db", "main.ts"],
+  "include": ["ingestion", "processing", "db", "main.ts", "groq_models.ts"],
   "exclude": ["node_modules", "dist"]
 }

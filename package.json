@@ -35,6 +35,7 @@
     "isomorphic-dompurify": "^3.10.0",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.2.1",
+    "lightweight-charts": "^5.2.0",
     "lucide-react": "^0.562.0",
     "mailparser": "^3.9.3",
     "next": "^16.2.4",

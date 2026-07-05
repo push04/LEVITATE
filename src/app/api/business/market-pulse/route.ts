@@ -31,7 +31,7 @@ export async function GET() {
 
   const { data: digest, error: digestError } = await supabase
     .from('daily_digest')
-    .select('ticker, company_name, sector, sentiment_trend, avg_confidence, news_count, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text')
+    .select('ticker, company_name, sector, sentiment_trend, avg_confidence, news_count, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level')
     .eq('digest_date', digestDate)
     .order('divergence_flag', { ascending: false })
     .order('avg_confidence', { ascending: false })
@@ -58,9 +58,39 @@ export async function GET() {
     sentiment: sentimentByArticle.get(n.id) ?? null,
   }))
 
+  const trackRecord = await loadTrackRecord(supabase)
+
   return NextResponse.json({
     digestDate,
     digest: digest ?? [],
     news: newsWithSentiment,
+    trackRecord,
   })
+}
+
+// Real accountability numbers — every prediction the digest ever recorded,
+// evaluated against what the price actually did. Backed by predictions.ts /
+// evaluate_predictions.ts, not asserted anywhere.
+async function loadTrackRecord(supabase: ReturnType<typeof getServiceSupabase>) {
+  const { data: evaluatedPredictions } = await supabase
+    .from('predictions')
+    .select('signal, outcome')
+    .eq('evaluated', true)
+
+  const rows = evaluatedPredictions ?? []
+  const total = rows.length
+  const correct = rows.filter((r) => r.outcome === 'correct').length
+  const accuracyPct = total > 0 ? Math.round((correct / total) * 1000) / 10 : null
+
+  const { data: latestBacktest } = await supabase
+    .from('backtest_runs')
+    .select('run_at, target_days, total_signals, overall_accuracy_pct, bullish_correct, bullish_total, bearish_correct, bearish_total, neutral_correct, neutral_total')
+    .order('run_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return {
+    live: { total, correct, accuracyPct },
+    backtest: latestBacktest ?? null,
+  }
 }

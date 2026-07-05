@@ -2,5 +2,8 @@
   { "source": "moneycontrol", "url": "https://www.moneycontrol.com/rss/latestnews.xml" },
   { "source": "moneycontrol_markets", "url": "https://www.moneycontrol.com/rss/marketreports.xml" },
   { "source": "economictimes_markets", "url": "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms" },
-  { "source": "livemint_markets", "url": "https://www.livemint.com/rss/markets" }
+  { "source": "livemint_markets", "url": "https://www.livemint.com/rss/markets" },
+  { "source": "zeenews_business", "url": "https://zeenews.india.com/rss/business.xml" },
+  { "source": "cnbctv18_market", "url": "https://www.cnbctv18.com/commonfeeds/v1/cne/rss/market.xml" },
+  { "source": "tradebrains", "url": "https://tradebrains.in/feed/" }
 ]

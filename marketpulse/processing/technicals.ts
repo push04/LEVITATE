@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { pathToFileURL } from "node:url";
-import { RSI, MACD, BollingerBands, SMA, EMA, ATR } from "technicalindicators";
+import { RSI, MACD, BollingerBands, SMA, EMA, ATR, ADX, OBV, Stochastic } from "technicalindicators";
 import { getSupabaseClient } from "../db/supabase_client.js";
 
 type PriceRow = { date: string; open: number; high: number; low: number; close: number; volume: number };
@@ -58,9 +58,19 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
     const macd = alignToDates(dates, macdRaw);
     const sma20 = alignToDates(dates, SMA.calculate({ period: 20, values: closes }));
     const sma50 = alignToDates(dates, SMA.calculate({ period: 50, values: closes }));
+    const sma200 = alignToDates(dates, SMA.calculate({ period: 200, values: closes })); // needs ~1y of history — empty until enough accumulates
     const ema20 = alignToDates(dates, EMA.calculate({ period: 20, values: closes }));
     const bb = alignToDates(dates, BollingerBands.calculate({ period: 20, values: closes, stdDev: 2 }));
     const atr14 = alignToDates(dates, ATR.calculate({ period: 14, high: highs, low: lows, close: closes }));
+    // ADX: trend STRENGTH (as opposed to MACD/SMA which give trend direction)
+    // — a market can be "bullish by direction" but weak/choppy by strength.
+    const adx14 = alignToDates(dates, ADX.calculate({ period: 14, high: highs, low: lows, close: closes }));
+    // OBV: does volume actually confirm the price trend, or is it diverging
+    // (a classic "smart money" tell). Its own 20-day SMA shows OBV's trend.
+    const obvValues = OBV.calculate({ close: closes, volume: bars.map((b) => b.volume) });
+    const obv = alignToDates(dates, obvValues);
+    const obvSma20 = alignToDates(dates, SMA.calculate({ period: 20, values: obvValues }));
+    const stoch = alignToDates(dates, Stochastic.calculate({ period: 14, signalPeriod: 3, high: highs, low: lows, close: closes }));
 
     // Merge everything keyed by date.
     const byDate = new Map<string, Record<string, number | string | null>>();
@@ -75,6 +85,7 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
     }
     for (const s of sma20) byDate.get(s.date)!.sma_20 = s.value;
     for (const s of sma50) byDate.get(s.date)!.sma_50 = s.value;
+    for (const s of sma200) byDate.get(s.date)!.sma_200 = s.value;
     for (const e of ema20) byDate.get(e.date)!.ema_20 = e.value;
     for (const b of bb) {
       const row = byDate.get(b.date)!;
@@ -83,6 +94,14 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
       row.bb_lower = b.value.lower ?? null;
     }
     for (const a of atr14) byDate.get(a.date)!.atr_14 = a.value;
+    for (const a of adx14) byDate.get(a.date)!.adx_14 = a.value.adx ?? null;
+    for (const o of obv) byDate.get(o.date)!.obv = o.value;
+    for (const o of obvSma20) byDate.get(o.date)!.obv_sma_20 = o.value;
+    for (const s of stoch) {
+      const row = byDate.get(s.date)!;
+      row.stoch_k = s.value.k ?? null;
+      row.stoch_d = s.value.d ?? null;
+    }
 
     const payload = Array.from(byDate.values())
       .filter((row) => row.rsi_14 != null) // only rows with at least the core indicator computed
@@ -95,11 +114,17 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
         macd_hist: row.macd_hist ?? null,
         sma_20: row.sma_20 ?? null,
         sma_50: row.sma_50 ?? null,
+        sma_200: row.sma_200 ?? null,
         ema_20: row.ema_20 ?? null,
         bb_upper: row.bb_upper ?? null,
         bb_middle: row.bb_middle ?? null,
         bb_lower: row.bb_lower ?? null,
         atr_14: row.atr_14 ?? null,
+        adx_14: row.adx_14 ?? null,
+        obv: row.obv ?? null,
+        obv_sma_20: row.obv_sma_20 ?? null,
+        stoch_k: row.stoch_k ?? null,
+        stoch_d: row.stoch_d ?? null,
         trend_signal: trendSignal(row.rsi_14 as number | undefined, row.macd as number | undefined, row.macd_signal as number | undefined),
       }));
 
