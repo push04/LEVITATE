@@ -29,6 +29,7 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
 
   let tickersProcessed = 0;
   let rowsUpserted = 0;
+  let warnedMissingColumns = false;
 
   for (const row of watchlist ?? []) {
     const ticker = row.ticker as string;
@@ -139,7 +140,19 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
 
     if (payload.length === 0) continue;
 
-    const { error: upsertError } = await supabase.from("technical_indicators").upsert(payload, { onConflict: "ticker,date" });
+    let { error: upsertError } = await supabase.from("technical_indicators").upsert(payload, { onConflict: "ticker,date" });
+    if (upsertError?.code === "PGRST204") {
+      // marketpulse/db/more_technicals.sql hasn't been run yet (adds
+      // cci_20/williams_r_14) — don't let that block every other indicator
+      // from updating; retry without the two new columns.
+      const strippedPayload = payload.map(({ cci_20, williams_r_14, ...rest }) => rest);
+      const retry = await supabase.from("technical_indicators").upsert(strippedPayload, { onConflict: "ticker,date" });
+      upsertError = retry.error;
+      if (!upsertError && !warnedMissingColumns) {
+        console.warn("[technicals] cci_20/williams_r_14 columns not found — run marketpulse/db/more_technicals.sql to enable them.");
+        warnedMissingColumns = true;
+      }
+    }
     if (upsertError) {
       console.warn(`[technicals] ${ticker} upsert failed:`, upsertError.message);
       continue;
