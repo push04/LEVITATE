@@ -45,6 +45,30 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
   }
   const technicalSelectColumns = hasAdvancedTechnicals ? `${CORE_TECHNICAL_COLUMNS}, ${ADVANCED_TECHNICAL_COLUMNS}` : CORE_TECHNICAL_COLUMNS;
 
+  // Each optional daily_digest column group is added by its own migration
+  // file and may land independently of the others — probe each one
+  // separately rather than an all-or-nothing "does the upsert fail at all"
+  // check, so e.g. insider_trades.sql being applied doesn't get its columns
+  // silently dropped just because richer_metrics.sql hasn't run yet too.
+  async function probeColumns(cols: string): Promise<boolean> {
+    const { error: probeError } = await supabase.from("daily_digest").select(cols).limit(1);
+    return !probeError;
+  }
+  const [hasInsiderColumns, hasFundamentalsColumns, hasPersistenceColumn, hasRicherMetrics] = await Promise.all([
+    probeColumns("insider_buy_count_30d, insider_sell_count_30d"),
+    probeColumns("analyst_target_mean_price, analyst_recommendation_key"),
+    probeColumns("raw_trend_signal"),
+    probeColumns("current_price, macd, macd_signal, sma_20, sma_50, adx_14, atr_14, stoch_k, cci_20, williams_r_14, volume, avg_volume_20, high_52w, low_52w"),
+  ]);
+  const missingMigrations: string[] = [];
+  if (!hasInsiderColumns) missingMigrations.push("marketpulse/db/insider_trades.sql");
+  if (!hasFundamentalsColumns) missingMigrations.push("marketpulse/db/fundamentals.sql");
+  if (!hasPersistenceColumn) missingMigrations.push("marketpulse/db/signal_persistence.sql");
+  if (!hasRicherMetrics) missingMigrations.push("marketpulse/db/richer_metrics.sql");
+  if (missingMigrations.length > 0) {
+    console.warn(`[digest] some optional columns not found — run ${missingMigrations.join(", ")} to enable them. Digest saved without them for now.`);
+  }
+
   const { data: settings } = await supabase
     .from("market_pulse_settings")
     .select("publish_mode")
@@ -233,17 +257,43 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
       price_change_pct: priceChangePct,
       rsi_14: latestTechnical?.rsi_14 ?? null,
       trend_signal: effectiveTrendSignal,
-      raw_trend_signal: technicalRead.trendSignal,
       divergence_flag: divergenceFlag,
       summary_text: summary,
       detailed_analysis: technicalRead.outlook,
       risk_notes: technicalRead.riskNotes,
       risk_level: technicalRead.riskLevel,
-      insider_buy_count_30d: insiderCountsByTicker.get(ticker)?.buy ?? 0,
-      insider_sell_count_30d: insiderCountsByTicker.get(ticker)?.sell ?? 0,
-      analyst_target_mean_price: fundamentalsByTicker.get(ticker)?.analyst_target_mean_price ?? null,
-      analyst_recommendation_key: fundamentalsByTicker.get(ticker)?.analyst_recommendation_key ?? null,
       published: existingPublished.get(ticker) ?? (publishMode === "auto"),
+      ...(hasPersistenceColumn ? { raw_trend_signal: technicalRead.trendSignal } : {}),
+      ...(hasInsiderColumns
+        ? {
+            insider_buy_count_30d: insiderCountsByTicker.get(ticker)?.buy ?? 0,
+            insider_sell_count_30d: insiderCountsByTicker.get(ticker)?.sell ?? 0,
+          }
+        : {}),
+      ...(hasFundamentalsColumns
+        ? {
+            analyst_target_mean_price: fundamentalsByTicker.get(ticker)?.analyst_target_mean_price ?? null,
+            analyst_recommendation_key: fundamentalsByTicker.get(ticker)?.analyst_recommendation_key ?? null,
+          }
+        : {}),
+      ...(hasRicherMetrics
+        ? {
+            current_price: latest.close,
+            macd: latestTechnical?.macd ?? null,
+            macd_signal: latestTechnical?.macd_signal ?? null,
+            sma_20: latestTechnical?.sma_20 ?? null,
+            sma_50: latestTechnical?.sma_50 ?? null,
+            adx_14: latestTechnical?.adx_14 ?? null,
+            atr_14: latestTechnical?.atr_14 ?? null,
+            stoch_k: latestTechnical?.stoch_k ?? null,
+            cci_20: latestTechnical?.cci_20 ?? null,
+            williams_r_14: latestTechnical?.williams_r_14 ?? null,
+            volume: latest.volume ?? null,
+            avg_volume_20: avgVolume20,
+            high_52w: Number.isFinite(high52w) ? high52w : null,
+            low_52w: Number.isFinite(low52w) ? low52w : null,
+          }
+        : {}),
     });
     tickersInDigest++;
 
@@ -263,26 +313,10 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
   }
 
   if (rows.length > 0) {
+    // Each row only includes columns already confirmed to exist (probed
+    // above), so this should never hit a "column not found" error.
     const { error: upsertError } = await supabase.from("daily_digest").upsert(rows, { onConflict: "digest_date,ticker" });
-    if (upsertError) {
-      // Falls back gracefully if insider_trades.sql / fundamentals.sql
-      // haven't been run yet (they each add optional daily_digest columns)
-      // — don't let a not-yet-applied migration break the whole digest.
-      // PGRST204 only names one missing column per error, so strip all the
-      // optional ones at once rather than retrying one at a time.
-      if (upsertError.code === "PGRST204") {
-        const strippedRows = rows.map(
-          ({ insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key, raw_trend_signal, ...rest }) => rest
-        );
-        const { error: retryError } = await supabase.from("daily_digest").upsert(strippedRows, { onConflict: "digest_date,ticker" });
-        if (retryError) throw retryError;
-        console.warn(
-          "[digest] one or more optional columns not found (insider_buy_count_30d/insider_sell_count_30d/analyst_target_mean_price/analyst_recommendation_key/raw_trend_signal) — run marketpulse/db/insider_trades.sql, marketpulse/db/fundamentals.sql, and marketpulse/db/signal_persistence.sql to enable them. Digest saved without them for now."
-        );
-      } else {
-        throw upsertError;
-      }
-    }
+    if (upsertError) throw upsertError;
   }
 
   if (predictions.length > 0) {

@@ -31,12 +31,18 @@ export async function GET() {
 
   const { data: digest, error: digestError } = await supabase
     .from('daily_digest')
-    .select('ticker, company_name, sector, sentiment_trend, avg_confidence, news_count, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level, insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key')
+    .select('ticker, company_name, sector, sentiment_trend, avg_confidence, news_count, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level, insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key, current_price, macd, macd_signal, sma_20, sma_50, adx_14, atr_14, stoch_k, cci_20, williams_r_14, volume, avg_volume_20, high_52w, low_52w')
     .eq('digest_date', digestDate)
     .order('divergence_flag', { ascending: false })
     .order('avg_confidence', { ascending: false })
 
   if (digestError) return NextResponse.json({ error: digestError.message }, { status: 500 })
+
+  const { data: fundamentalsRows } = await supabase
+    .from('fundamentals')
+    .select('ticker, pe_forward, return_on_equity, return_on_assets, debt_to_equity, revenue_growth, earnings_growth, profit_margin, analyst_target_mean_price, analyst_recommendation_key, number_of_analyst_opinions')
+  const fundamentalsByTicker = new Map((fundamentalsRows ?? []).map((f) => [f.ticker, f]))
+  const digestWithFundamentals = (digest ?? []).map((d) => ({ ...d, fundamentals: fundamentalsByTicker.get(d.ticker) ?? null }))
 
   const { data: news } = await supabase
     .from('news_articles')
@@ -62,7 +68,7 @@ export async function GET() {
 
   return NextResponse.json({
     digestDate,
-    digest: digest ?? [],
+    digest: digestWithFundamentals,
     news: newsWithSentiment,
     trackRecord,
   })

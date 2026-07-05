@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, ExternalLink, Loader2, TrendingDown, TrendingUp, Minus, TriangleAlert } from 'lucide-react';
 import styles from '@/components/business/ui/DashboardPrimitives.module.css';
 import PriceChart from '@/components/market-pulse/PriceChart';
+import { TechnicalVisuals, FundamentalsGrid, type Fundamentals } from '@/components/market-pulse/StockMetrics';
 
 interface DigestRow {
   ticker: string;
@@ -24,6 +25,21 @@ interface DigestRow {
   insider_sell_count_30d: number | null;
   analyst_target_mean_price: number | null;
   analyst_recommendation_key: string | null;
+  current_price: number | null;
+  macd: number | null;
+  macd_signal: number | null;
+  sma_20: number | null;
+  sma_50: number | null;
+  adx_14: number | null;
+  atr_14: number | null;
+  stoch_k: number | null;
+  cci_20: number | null;
+  williams_r_14: number | null;
+  volume: number | null;
+  avg_volume_20: number | null;
+  high_52w: number | null;
+  low_52w: number | null;
+  fundamentals: Fundamentals | null;
 }
 
 interface NewsItem {
@@ -95,6 +111,16 @@ function DigestCard({ d }: { d: DigestRow }) {
         <div className="rounded-[10px] bg-[var(--bg-overlay)] p-3">
           <PriceChart ticker={d.ticker} priceEndpoint="/api/business/market-pulse/prices" />
         </div>
+        <div className="mt-4">
+          <TechnicalVisuals
+            m={{
+              current_price: d.current_price, macd: d.macd, macd_signal: d.macd_signal,
+              sma_20: d.sma_20, sma_50: d.sma_50, adx_14: d.adx_14, atr_14: d.atr_14,
+              rsi_14: d.rsi_14, stoch_k: d.stoch_k, cci_20: d.cci_20, williams_r_14: d.williams_r_14,
+              volume: d.volume, avg_volume_20: d.avg_volume_20, high_52w: d.high_52w, low_52w: d.low_52w,
+            }}
+          />
+        </div>
         {d.detailed_analysis && (
           <div className="mt-4">
             <div className="type-subheading text-[var(--text-tertiary)]">Technical read</div>
@@ -102,17 +128,14 @@ function DigestCard({ d }: { d: DigestRow }) {
           </div>
         )}
         {d.risk_notes && <p className="mt-3 type-caption leading-5">{d.risk_notes}</p>}
-        {((d.insider_buy_count_30d ?? 0) > 0 || (d.insider_sell_count_30d ?? 0) > 0 || d.analyst_target_mean_price != null || d.analyst_recommendation_key) && (
-          <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 type-caption text-[var(--text-tertiary)]">
-            {((d.insider_buy_count_30d ?? 0) > 0 || (d.insider_sell_count_30d ?? 0) > 0) && (
-              <span>Insider filings (30d): {d.insider_buy_count_30d ?? 0} buy / {d.insider_sell_count_30d ?? 0} sell</span>
-            )}
-            {(d.analyst_target_mean_price != null || d.analyst_recommendation_key) && (
-              <span>
-                Analyst consensus: {d.analyst_recommendation_key ? d.analyst_recommendation_key.replace(/_/g, ' ') : 'n/a'}
-                {d.analyst_target_mean_price != null ? ` · target ₹${d.analyst_target_mean_price.toFixed(0)}` : ''}
-              </span>
-            )}
+        {d.fundamentals && (
+          <div className="mt-4">
+            <FundamentalsGrid f={d.fundamentals} currentPrice={d.current_price} />
+          </div>
+        )}
+        {((d.insider_buy_count_30d ?? 0) > 0 || (d.insider_sell_count_30d ?? 0) > 0) && (
+          <div className="mt-3 type-caption text-[var(--text-tertiary)]">
+            Insider filings (30d): {d.insider_buy_count_30d ?? 0} buy / {d.insider_sell_count_30d ?? 0} sell
           </div>
         )}
       </div>

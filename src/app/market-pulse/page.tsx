@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowRight, ArrowUpRight, ArrowDownRight, Minus, TriangleAlert } from 'lucide-react';
 import { getServiceSupabase } from '@/lib/supabase';
 import PriceChart from '@/components/market-pulse/PriceChart';
+import { TechnicalVisuals, FundamentalsGrid, type Fundamentals } from '@/components/market-pulse/StockMetrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,21 @@ type DigestRow = {
   insider_sell_count_30d: number | null;
   analyst_target_mean_price: number | null;
   analyst_recommendation_key: string | null;
+  current_price: number | null;
+  macd: number | null;
+  macd_signal: number | null;
+  sma_20: number | null;
+  sma_50: number | null;
+  adx_14: number | null;
+  atr_14: number | null;
+  stoch_k: number | null;
+  cci_20: number | null;
+  williams_r_14: number | null;
+  volume: number | null;
+  avg_volume_20: number | null;
+  high_52w: number | null;
+  low_52w: number | null;
+  fundamentals: Fundamentals | null;
 };
 
 function formatPct(value: number | null) {
@@ -43,24 +59,13 @@ function SentimentMark({ sentiment }: { sentiment: string }) {
   return <Minus className="h-4 w-4 text-[var(--text-tertiary)]" />;
 }
 
-function FundamentalsNote({ d }: { d: DigestRow }) {
+function InsiderNote({ d }: { d: DigestRow }) {
   const hasInsider = (d.insider_buy_count_30d ?? 0) > 0 || (d.insider_sell_count_30d ?? 0) > 0;
-  const hasAnalyst = d.analyst_target_mean_price != null || d.analyst_recommendation_key;
-  if (!hasInsider && !hasAnalyst) return null;
+  if (!hasInsider) return null;
 
   return (
-    <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 type-caption text-[var(--text-tertiary)]">
-      {hasInsider && (
-        <span>
-          Insider filings (30d): {d.insider_buy_count_30d ?? 0} buy / {d.insider_sell_count_30d ?? 0} sell
-        </span>
-      )}
-      {hasAnalyst && (
-        <span>
-          Analyst consensus: {d.analyst_recommendation_key ? d.analyst_recommendation_key.replace(/_/g, ' ') : 'n/a'}
-          {d.analyst_target_mean_price != null ? ` · target ₹${d.analyst_target_mean_price.toFixed(0)}` : ''}
-        </span>
-      )}
+    <div className="mt-3 type-caption text-[var(--text-tertiary)]">
+      Insider filings (30d): {d.insider_buy_count_30d ?? 0} buy / {d.insider_sell_count_30d ?? 0} sell
     </div>
   );
 }
@@ -97,13 +102,20 @@ async function getPublishedDigest() {
 
   const { data } = await supabase
     .from('daily_digest')
-    .select('ticker, company_name, sector, sentiment_trend, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level, insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key')
+    .select('ticker, company_name, sector, sentiment_trend, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level, insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key, current_price, macd, macd_signal, sma_20, sma_50, adx_14, atr_14, stoch_k, cci_20, williams_r_14, volume, avg_volume_20, high_52w, low_52w')
     .eq('digest_date', digestDate)
     .eq('published', true)
     .order('divergence_flag', { ascending: false })
     .order('avg_confidence', { ascending: false });
 
-  return { digestDate, digest: (data ?? []) as DigestRow[] };
+  const { data: fundamentalsRows } = await supabase
+    .from('fundamentals')
+    .select('ticker, pe_forward, return_on_equity, return_on_assets, debt_to_equity, revenue_growth, earnings_growth, profit_margin, analyst_target_mean_price, analyst_recommendation_key, number_of_analyst_opinions');
+  const fundamentalsByTicker = new Map((fundamentalsRows ?? []).map((f) => [f.ticker, f]));
+
+  const digest = (data ?? []).map((d) => ({ ...d, fundamentals: fundamentalsByTicker.get(d.ticker) ?? null }));
+
+  return { digestDate, digest: digest as DigestRow[] };
 }
 
 type TrackRecord = {
@@ -220,6 +232,16 @@ export default async function MarketPulsePage() {
                       <div className="mt-4 rounded-[10px] bg-[var(--bg-elevated)] p-4">
                         <PriceChart ticker={d.ticker} priceEndpoint="/api/market-pulse/prices" />
                       </div>
+                      <div className="mt-4">
+                        <TechnicalVisuals
+                          m={{
+                            current_price: d.current_price, macd: d.macd, macd_signal: d.macd_signal,
+                            sma_20: d.sma_20, sma_50: d.sma_50, adx_14: d.adx_14, atr_14: d.atr_14,
+                            rsi_14: d.rsi_14, stoch_k: d.stoch_k, cci_20: d.cci_20, williams_r_14: d.williams_r_14,
+                            volume: d.volume, avg_volume_20: d.avg_volume_20, high_52w: d.high_52w, low_52w: d.low_52w,
+                          }}
+                        />
+                      </div>
                       {d.detailed_analysis && (
                         <div className="mt-4">
                           <div className="type-subheading text-[var(--text-tertiary)]">Technical read</div>
@@ -232,7 +254,12 @@ export default async function MarketPulsePage() {
                           <p className="type-caption leading-5">{d.risk_notes}</p>
                         </div>
                       )}
-                      <FundamentalsNote d={d} />
+                      {d.fundamentals && (
+                        <div className="mt-4">
+                          <FundamentalsGrid f={d.fundamentals} currentPrice={d.current_price} />
+                        </div>
+                      )}
+                      <InsiderNote d={d} />
                     </div>
                   ))}
                 </div>
@@ -273,6 +300,16 @@ export default async function MarketPulsePage() {
                       <div className="rounded-[10px] bg-[var(--bg-surface)] p-4">
                         <PriceChart ticker={d.ticker} priceEndpoint="/api/market-pulse/prices" />
                       </div>
+                      <div className="mt-4">
+                        <TechnicalVisuals
+                          m={{
+                            current_price: d.current_price, macd: d.macd, macd_signal: d.macd_signal,
+                            sma_20: d.sma_20, sma_50: d.sma_50, adx_14: d.adx_14, atr_14: d.atr_14,
+                            rsi_14: d.rsi_14, stoch_k: d.stoch_k, cci_20: d.cci_20, williams_r_14: d.williams_r_14,
+                            volume: d.volume, avg_volume_20: d.avg_volume_20, high_52w: d.high_52w, low_52w: d.low_52w,
+                          }}
+                        />
+                      </div>
                       {d.detailed_analysis && (
                         <div className="mt-4">
                           <div className="type-subheading text-[var(--text-tertiary)]">Technical read</div>
@@ -282,7 +319,12 @@ export default async function MarketPulsePage() {
                       {d.risk_notes && (
                         <p className="mt-3 type-caption leading-5">{d.risk_notes}</p>
                       )}
-                      <FundamentalsNote d={d} />
+                      {d.fundamentals && (
+                        <div className="mt-4">
+                          <FundamentalsGrid f={d.fundamentals} currentPrice={d.current_price} />
+                        </div>
+                      )}
+                      <InsiderNote d={d} />
                     </div>
                   </details>
                 ))}
