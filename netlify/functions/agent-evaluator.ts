@@ -109,5 +109,9 @@ All agents evaluated. Check /admin/dashboard/automations for details.`
 }
 
 export const config: Config = {
-  schedule: '0 */6 * * *' // Every 6 hours
+  // Was '0 */6 * * *' (every 6 hours = 4x/day, 28x/week) — a scheduling bug:
+  // the comment/doc always said "Weekly, Sunday 11 PM IST" and this function
+  // sends an unconditional email every single run, so the wrong cron alone
+  // was responsible for ~27 extra "Weekly" report emails per week.
+  schedule: '30 17 * * 0' // Sunday 17:30 UTC = 11:00 PM IST, once a week
 }

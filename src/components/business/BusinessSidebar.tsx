@@ -3,7 +3,7 @@
 import {
   BarChart3, Bot, ClipboardList, FileSearch,
   Files, Gavel, Key, LayoutDashboard, Landmark, LogOut,
-  Mail, MessageCircle, Settings, Plug, ShoppingBag, Sparkles, BrainCircuit, BookOpen,
+  Mail, MessageCircle, Settings, Plug, ShoppingBag, Sparkles, BrainCircuit, BookOpen, LineChart,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { ComponentType } from 'react';
@@ -33,6 +33,7 @@ const MENU: SidebarItem[] = [
   { label: 'Legal Tools', icon: Gavel,            href: '/business/dashboard/legal-tools',     feature: 'legalTools',     paidOnly: true },
   { label: 'Tenders',     icon: Landmark,         href: '/business/dashboard/tenders',         feature: 'tenders',        paidOnly: true },
   { label: 'Marketplace', icon: ShoppingBag,      href: '/business/dashboard/marketplace',     feature: 'marketplace',    paidOnly: true },
+  { label: 'Market Pulse',icon: LineChart,        href: '/business/dashboard/market-pulse',    feature: 'marketPulse',    paidOnly: true },
   { label: 'Reports',     icon: Files,            href: '/business/dashboard/reports',         feature: 'reportHistory',  paidOnly: true },
   { label: 'Integrations',icon: Plug,             href: '/business/dashboard/integrations',    feature: 'leads',          paidOnly: true },
   { label: 'AI Analyze', icon: Sparkles,         href: '/business/dashboard/analyze',         feature: 'leads',          paidOnly: true },

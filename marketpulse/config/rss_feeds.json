@@ -1,0 +1,6 @@
+[
+  { "source": "moneycontrol", "url": "https://www.moneycontrol.com/rss/latestnews.xml" },
+  { "source": "moneycontrol_markets", "url": "https://www.moneycontrol.com/rss/marketreports.xml" },
+  { "source": "economictimes_markets", "url": "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms" },
+  { "source": "livemint_markets", "url": "https://www.livemint.com/rss/markets" }
+]

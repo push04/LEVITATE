@@ -29,9 +29,13 @@ export default async () => {
     const newRevenue     = (revenueRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0)
     const failures       = failuresRes.data?.length ?? 0
 
-    // Skip email if nothing happened
-    if (recentActivity === 0 && newLeads === 0 && newRevenue === 0) {
-      console.log('[Reporter] Nothing new in last hour, skipping email')
+    // Skip email unless something actually worth reporting happened. Deliberately
+    // NOT gated on `recentActivity` (agent_logs count) alone — background
+    // heartbeat/scheduler jobs log routine entries almost every hour regardless
+    // of outcome, which made this guard nearly always pass and sent a generic
+    // "[Status]" email every hour even when nothing meaningful occurred.
+    if (newLeads === 0 && newRevenue === 0 && failures === 0) {
+      console.log('[Reporter] Nothing important in last hour, skipping email')
       await supabase.from('agent_logs').insert({
         agent_name: 'reporter', action: 'status_email',
         input: { period: '1hr', had_events: false },

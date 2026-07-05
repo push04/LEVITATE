@@ -60,6 +60,11 @@ export const PORTAL_FEATURES = [
     key: 'marketplace',
     label: 'Marketplace Listings',
     description: 'Get your products listed on Amazon, Flipkart, and Meesho — with optional photography and tagging add-ons.'
+  },
+  {
+    key: 'marketPulse',
+    label: 'Market Pulse',
+    description: 'Daily Indian stock market sentiment, news, and technicals — a starting point for where to park surplus business cash.'
   }
 ] as const
 
@@ -86,6 +91,9 @@ export const DEFAULT_PLAN_FEATURE_ACCESS: PortalFeatureAccess = {
   // sets this true today, but a future plan created without configuring
   // feature_controls should not silently get a real-money feature for free.
   marketplace: false,
+  // Fails closed — a premium data feature, should be an explicit per-plan
+  // opt-in rather than a silent default unlock.
+  marketPulse: false,
 }
 
 export type BusinessModelType =

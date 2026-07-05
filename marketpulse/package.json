@@ -1,0 +1,26 @@
+{
+  "name": "marketpulse",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx main.ts",
+    "news": "tsx ingestion/news_pull.ts",
+    "market": "tsx ingestion/market_data_pull.ts",
+    "sentiment": "tsx processing/sentiment_score.ts",
+    "technicals": "tsx processing/technicals.ts",
+    "digest": "tsx processing/digest.ts",
+    "build": "tsc -p ."
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "dotenv": "^17.4.2",
+    "rss-parser": "^3.13.0",
+    "technicalindicators": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
