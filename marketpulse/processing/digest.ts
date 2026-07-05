@@ -54,17 +54,19 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
     const { error: probeError } = await supabase.from("daily_digest").select(cols).limit(1);
     return !probeError;
   }
-  const [hasInsiderColumns, hasFundamentalsColumns, hasPersistenceColumn, hasRicherMetrics] = await Promise.all([
+  const [hasInsiderColumns, hasFundamentalsColumns, hasPersistenceColumn, hasRicherMetrics, hasStructuredFindings] = await Promise.all([
     probeColumns("insider_buy_count_30d, insider_sell_count_30d"),
     probeColumns("analyst_target_mean_price, analyst_recommendation_key"),
     probeColumns("raw_trend_signal"),
     probeColumns("current_price, macd, macd_signal, sma_20, sma_50, adx_14, atr_14, stoch_k, cci_20, williams_r_14, volume, avg_volume_20, high_52w, low_52w"),
+    probeColumns("signal_findings, risk_findings"),
   ]);
   const missingMigrations: string[] = [];
   if (!hasInsiderColumns) missingMigrations.push("marketpulse/db/insider_trades.sql");
   if (!hasFundamentalsColumns) missingMigrations.push("marketpulse/db/fundamentals.sql");
   if (!hasPersistenceColumn) missingMigrations.push("marketpulse/db/signal_persistence.sql");
   if (!hasRicherMetrics) missingMigrations.push("marketpulse/db/richer_metrics.sql");
+  if (!hasStructuredFindings) missingMigrations.push("marketpulse/db/structured_findings.sql");
   if (missingMigrations.length > 0) {
     console.warn(`[digest] some optional columns not found — run ${missingMigrations.join(", ")} to enable them. Digest saved without them for now.`);
   }
@@ -292,6 +294,12 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
             avg_volume_20: avgVolume20,
             high_52w: Number.isFinite(high52w) ? high52w : null,
             low_52w: Number.isFinite(low52w) ? low52w : null,
+          }
+        : {}),
+      ...(hasStructuredFindings
+        ? {
+            signal_findings: technicalRead.findings,
+            risk_findings: technicalRead.riskFindings,
           }
         : {}),
     });

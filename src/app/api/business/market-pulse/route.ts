@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { businessApiErrorResponse, requireBusinessCompany } from '@/lib/business-intelligence-server'
 import { getServiceSupabase } from '@/lib/supabase'
+import { buildDigestSelectColumns } from '@/lib/market-pulse-columns'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,33 +31,25 @@ export async function GET() {
   const digestDate = latestDateRow.digest_date as string
 
   // Optional columns land via separate migrations that may not all be
-  // applied yet — select everything, and if that errors (column doesn't
-  // exist), fall back to base columns only rather than 500ing the whole
-  // dashboard just because the newest optional migration isn't in yet.
+  // applied yet — probed per-group (see buildDigestSelectColumns) so one
+  // pending migration never hides fields from ones already applied.
   const BASE_DIGEST_COLUMNS =
     'ticker, company_name, sector, sentiment_trend, avg_confidence, news_count, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level'
-  const OPTIONAL_DIGEST_COLUMNS =
-    'insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key, current_price, macd, macd_signal, sma_20, sma_50, adx_14, atr_14, stoch_k, cci_20, williams_r_14, volume, avg_volume_20, high_52w, low_52w'
+  const selectColumns = await buildDigestSelectColumns(supabase, BASE_DIGEST_COLUMNS)
 
-  let { data: digest, error: digestError } = await supabase
+  const { data: digestRaw, error: digestError } = await supabase
     .from('daily_digest')
-    .select(`${BASE_DIGEST_COLUMNS}, ${OPTIONAL_DIGEST_COLUMNS}`)
+    .select(selectColumns)
     .eq('digest_date', digestDate)
     .order('divergence_flag', { ascending: false })
     .order('avg_confidence', { ascending: false })
 
-  if (digestError) {
-    const fallback = await supabase
-      .from('daily_digest')
-      .select(BASE_DIGEST_COLUMNS)
-      .eq('digest_date', digestDate)
-      .order('divergence_flag', { ascending: false })
-      .order('avg_confidence', { ascending: false })
-    digest = fallback.data as typeof digest
-    digestError = fallback.error
-  }
-
   if (digestError) return NextResponse.json({ error: digestError.message }, { status: 500 })
+
+  // Dynamic select-string means supabase-js can't statically infer the row
+  // shape (falls back to a GenericStringError type) — cast to the shape we
+  // know it has at runtime given selectColumns above.
+  const digest = digestRaw as unknown as Array<Record<string, unknown> & { ticker: string }> | null
 
   const { data: fundamentalsRows } = await supabase
     .from('fundamentals')

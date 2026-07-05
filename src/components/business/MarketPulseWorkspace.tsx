@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, ExternalLink, Loader2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import styles from '@/components/business/ui/DashboardPrimitives.module.css';
 import DigestCard from '@/components/market-pulse/DigestCard';
-import type { Fundamentals } from '@/components/market-pulse/StockMetrics';
+import type { Fundamentals, Finding, RiskFinding } from '@/components/market-pulse/StockMetrics';
 
 interface DigestRow {
   ticker: string;
@@ -40,6 +40,8 @@ interface DigestRow {
   high_52w: number | null;
   low_52w: number | null;
   fundamentals: Fundamentals | null;
+  signal_findings: Finding[] | null;
+  risk_findings: RiskFinding[] | null;
 }
 
 interface NewsItem {

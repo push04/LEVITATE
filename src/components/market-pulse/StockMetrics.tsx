@@ -1,3 +1,5 @@
+import { CheckCircle2, XCircle, MinusCircle, TriangleAlert, LineChart, Wallet, ListChecks } from 'lucide-react';
+
 type Zone = { upto: number; color: string; label?: string };
 
 // A horizontal 0-100%-mapped bar with colored zones (oversold/neutral/
@@ -32,10 +34,7 @@ function OscillatorBar({
           const width = ((z.upto - prevUpto) / (max - min)) * 100;
           return <div key={i} className="absolute top-0 h-full" style={{ left: `${left}%`, width: `${width}%`, background: z.color }} />;
         })}
-        <div
-          className="absolute top-0 h-full w-[3px] bg-[var(--text-primary)]"
-          style={{ left: `calc(${pct}% - 1.5px)` }}
-        />
+        <div className="absolute top-0 h-full w-[3px] bg-[var(--text-primary)]" style={{ left: `calc(${pct}% - 1.5px)` }} />
       </div>
     </div>
   );
@@ -66,15 +65,20 @@ function RangeBar({ current, low, high }: { current: number | null; low: number 
 
 function StatChip({ label, value, tone }: { label: string; value: string; tone?: 'bullish' | 'bearish' | 'neutral' }) {
   const toneClass =
-    tone === 'bullish'
-      ? 'text-[var(--status-closed)]'
-      : tone === 'bearish'
-        ? 'text-[#9a5252]'
-        : 'text-[var(--text-primary)]';
+    tone === 'bullish' ? 'text-[var(--status-closed)]' : tone === 'bearish' ? 'text-[#9a5252]' : 'text-[var(--text-primary)]';
   return (
     <div className="rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-2">
       <div className="type-caption text-[var(--text-tertiary)]">{label}</div>
       <div className={`mt-0.5 type-body font-semibold ${toneClass}`}>{value}</div>
+    </div>
+  );
+}
+
+function SectionHeader({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {
+  return (
+    <div className="flex items-center gap-2 type-subheading text-[var(--text-tertiary)]">
+      <Icon className="h-3.5 w-3.5" />
+      {label}
     </div>
   );
 }
@@ -115,6 +119,7 @@ export function TechnicalVisuals({ m }: { m: TechnicalMetrics }) {
 
   return (
     <div className="space-y-4">
+      <SectionHeader icon={LineChart} label="Technicals at a glance" />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {macdBullish != null && (
           <StatChip label="MACD" value={macdBullish ? 'Bullish cross' : 'Bearish cross'} tone={macdBullish ? 'bullish' : 'bearish'} />
@@ -187,6 +192,52 @@ export function TechnicalVisuals({ m }: { m: TechnicalMetrics }) {
   );
 }
 
+export type Finding = { text: string; tone: 'bullish' | 'bearish' | 'neutral' };
+export type RiskFinding = { text: string; severity: 'high' | 'medium' };
+
+// The deterministic engine's reasoning as a scannable checklist — one icon
+// + line per signal — instead of a single run-on paragraph that reads the
+// same regardless of what it's actually saying.
+export function FindingsChecklist({ findings }: { findings: Finding[] | null | undefined }) {
+  if (!findings || findings.length === 0) return null;
+
+  return (
+    <div>
+      <SectionHeader icon={ListChecks} label="Technical read" />
+      <ul className="mt-2 space-y-1.5">
+        {findings.map((f, i) => {
+          const Icon = f.tone === 'bullish' ? CheckCircle2 : f.tone === 'bearish' ? XCircle : MinusCircle;
+          const colorClass = f.tone === 'bullish' ? 'text-[var(--status-closed)]' : f.tone === 'bearish' ? 'text-[#9a5252]' : 'text-[var(--text-tertiary)]';
+          return (
+            <li key={i} className="flex items-start gap-2 type-body text-[var(--text-secondary)]">
+              <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${colorClass}`} />
+              <span>{f.text}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+export function RiskChecklist({ findings }: { findings: RiskFinding[] | null | undefined }) {
+  if (!findings || findings.length === 0) return null;
+
+  return (
+    <div>
+      <SectionHeader icon={TriangleAlert} label="Risk notes" />
+      <ul className="mt-2 space-y-1.5">
+        {findings.map((f, i) => (
+          <li key={i} className="flex items-start gap-2 type-caption leading-5">
+            <TriangleAlert className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${f.severity === 'high' ? 'text-[#9a5252]' : 'text-[var(--gold-base)]'}`} />
+            <span>{f.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export type Fundamentals = {
   pe_forward: number | null;
   return_on_equity: number | null;
@@ -206,39 +257,54 @@ function pctStat(label: string, value: number | null) {
 }
 
 export function FundamentalsGrid({ f, currentPrice }: { f: Fundamentals; currentPrice: number | null }) {
-  const hasAny =
-    f.pe_forward != null ||
-    f.return_on_equity != null ||
-    f.debt_to_equity != null ||
-    f.revenue_growth != null ||
-    f.earnings_growth != null ||
-    f.profit_margin != null ||
-    f.analyst_target_mean_price != null;
-  if (!hasAny) return null;
+  const hasValuation = f.pe_forward != null || f.debt_to_equity != null;
+  const hasPerformance = f.return_on_equity != null || f.revenue_growth != null || f.earnings_growth != null || f.profit_margin != null;
+  const hasAnalyst = f.analyst_target_mean_price != null || f.analyst_recommendation_key != null;
+  if (!hasValuation && !hasPerformance && !hasAnalyst) return null;
 
   const upside = currentPrice && f.analyst_target_mean_price ? ((f.analyst_target_mean_price - currentPrice) / currentPrice) * 100 : null;
 
   return (
-    <div>
-      <div className="type-subheading text-[var(--text-tertiary)]">Fundamentals</div>
-      <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {f.pe_forward != null && <StatChip label="Forward P/E" value={f.pe_forward.toFixed(1)} />}
-        {pctStat('Return on equity', f.return_on_equity)}
-        {pctStat('Revenue growth', f.revenue_growth)}
-        {pctStat('Earnings growth', f.earnings_growth)}
-        {pctStat('Profit margin', f.profit_margin)}
-        {f.debt_to_equity != null && <StatChip label="Debt/Equity" value={f.debt_to_equity.toFixed(1)} />}
-        {f.analyst_target_mean_price != null && (
-          <StatChip
-            label={`Analyst target${f.number_of_analyst_opinions ? ` (${f.number_of_analyst_opinions})` : ''}`}
-            value={`₹${f.analyst_target_mean_price.toFixed(0)}${upside != null ? ` (${upside > 0 ? '+' : ''}${upside.toFixed(0)}%)` : ''}`}
-            tone={upside != null ? (upside >= 0 ? 'bullish' : 'bearish') : undefined}
-          />
-        )}
-        {f.analyst_recommendation_key && (
-          <StatChip label="Analyst consensus" value={f.analyst_recommendation_key.replace(/_/g, ' ')} />
-        )}
-      </div>
+    <div className="space-y-4">
+      <SectionHeader icon={Wallet} label="Fundamentals" />
+
+      {hasValuation && (
+        <div>
+          <div className="type-caption text-[var(--text-tertiary)]">Valuation</div>
+          <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {f.pe_forward != null && <StatChip label="Forward P/E" value={f.pe_forward.toFixed(1)} />}
+            {f.debt_to_equity != null && <StatChip label="Debt/Equity" value={f.debt_to_equity.toFixed(1)} />}
+          </div>
+        </div>
+      )}
+
+      {hasPerformance && (
+        <div>
+          <div className="type-caption text-[var(--text-tertiary)]">Profitability &amp; growth</div>
+          <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {pctStat('Return on equity', f.return_on_equity)}
+            {pctStat('Revenue growth', f.revenue_growth)}
+            {pctStat('Earnings growth', f.earnings_growth)}
+            {pctStat('Profit margin', f.profit_margin)}
+          </div>
+        </div>
+      )}
+
+      {hasAnalyst && (
+        <div>
+          <div className="type-caption text-[var(--text-tertiary)]">Analyst view</div>
+          <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {f.analyst_target_mean_price != null && (
+              <StatChip
+                label={`Target price${f.number_of_analyst_opinions ? ` (${f.number_of_analyst_opinions} analysts)` : ''}`}
+                value={`₹${f.analyst_target_mean_price.toFixed(0)}${upside != null ? ` (${upside > 0 ? '+' : ''}${upside.toFixed(0)}%)` : ''}`}
+                tone={upside != null ? (upside >= 0 ? 'bullish' : 'bearish') : undefined}
+              />
+            )}
+            {f.analyst_recommendation_key && <StatChip label="Consensus" value={f.analyst_recommendation_key.replace(/_/g, ' ')} />}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

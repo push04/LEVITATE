@@ -2,7 +2,16 @@
 
 import { ArrowDownRight, ArrowUpRight, ChevronDown, Minus, TriangleAlert } from 'lucide-react';
 import PriceChart from '@/components/market-pulse/PriceChart';
-import { TechnicalVisuals, FundamentalsGrid, type Fundamentals, type TechnicalMetrics } from '@/components/market-pulse/StockMetrics';
+import {
+  TechnicalVisuals,
+  FundamentalsGrid,
+  FindingsChecklist,
+  RiskChecklist,
+  type Fundamentals,
+  type TechnicalMetrics,
+  type Finding,
+  type RiskFinding,
+} from '@/components/market-pulse/StockMetrics';
 
 export type DigestCardData = {
   ticker: string;
@@ -18,6 +27,8 @@ export type DigestCardData = {
   insider_buy_count_30d: number | null;
   insider_sell_count_30d: number | null;
   fundamentals: Fundamentals | null;
+  signal_findings?: Finding[] | null;
+  risk_findings?: RiskFinding[] | null;
 } & TechnicalMetrics;
 
 function formatPct(value: number | null) {
@@ -123,13 +134,25 @@ export default function DigestCard({
         <div className="mt-4">
           <TechnicalVisuals m={d} />
         </div>
-        {d.detailed_analysis && (
+        {d.signal_findings && d.signal_findings.length > 0 ? (
           <div className="mt-4">
-            <div className="type-subheading text-[var(--text-tertiary)]">Technical read</div>
-            <p className="mt-1.5 type-body text-[var(--text-secondary)]">{d.detailed_analysis}</p>
+            <FindingsChecklist findings={d.signal_findings} />
           </div>
+        ) : (
+          d.detailed_analysis && (
+            <div className="mt-4">
+              <div className="type-subheading text-[var(--text-tertiary)]">Technical read</div>
+              <p className="mt-1.5 type-body text-[var(--text-secondary)]">{d.detailed_analysis}</p>
+            </div>
+          )
         )}
-        {d.risk_notes && <p className="mt-3 type-caption leading-5">{d.risk_notes}</p>}
+        {d.risk_findings && d.risk_findings.length > 0 ? (
+          <div className="mt-4">
+            <RiskChecklist findings={d.risk_findings} />
+          </div>
+        ) : (
+          d.risk_notes && <p className="mt-3 type-caption leading-5">{d.risk_notes}</p>
+        )}
         {d.fundamentals && (
           <div className="mt-4">
             <FundamentalsGrid f={d.fundamentals} currentPrice={d.current_price} />

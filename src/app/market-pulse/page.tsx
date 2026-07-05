@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { getServiceSupabase } from '@/lib/supabase';
+import { buildDigestSelectColumns } from '@/lib/market-pulse-columns';
 import DigestCard from '@/components/market-pulse/DigestCard';
-import type { Fundamentals } from '@/components/market-pulse/StockMetrics';
+import type { Fundamentals, Finding, RiskFinding } from '@/components/market-pulse/StockMetrics';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +46,8 @@ type DigestRow = {
   high_52w: number | null;
   low_52w: number | null;
   fundamentals: Fundamentals | null;
+  signal_findings: Finding[] | null;
+  risk_findings: RiskFinding[] | null;
 };
 
 async function getPublishedDigest() {
@@ -63,33 +66,24 @@ async function getPublishedDigest() {
   const digestDate = latestDateRow.digest_date as string;
 
   // Optional columns land via separate migrations that may not all be
-  // applied yet — select everything, and if that errors (column doesn't
-  // exist), fall back to just the always-present base columns rather than
-  // letting the whole page silently render "nothing published" (data would
-  // otherwise be null and get treated as an empty digest).
+  // applied yet — probed per-group (see buildDigestSelectColumns) so one
+  // pending migration never hides fields from ones already applied.
   const BASE_DIGEST_COLUMNS =
     'ticker, company_name, sector, sentiment_trend, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level';
-  const OPTIONAL_DIGEST_COLUMNS =
-    'insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key, current_price, macd, macd_signal, sma_20, sma_50, adx_14, atr_14, stoch_k, cci_20, williams_r_14, volume, avg_volume_20, high_52w, low_52w';
+  const selectColumns = await buildDigestSelectColumns(supabase, BASE_DIGEST_COLUMNS);
 
-  let { data } = await supabase
+  const { data: dataRaw } = await supabase
     .from('daily_digest')
-    .select(`${BASE_DIGEST_COLUMNS}, ${OPTIONAL_DIGEST_COLUMNS}`)
+    .select(selectColumns)
     .eq('digest_date', digestDate)
     .eq('published', true)
     .order('divergence_flag', { ascending: false })
     .order('avg_confidence', { ascending: false });
 
-  if (data == null) {
-    const fallback = await supabase
-      .from('daily_digest')
-      .select(BASE_DIGEST_COLUMNS)
-      .eq('digest_date', digestDate)
-      .eq('published', true)
-      .order('divergence_flag', { ascending: false })
-      .order('avg_confidence', { ascending: false });
-    data = fallback.data as typeof data;
-  }
+  // Dynamic select-string means supabase-js can't statically infer the row
+  // shape (falls back to a GenericStringError type) — cast to the shape we
+  // know it has at runtime given selectColumns above.
+  const data = dataRaw as unknown as Array<Record<string, unknown> & { ticker: string }> | null;
 
   const { data: fundamentalsRows } = await supabase
     .from('fundamentals')
