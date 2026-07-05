@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { businessApiErrorResponse, requireBusinessCompany } from '@/lib/business-intelligence-server'
 import { getServiceSupabase } from '@/lib/supabase'
 import { buildDigestSelectColumns } from '@/lib/market-pulse-columns'
+import { loadPredictionTracking } from '@/lib/market-pulse-predictions'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,7 +56,15 @@ export async function GET() {
     .from('fundamentals')
     .select('ticker, pe_forward, return_on_equity, return_on_assets, debt_to_equity, revenue_growth, earnings_growth, profit_margin, analyst_target_mean_price, analyst_recommendation_key, number_of_analyst_opinions')
   const fundamentalsByTicker = new Map((fundamentalsRows ?? []).map((f) => [f.ticker, f]))
-  const digestWithFundamentals = (digest ?? []).map((d) => ({ ...d, fundamentals: fundamentalsByTicker.get(d.ticker) ?? null }))
+
+  const tickers = (digest ?? []).map((d) => d.ticker)
+  const predictionByTicker = await loadPredictionTracking(supabase, tickers)
+
+  const digestWithFundamentals = (digest ?? []).map((d) => ({
+    ...d,
+    fundamentals: fundamentalsByTicker.get(d.ticker) ?? null,
+    prediction: predictionByTicker.get(d.ticker) ?? null,
+  }))
 
   const { data: news } = await supabase
     .from('news_articles')

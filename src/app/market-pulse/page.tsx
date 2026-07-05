@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { getServiceSupabase } from '@/lib/supabase';
 import { buildDigestSelectColumns } from '@/lib/market-pulse-columns';
+import { loadPredictionTracking, type PredictionTracking } from '@/lib/market-pulse-predictions';
 import DigestCard from '@/components/market-pulse/DigestCard';
+import WatchlistSection from '@/components/market-pulse/WatchlistSection';
 import type { Fundamentals, Finding, RiskFinding } from '@/components/market-pulse/StockMetrics';
 
 export const dynamic = 'force-dynamic';
@@ -48,6 +50,7 @@ type DigestRow = {
   fundamentals: Fundamentals | null;
   signal_findings: Finding[] | null;
   risk_findings: RiskFinding[] | null;
+  prediction: PredictionTracking | null;
 };
 
 async function getPublishedDigest() {
@@ -90,7 +93,14 @@ async function getPublishedDigest() {
     .select('ticker, pe_forward, return_on_equity, return_on_assets, debt_to_equity, revenue_growth, earnings_growth, profit_margin, analyst_target_mean_price, analyst_recommendation_key, number_of_analyst_opinions');
   const fundamentalsByTicker = new Map((fundamentalsRows ?? []).map((f) => [f.ticker, f]));
 
-  const digest = (data ?? []).map((d) => ({ ...d, fundamentals: fundamentalsByTicker.get(d.ticker) ?? null }));
+  const tickers = (data ?? []).map((d) => d.ticker);
+  const predictionByTicker = await loadPredictionTracking(supabase, tickers);
+
+  const digest = (data ?? []).map((d) => ({
+    ...d,
+    fundamentals: fundamentalsByTicker.get(d.ticker) ?? null,
+    prediction: predictionByTicker.get(d.ticker) ?? null,
+  }));
 
   return { digestDate, digest: digest as DigestRow[] };
 }
@@ -216,10 +226,8 @@ export default async function MarketPulsePage() {
                 shares) and what&rsquo;s trending in the news — not a fixed list of stocks.
               </p>
 
-              <div className="mt-8 space-y-4">
-                {rest.map((d) => (
-                  <DigestCard key={d.ticker} d={d} priceEndpoint="/api/market-pulse/prices" />
-                ))}
+              <div className="mt-8">
+                <WatchlistSection items={rest} priceEndpoint="/api/market-pulse/prices" />
               </div>
             </div>
           </section>

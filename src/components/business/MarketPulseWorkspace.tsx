@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, ExternalLink, Loader2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import styles from '@/components/business/ui/DashboardPrimitives.module.css';
 import DigestCard from '@/components/market-pulse/DigestCard';
-import type { Fundamentals, Finding, RiskFinding } from '@/components/market-pulse/StockMetrics';
+import WatchlistSection from '@/components/market-pulse/WatchlistSection';
+import type { Fundamentals, Finding, RiskFinding, PredictionTracking } from '@/components/market-pulse/StockMetrics';
 
 interface DigestRow {
   ticker: string;
@@ -42,6 +43,7 @@ interface DigestRow {
   fundamentals: Fundamentals | null;
   signal_findings: Finding[] | null;
   risk_findings: RiskFinding[] | null;
+  prediction: PredictionTracking | null;
 }
 
 interface NewsItem {
@@ -198,8 +200,8 @@ export default function MarketPulseWorkspace() {
               Selected fresh today from real price movement (top gainers, losers, most-active) and
               news trends — not a fixed list.
             </p>
-            <div className="mt-4 space-y-3">
-              {rest.map((d) => <DigestCard key={d.ticker} d={d} priceEndpoint="/api/business/market-pulse/prices" />)}
+            <div className="mt-4">
+              <WatchlistSection items={rest} priceEndpoint="/api/business/market-pulse/prices" />
             </div>
           </div>
 

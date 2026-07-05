@@ -7,10 +7,13 @@ import {
   FundamentalsGrid,
   FindingsChecklist,
   RiskChecklist,
+  PotentialRange,
+  PredictionTrackerCard,
   type Fundamentals,
   type TechnicalMetrics,
   type Finding,
   type RiskFinding,
+  type PredictionTracking,
 } from '@/components/market-pulse/StockMetrics';
 
 export type DigestCardData = {
@@ -29,6 +32,7 @@ export type DigestCardData = {
   fundamentals: Fundamentals | null;
   signal_findings?: Finding[] | null;
   risk_findings?: RiskFinding[] | null;
+  prediction?: PredictionTracking | null;
 } & TechnicalMetrics;
 
 function formatPct(value: number | null) {
@@ -131,8 +135,16 @@ export default function DigestCard({
         <div className="mt-4 overflow-hidden rounded-[10px] bg-[var(--bg-overlay)] p-3">
           <PriceChart ticker={d.ticker} priceEndpoint={priceEndpoint} />
         </div>
+        {d.prediction && (
+          <div className="mt-4">
+            <PredictionTrackerCard prediction={d.prediction} currentPrice={d.current_price} />
+          </div>
+        )}
         <div className="mt-4">
           <TechnicalVisuals m={d} />
+        </div>
+        <div className="mt-4">
+          <PotentialRange currentPrice={d.current_price} atr14={d.atr_14} />
         </div>
         {d.signal_findings && d.signal_findings.length > 0 ? (
           <div className="mt-4">

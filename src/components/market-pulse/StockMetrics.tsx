@@ -1,4 +1,4 @@
-import { CheckCircle2, XCircle, MinusCircle, TriangleAlert, LineChart, Wallet, ListChecks } from 'lucide-react';
+import { CheckCircle2, XCircle, MinusCircle, TriangleAlert, LineChart, Wallet, ListChecks, CalendarClock, Gauge } from 'lucide-react';
 
 type Zone = { upto: number; color: string; label?: string };
 
@@ -305,6 +305,103 @@ export function FundamentalsGrid({ f, currentPrice }: { f: Fundamentals; current
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Volatility-scaled expected move, NOT a directional forecast — how far this
+// stock has typically moved historically, scaled from its daily ATR to the
+// prediction horizon via the standard sqrt(time) rule (independent daily
+// moves compound as sqrt(n), not n). Framed as "how much could this swing",
+// distinct from the bullish/bearish signal itself.
+export function PotentialRange({ currentPrice, atr14, horizonDays = 7 }: { currentPrice: number | null; atr14: number | null; horizonDays?: number }) {
+  if (currentPrice == null || atr14 == null || currentPrice <= 0) return null;
+  const dailyAtrPct = (atr14 / currentPrice) * 100;
+  const expectedMovePct = dailyAtrPct * Math.sqrt(horizonDays);
+  const upper = currentPrice * (1 + expectedMovePct / 100);
+  const lower = currentPrice * (1 - expectedMovePct / 100);
+
+  return (
+    <div>
+      <SectionHeader icon={Gauge} label={`${horizonDays}-day potential (volatility-based)`} />
+      <p className="mt-1 type-caption text-[var(--text-tertiary)]">
+        Not a forecast of direction — how far this stock has typically swung, scaled from its recent daily volatility (ATR).
+      </p>
+      <div className="mt-2 flex items-center justify-between rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-2.5">
+        <span className="type-body font-semibold text-[#9a5252]">₹{lower.toFixed(2)}</span>
+        <span className="type-caption text-[var(--text-tertiary)]">±{expectedMovePct.toFixed(1)}%</span>
+        <span className="type-body font-semibold text-[var(--status-closed)]">₹{upper.toFixed(2)}</span>
+      </div>
+    </div>
+  );
+}
+
+export type PredictionTracking = {
+  predictionDate: string;
+  signal: string;
+  priceAtPrediction: number;
+  targetDate: string;
+  evaluated: boolean;
+  outcome: string | null;
+  priceChangePct: number | null;
+  accuracy: { correct: number; total: number; pct: number | null };
+};
+
+// The requested accountability view: WHEN was this called, and — checked
+// against the real price, whether the target date has arrived yet or not —
+// is it actually tracking that call so far. Distinct from the site-wide
+// track record (Track record section): this is this ticker's own history.
+export function PredictionTrackerCard({ prediction, currentPrice }: { prediction: PredictionTracking | null; currentPrice: number | null }) {
+  if (!prediction) return null;
+
+  const livePct =
+    currentPrice != null ? Math.round(((currentPrice - prediction.priceAtPrediction) / prediction.priceAtPrediction) * 10000) / 100 : null;
+  const displayPct = prediction.evaluated ? prediction.priceChangePct : livePct;
+
+  const daysElapsed = Math.round((Date.now() - new Date(prediction.predictionDate).getTime()) / (24 * 60 * 60 * 1000));
+
+  let statusLabel: string;
+  let statusTone: 'bullish' | 'bearish' | 'neutral';
+  if (prediction.evaluated) {
+    statusLabel = prediction.outcome === 'correct' ? 'Correct' : prediction.outcome === 'incorrect' ? 'Incorrect' : 'Inconclusive';
+    statusTone = prediction.outcome === 'correct' ? 'bullish' : prediction.outcome === 'incorrect' ? 'bearish' : 'neutral';
+  } else {
+    // Not evaluated yet — infer whether it's currently tracking the call,
+    // using the same directional logic as evaluate_predictions.ts, just
+    // provisionally (this can still flip before the target date arrives).
+    const directionalThreshold = 1;
+    if (prediction.signal === 'bullish') statusTone = livePct != null && livePct > directionalThreshold ? 'bullish' : livePct != null && livePct < -directionalThreshold ? 'bearish' : 'neutral';
+    else if (prediction.signal === 'bearish') statusTone = livePct != null && livePct < -directionalThreshold ? 'bullish' : livePct != null && livePct > directionalThreshold ? 'bearish' : 'neutral';
+    else statusTone = livePct != null && Math.abs(livePct) <= 2 ? 'bullish' : 'bearish';
+    statusLabel = statusTone === 'bullish' ? 'Tracking so far' : statusTone === 'bearish' ? 'Against so far' : 'Too early to tell';
+  }
+
+  const toneClass = statusTone === 'bullish' ? 'text-[var(--status-closed)]' : statusTone === 'bearish' ? 'text-[#9a5252]' : 'text-[var(--text-tertiary)]';
+
+  return (
+    <div>
+      <SectionHeader icon={CalendarClock} label="Prediction tracking" />
+      <div className="mt-2 rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-overlay)] p-3">
+        <div className="type-caption text-[var(--text-tertiary)]">
+          Called <span className="font-semibold capitalize text-[var(--text-primary)]">{prediction.signal}</span> on {prediction.predictionDate}
+          {' · '}
+          {prediction.evaluated ? `checked on ${prediction.targetDate}` : `${daysElapsed} day${daysElapsed === 1 ? '' : 's'} in, targets ${prediction.targetDate}`}
+        </div>
+        <div className="mt-1.5 flex items-baseline gap-2">
+          <span className={`type-heading font-semibold ${toneClass}`}>{statusLabel}</span>
+          {displayPct != null && (
+            <span className={`type-body ${toneClass}`}>
+              {displayPct > 0 ? '+' : ''}
+              {displayPct.toFixed(2)}% since prediction
+            </span>
+          )}
+        </div>
+        {prediction.accuracy.total > 0 && (
+          <div className="mt-1.5 type-caption text-[var(--text-tertiary)]">
+            This stock&rsquo;s track record: {prediction.accuracy.correct} of {prediction.accuracy.total} calls correct ({prediction.accuracy.pct}%)
+          </div>
+        )}
+      </div>
     </div>
   );
 }
