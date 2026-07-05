@@ -100,7 +100,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
 
     const { data: latestTechnical } = await supabase
       .from("technical_indicators")
-      .select("rsi_14, macd, macd_signal, sma_20, sma_50, sma_200, bb_upper, bb_lower, atr_14, adx_14, obv, obv_sma_20, stoch_k, stoch_d")
+      .select("rsi_14, macd, macd_signal, sma_20, sma_50, sma_200, bb_upper, bb_lower, atr_14, adx_14, obv, obv_sma_20, stoch_k, stoch_d, cci_20, williams_r_14")
       .eq("ticker", ticker)
       .order("date", { ascending: false })
       .limit(1)
@@ -135,6 +135,8 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
       obvSma20: latestTechnical?.obv_sma_20 ?? null,
       stochK: latestTechnical?.stoch_k ?? null,
       stochD: latestTechnical?.stoch_d ?? null,
+      cci20: latestTechnical?.cci_20 ?? null,
+      williamsR14: latestTechnical?.williams_r_14 ?? null,
       priceChangePct,
       volume: latest.volume ?? null,
       avgVolume20,

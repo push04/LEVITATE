@@ -23,6 +23,8 @@ type TechRow = {
   obv_sma_20: number | null;
   stoch_k: number | null;
   stoch_d: number | null;
+  cci_20: number | null;
+  williams_r_14: number | null;
 };
 
 // Validates the exact same deterministic signal logic (technical_analysis.ts)
@@ -86,6 +88,8 @@ export async function runBacktest(): Promise<{ overallAccuracyPct: number | null
         obvSma20: tech.obv_sma_20,
         stochK: tech.stoch_k,
         stochD: tech.stoch_d,
+        cci20: tech.cci_20,
+        williamsR14: tech.williams_r_14,
         priceChangePct,
         volume: current.volume,
         avgVolume20,

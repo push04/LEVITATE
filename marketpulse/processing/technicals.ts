@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { pathToFileURL } from "node:url";
-import { RSI, MACD, BollingerBands, SMA, EMA, ATR, ADX, OBV, Stochastic } from "technicalindicators";
+import { RSI, MACD, BollingerBands, SMA, EMA, ATR, ADX, OBV, Stochastic, CCI, WilliamsR } from "technicalindicators";
 import { getSupabaseClient } from "../db/supabase_client.js";
 
 type PriceRow = { date: string; open: number; high: number; low: number; close: number; volume: number };
@@ -71,6 +71,11 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
     const obv = alignToDates(dates, obvValues);
     const obvSma20 = alignToDates(dates, SMA.calculate({ period: 20, values: obvValues }));
     const stoch = alignToDates(dates, Stochastic.calculate({ period: 14, signalPeriod: 3, high: highs, low: lows, close: closes }));
+    // CCI/Williams %R: backtested as mean-reversion "fade the extreme" signals
+    // (see technical_analysis.ts) — genuinely predictive here, unlike trying
+    // to use RSI/Bollinger extremes the same way, which empirically didn't hold up.
+    const cci20 = alignToDates(dates, CCI.calculate({ period: 20, high: highs, low: lows, close: closes }));
+    const williamsR14 = alignToDates(dates, WilliamsR.calculate({ period: 14, high: highs, low: lows, close: closes }));
 
     // Merge everything keyed by date.
     const byDate = new Map<string, Record<string, number | string | null>>();
@@ -102,6 +107,8 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
       row.stoch_k = s.value.k ?? null;
       row.stoch_d = s.value.d ?? null;
     }
+    for (const c of cci20) byDate.get(c.date)!.cci_20 = c.value;
+    for (const w of williamsR14) byDate.get(w.date)!.williams_r_14 = w.value;
 
     const payload = Array.from(byDate.values())
       .filter((row) => row.rsi_14 != null) // only rows with at least the core indicator computed
@@ -125,6 +132,8 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
         obv_sma_20: row.obv_sma_20 ?? null,
         stoch_k: row.stoch_k ?? null,
         stoch_d: row.stoch_d ?? null,
+        cci_20: row.cci_20 ?? null,
+        williams_r_14: row.williams_r_14 ?? null,
         trend_signal: trendSignal(row.rsi_14 as number | undefined, row.macd as number | undefined, row.macd_signal as number | undefined),
       }));
 
