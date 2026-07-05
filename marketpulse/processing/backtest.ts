@@ -57,6 +57,11 @@ export async function runBacktest(): Promise<{ overallAccuracyPct: number | null
     const priceDates = (prices as PriceRow[]).map((p) => p.date);
     const techRows = technicals as TechRow[];
 
+    // Same signal-persistence rule as digest.ts: require the raw signal to
+    // hold for 2 consecutive days before acting on it (backtested improvement
+    // 41.7% -> 45.3%) — tracked here since techRows is iterated chronologically.
+    let previousRawSignal: string | null = null;
+
     for (const tech of techRows) {
       const idx = priceDates.indexOf(tech.date);
       if (idx < 20) continue; // need 20 prior days for avgVolume20/priceChangePct context
@@ -97,6 +102,10 @@ export async function runBacktest(): Promise<{ overallAccuracyPct: number | null
         low52w: Number.isFinite(low52w) ? low52w : null,
       });
 
+      const rawSignal = read.trendSignal;
+      const effectiveSignal = rawSignal !== "neutral" && rawSignal !== previousRawSignal ? "neutral" : rawSignal;
+      previousRawSignal = rawSignal;
+
       // Find the actual price >= TARGET_DAYS calendar days later to check
       // the outcome — same "nearest trading day at/after target" approach
       // evaluate_predictions.ts uses for live predictions.
@@ -108,9 +117,9 @@ export async function runBacktest(): Promise<{ overallAccuracyPct: number | null
 
       const futurePrice = priceByDate.get(priceDates[futureIdx])!;
       const futureChangePct = Math.round(((futurePrice.close - current.close) / current.close) * 10000) / 100;
-      const outcome = outcomeFor(read.trendSignal, futureChangePct);
+      const outcome = outcomeFor(effectiveSignal, futureChangePct);
 
-      const bucket = tally[read.trendSignal];
+      const bucket = tally[effectiveSignal];
       bucket.total++;
       if (outcome === "correct") bucket.correct++;
       totalSignals++;

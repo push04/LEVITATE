@@ -25,6 +25,10 @@ type DigestRow = {
   detailed_analysis: string | null;
   risk_notes: string | null;
   risk_level: string | null;
+  insider_buy_count_30d: number | null;
+  insider_sell_count_30d: number | null;
+  analyst_target_mean_price: number | null;
+  analyst_recommendation_key: string | null;
 };
 
 function formatPct(value: number | null) {
@@ -37,6 +41,28 @@ function SentimentMark({ sentiment }: { sentiment: string }) {
   if (sentiment === 'bullish') return <ArrowUpRight className="h-4 w-4 text-[var(--status-closed)]" />;
   if (sentiment === 'bearish') return <ArrowDownRight className="h-4 w-4 text-[#9a5252]" />;
   return <Minus className="h-4 w-4 text-[var(--text-tertiary)]" />;
+}
+
+function FundamentalsNote({ d }: { d: DigestRow }) {
+  const hasInsider = (d.insider_buy_count_30d ?? 0) > 0 || (d.insider_sell_count_30d ?? 0) > 0;
+  const hasAnalyst = d.analyst_target_mean_price != null || d.analyst_recommendation_key;
+  if (!hasInsider && !hasAnalyst) return null;
+
+  return (
+    <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 type-caption text-[var(--text-tertiary)]">
+      {hasInsider && (
+        <span>
+          Insider filings (30d): {d.insider_buy_count_30d ?? 0} buy / {d.insider_sell_count_30d ?? 0} sell
+        </span>
+      )}
+      {hasAnalyst && (
+        <span>
+          Analyst consensus: {d.analyst_recommendation_key ? d.analyst_recommendation_key.replace(/_/g, ' ') : 'n/a'}
+          {d.analyst_target_mean_price != null ? ` · target ₹${d.analyst_target_mean_price.toFixed(0)}` : ''}
+        </span>
+      )}
+    </div>
+  );
 }
 
 function RiskBadge({ level }: { level: string | null }) {
@@ -71,7 +97,7 @@ async function getPublishedDigest() {
 
   const { data } = await supabase
     .from('daily_digest')
-    .select('ticker, company_name, sector, sentiment_trend, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level')
+    .select('ticker, company_name, sector, sentiment_trend, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level, insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key')
     .eq('digest_date', digestDate)
     .eq('published', true)
     .order('divergence_flag', { ascending: false })
@@ -206,6 +232,7 @@ export default async function MarketPulsePage() {
                           <p className="type-caption leading-5">{d.risk_notes}</p>
                         </div>
                       )}
+                      <FundamentalsNote d={d} />
                     </div>
                   ))}
                 </div>
@@ -255,6 +282,7 @@ export default async function MarketPulsePage() {
                       {d.risk_notes && (
                         <p className="mt-3 type-caption leading-5">{d.risk_notes}</p>
                       )}
+                      <FundamentalsNote d={d} />
                     </div>
                   </details>
                 ))}

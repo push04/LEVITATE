@@ -8,6 +8,8 @@
     "universe": "tsx ingestion/universe_sync.ts",
     "news": "tsx ingestion/news_pull.ts",
     "reddit": "tsx ingestion/reddit_pull.ts",
+    "insider": "tsx ingestion/insider_trading_pull.ts",
+    "fundamentals": "tsx ingestion/fundamentals_pull.ts",
     "market": "tsx ingestion/market_data_pull.ts",
     "movers": "tsx processing/market_movers.ts",
     "watchlist": "tsx processing/watchlist_update.ts",

@@ -20,6 +20,10 @@ interface DigestRow {
   detailed_analysis: string | null;
   risk_notes: string | null;
   risk_level: string | null;
+  insider_buy_count_30d: number | null;
+  insider_sell_count_30d: number | null;
+  analyst_target_mean_price: number | null;
+  analyst_recommendation_key: string | null;
 }
 
 interface NewsItem {
@@ -98,6 +102,19 @@ function DigestCard({ d }: { d: DigestRow }) {
           </div>
         )}
         {d.risk_notes && <p className="mt-3 type-caption leading-5">{d.risk_notes}</p>}
+        {((d.insider_buy_count_30d ?? 0) > 0 || (d.insider_sell_count_30d ?? 0) > 0 || d.analyst_target_mean_price != null || d.analyst_recommendation_key) && (
+          <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 type-caption text-[var(--text-tertiary)]">
+            {((d.insider_buy_count_30d ?? 0) > 0 || (d.insider_sell_count_30d ?? 0) > 0) && (
+              <span>Insider filings (30d): {d.insider_buy_count_30d ?? 0} buy / {d.insider_sell_count_30d ?? 0} sell</span>
+            )}
+            {(d.analyst_target_mean_price != null || d.analyst_recommendation_key) && (
+              <span>
+                Analyst consensus: {d.analyst_recommendation_key ? d.analyst_recommendation_key.replace(/_/g, ' ') : 'n/a'}
+                {d.analyst_target_mean_price != null ? ` · target ₹${d.analyst_target_mean_price.toFixed(0)}` : ''}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </details>
   );

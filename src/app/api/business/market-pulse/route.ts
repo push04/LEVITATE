@@ -31,7 +31,7 @@ export async function GET() {
 
   const { data: digest, error: digestError } = await supabase
     .from('daily_digest')
-    .select('ticker, company_name, sector, sentiment_trend, avg_confidence, news_count, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level')
+    .select('ticker, company_name, sector, sentiment_trend, avg_confidence, news_count, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level, insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key')
     .eq('digest_date', digestDate)
     .order('divergence_flag', { ascending: false })
     .order('avg_confidence', { ascending: false })

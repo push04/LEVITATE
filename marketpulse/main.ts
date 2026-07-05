@@ -2,6 +2,8 @@ import "dotenv/config";
 import { syncUniverse } from "./ingestion/universe_sync.js";
 import { pullNews } from "./ingestion/news_pull.js";
 import { pullReddit } from "./ingestion/reddit_pull.js";
+import { pullInsiderTrading } from "./ingestion/insider_trading_pull.js";
+import { pullFundamentals } from "./ingestion/fundamentals_pull.js";
 import { updateWatchlist } from "./processing/watchlist_update.js";
 import { pullMarketData } from "./ingestion/market_data_pull.js";
 import { scoreSentiment } from "./processing/sentiment_score.js";
@@ -37,6 +39,8 @@ async function main() {
   //    detection, sentiment scoring).
   await pullNews();
   await pullReddit(); // no-ops gracefully if REDDIT_CLIENT_ID isn't set
+  await pullInsiderTrading(); // NSE promoter/insider disclosures — informational for now, not yet backtested into scoring
+  await pullFundamentals(); // valuation/profitability/analyst consensus — informational only, no historical series to backtest against
 
   // 3. Pull OHLC for the FULL NSE universe (not just today's watchlist) —
   //    this is what lets step 4 rank real gainers/losers/most-active instead

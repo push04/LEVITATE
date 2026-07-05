@@ -28,9 +28,22 @@ function dominantSentiment(scores: Array<{ sentiment: string; confidence: number
   return { trend, avgConfidence: Math.round(avgConfidence * 100) / 100 };
 }
 
+const CORE_TECHNICAL_COLUMNS = "rsi_14, macd, macd_signal, sma_20, sma_50, sma_200, bb_upper, bb_lower, atr_14, adx_14, obv, obv_sma_20, stoch_k, stoch_d";
+const ADVANCED_TECHNICAL_COLUMNS = "cci_20, williams_r_14";
+
 export async function buildDigest(): Promise<{ tickersInDigest: number; divergences: number }> {
   const supabase = getSupabaseClient();
   const digestDate = today();
+
+  // Checked once, not per-ticker — avoids every single ticker's technicals
+  // query silently failing (and previously, silently being swallowed) if
+  // marketpulse/db/more_technicals.sql hasn't been run yet.
+  const { error: advancedColumnsProbe } = await supabase.from("technical_indicators").select(ADVANCED_TECHNICAL_COLUMNS).limit(1);
+  const hasAdvancedTechnicals = !advancedColumnsProbe;
+  if (!hasAdvancedTechnicals) {
+    console.warn("[digest] cci_20/williams_r_14 columns not found — run marketpulse/db/more_technicals.sql to enable them. Using core technicals only for now.");
+  }
+  const technicalSelectColumns = hasAdvancedTechnicals ? `${CORE_TECHNICAL_COLUMNS}, ${ADVANCED_TECHNICAL_COLUMNS}` : CORE_TECHNICAL_COLUMNS;
 
   const { data: settings } = await supabase
     .from("market_pulse_settings")
@@ -70,6 +83,54 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
     sentimentByTicker.set(row.ticker as string, list);
   }
 
+  // Informational only for now — surfaced per-ticker below, not yet part of
+  // trend_signal scoring (not enough accumulated history yet to backtest
+  // whether it predicts anything, unlike the price technicals).
+  const insiderSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const { data: recentInsiderTrades } = await supabase
+    .from("insider_trades")
+    .select("ticker, transaction_type")
+    .gte("transaction_date", insiderSince);
+  const insiderCountsByTicker = new Map<string, { buy: number; sell: number }>();
+  for (const t of recentInsiderTrades ?? []) {
+    const counts = insiderCountsByTicker.get(t.ticker as string) ?? { buy: 0, sell: 0 };
+    if (t.transaction_type === "Buy") counts.buy++;
+    else if (t.transaction_type === "Sell") counts.sell++;
+    insiderCountsByTicker.set(t.ticker as string, counts);
+  }
+
+  // Same informational-only status as insider trades above — Yahoo only
+  // gives current-snapshot fundamentals, not a historical series, so there's
+  // nothing to backtest against yet.
+  const { data: fundamentalsRows } = await supabase
+    .from("fundamentals")
+    .select("ticker, analyst_target_mean_price, analyst_recommendation_key");
+  const fundamentalsByTicker = new Map((fundamentalsRows ?? []).map((f) => [f.ticker as string, f]));
+
+  // Signal persistence: backtesting showed requiring the same raw signal to
+  // hold for 2 consecutive days (not act on a single-day blip) measurably
+  // improves accuracy. Compare against yesterday's RAW signal specifically —
+  // comparing against yesterday's already-persistence-adjusted signal would
+  // make a real multi-day trend never re-confirm once it first got dropped
+  // to neutral for lacking a prior day to compare against.
+  const { data: mostRecentPriorDateRow } = await supabase
+    .from("daily_digest")
+    .select("digest_date")
+    .lt("digest_date", digestDate)
+    .order("digest_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const priorRawSignalByTicker = new Map<string, string>();
+  if (mostRecentPriorDateRow?.digest_date) {
+    const { data: priorRows } = await supabase
+      .from("daily_digest")
+      .select("ticker, raw_trend_signal")
+      .eq("digest_date", mostRecentPriorDateRow.digest_date as string);
+    for (const r of priorRows ?? []) {
+      if (r.raw_trend_signal) priorRawSignalByTicker.set(r.ticker as string, r.raw_trend_signal as string);
+    }
+  }
+
   let tickersInDigest = 0;
   let divergences = 0;
   const rows: Array<Record<string, unknown>> = [];
@@ -98,13 +159,21 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
     const high52w = yearPrices.reduce((max, r) => Math.max(max, r.high ?? -Infinity), -Infinity);
     const low52w = yearPrices.reduce((min, r) => Math.min(min, r.low ?? Infinity), Infinity);
 
-    const { data: latestTechnical } = await supabase
+    const { data: latestTechnicalRaw, error: technicalError } = await supabase
       .from("technical_indicators")
-      .select("rsi_14, macd, macd_signal, sma_20, sma_50, sma_200, bb_upper, bb_lower, atr_14, adx_14, obv, obv_sma_20, stoch_k, stoch_d, cci_20, williams_r_14")
+      .select(technicalSelectColumns)
       .eq("ticker", ticker)
       .order("date", { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (technicalError) {
+      console.warn(`[digest] ${ticker}: failed to load technicals, skipping:`, technicalError.message);
+      continue;
+    }
+    // Dynamic select-string means supabase-js can't statically infer the row
+    // shape (falls back to a ParserError type) — cast to the shape we know
+    // it has at runtime given technicalSelectColumns above.
+    const latestTechnical = latestTechnicalRaw as Record<string, number | null> | null;
 
     const sentimentRows = sentimentByTicker.get(ticker) ?? [];
     const { trend, avgConfidence } = dominantSentiment(sentimentRows);
@@ -144,6 +213,10 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
       low52w: Number.isFinite(low52w) ? low52w : null,
     });
 
+    const priorRawSignal = priorRawSignalByTicker.get(ticker);
+    const effectiveTrendSignal =
+      technicalRead.trendSignal !== "neutral" && technicalRead.trendSignal !== priorRawSignal ? "neutral" : technicalRead.trendSignal;
+
     const priceDirection = priceChangePct == null ? "flat" : priceChangePct > 0 ? "up" : priceChangePct < 0 ? "down" : "flat";
     const summary = divergenceFlag
       ? `News sentiment is ${trend} on ${ticker} while the price is ${priceDirection} ${Math.abs(priceChangePct ?? 0)}% — worth a second look.`
@@ -159,12 +232,17 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
       news_count: sentimentRows.length,
       price_change_pct: priceChangePct,
       rsi_14: latestTechnical?.rsi_14 ?? null,
-      trend_signal: technicalRead.trendSignal,
+      trend_signal: effectiveTrendSignal,
+      raw_trend_signal: technicalRead.trendSignal,
       divergence_flag: divergenceFlag,
       summary_text: summary,
       detailed_analysis: technicalRead.outlook,
       risk_notes: technicalRead.riskNotes,
       risk_level: technicalRead.riskLevel,
+      insider_buy_count_30d: insiderCountsByTicker.get(ticker)?.buy ?? 0,
+      insider_sell_count_30d: insiderCountsByTicker.get(ticker)?.sell ?? 0,
+      analyst_target_mean_price: fundamentalsByTicker.get(ticker)?.analyst_target_mean_price ?? null,
+      analyst_recommendation_key: fundamentalsByTicker.get(ticker)?.analyst_recommendation_key ?? null,
       published: existingPublished.get(ticker) ?? (publishMode === "auto"),
     });
     tickersInDigest++;
@@ -177,7 +255,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
       ticker,
       company_name: w.company_name,
       prediction_date: digestDate,
-      signal: technicalRead.trendSignal,
+      signal: effectiveTrendSignal,
       price_at_prediction: latest.close,
       target_days: PREDICTION_TARGET_DAYS,
       target_date: addDays(digestDate, PREDICTION_TARGET_DAYS),
@@ -186,7 +264,25 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
 
   if (rows.length > 0) {
     const { error: upsertError } = await supabase.from("daily_digest").upsert(rows, { onConflict: "digest_date,ticker" });
-    if (upsertError) throw upsertError;
+    if (upsertError) {
+      // Falls back gracefully if insider_trades.sql / fundamentals.sql
+      // haven't been run yet (they each add optional daily_digest columns)
+      // — don't let a not-yet-applied migration break the whole digest.
+      // PGRST204 only names one missing column per error, so strip all the
+      // optional ones at once rather than retrying one at a time.
+      if (upsertError.code === "PGRST204") {
+        const strippedRows = rows.map(
+          ({ insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key, raw_trend_signal, ...rest }) => rest
+        );
+        const { error: retryError } = await supabase.from("daily_digest").upsert(strippedRows, { onConflict: "digest_date,ticker" });
+        if (retryError) throw retryError;
+        console.warn(
+          "[digest] one or more optional columns not found (insider_buy_count_30d/insider_sell_count_30d/analyst_target_mean_price/analyst_recommendation_key/raw_trend_signal) — run marketpulse/db/insider_trades.sql, marketpulse/db/fundamentals.sql, and marketpulse/db/signal_persistence.sql to enable them. Digest saved without them for now."
+        );
+      } else {
+        throw upsertError;
+      }
+    }
   }
 
   if (predictions.length > 0) {
