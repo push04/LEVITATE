@@ -29,12 +29,32 @@ export async function GET() {
 
   const digestDate = latestDateRow.digest_date as string
 
-  const { data: digest, error: digestError } = await supabase
+  // Optional columns land via separate migrations that may not all be
+  // applied yet — select everything, and if that errors (column doesn't
+  // exist), fall back to base columns only rather than 500ing the whole
+  // dashboard just because the newest optional migration isn't in yet.
+  const BASE_DIGEST_COLUMNS =
+    'ticker, company_name, sector, sentiment_trend, avg_confidence, news_count, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level'
+  const OPTIONAL_DIGEST_COLUMNS =
+    'insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key, current_price, macd, macd_signal, sma_20, sma_50, adx_14, atr_14, stoch_k, cci_20, williams_r_14, volume, avg_volume_20, high_52w, low_52w'
+
+  let { data: digest, error: digestError } = await supabase
     .from('daily_digest')
-    .select('ticker, company_name, sector, sentiment_trend, avg_confidence, news_count, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level, insider_buy_count_30d, insider_sell_count_30d, analyst_target_mean_price, analyst_recommendation_key, current_price, macd, macd_signal, sma_20, sma_50, adx_14, atr_14, stoch_k, cci_20, williams_r_14, volume, avg_volume_20, high_52w, low_52w')
+    .select(`${BASE_DIGEST_COLUMNS}, ${OPTIONAL_DIGEST_COLUMNS}`)
     .eq('digest_date', digestDate)
     .order('divergence_flag', { ascending: false })
     .order('avg_confidence', { ascending: false })
+
+  if (digestError) {
+    const fallback = await supabase
+      .from('daily_digest')
+      .select(BASE_DIGEST_COLUMNS)
+      .eq('digest_date', digestDate)
+      .order('divergence_flag', { ascending: false })
+      .order('avg_confidence', { ascending: false })
+    digest = fallback.data as typeof digest
+    digestError = fallback.error
+  }
 
   if (digestError) return NextResponse.json({ error: digestError.message }, { status: 500 })
 
