@@ -67,17 +67,29 @@ export default function AdminMarketPulsePage() {
     });
   }
 
-  async function publishSelected(published: boolean) {
-    if (!digestDate || selected.size === 0) return;
+  async function publishTickers(tickers: string[], published: boolean) {
+    if (!digestDate || tickers.length === 0) return;
     setSaving(true);
     await fetch('/api/admin/market-pulse/digest', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ digestDate, tickers: Array.from(selected), published }),
+      body: JSON.stringify({ digestDate, tickers, published }),
     });
     setSelected(new Set());
     await load();
     setSaving(false);
+  }
+
+  function publishSelected(published: boolean) {
+    return publishTickers(Array.from(selected), published);
+  }
+
+  function publishAll(published: boolean) {
+    return publishTickers(digest.map((d) => d.ticker), published);
+  }
+
+  function toggleSelectAll() {
+    setSelected((prev) => (prev.size === digest.length ? new Set() : new Set(digest.map((d) => d.ticker))));
   }
 
   if (loading) {
@@ -138,23 +150,43 @@ export default function AdminMarketPulsePage() {
             <p className="text-[12px] font-semibold uppercase tracking-wide text-gray-400">
               Today&apos;s digest ({digestDate})
             </p>
-            {publishMode === 'manual' && selected.size > 0 && (
-              <div className="flex gap-2">
+            {publishMode === 'manual' && (
+              <div className="flex flex-wrap gap-2">
+                {selected.size > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => void publishSelected(true)}
+                      className="rounded-lg bg-[#B08D57] px-3 py-1.5 text-[11px] font-semibold text-white hover:brightness-110"
+                    >
+                      Publish {selected.size} selected
+                    </button>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => void publishSelected(false)}
+                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:border-gray-300"
+                    >
+                      Unpublish selected
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
-                  disabled={saving}
-                  onClick={() => void publishSelected(true)}
-                  className="rounded-lg bg-[#B08D57] px-3 py-1.5 text-[11px] font-semibold text-white hover:brightness-110"
+                  disabled={saving || digest.length === 0}
+                  onClick={() => void publishAll(true)}
+                  className="rounded-lg border border-[#B08D57]/40 px-3 py-1.5 text-[11px] font-semibold text-[#8a6d3f] hover:bg-[#B08D57]/10"
                 >
-                  Publish {selected.size} selected
+                  Publish all ({digest.length})
                 </button>
                 <button
                   type="button"
-                  disabled={saving}
-                  onClick={() => void publishSelected(false)}
+                  disabled={saving || digest.length === 0}
+                  onClick={() => void publishAll(false)}
                   className="rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:border-gray-300"
                 >
-                  Unpublish selected
+                  Unpublish all
                 </button>
               </div>
             )}
@@ -162,7 +194,17 @@ export default function AdminMarketPulsePage() {
           <table className="w-full text-left text-[13px]">
             <thead>
               <tr className="border-b border-gray-100 text-[11px] uppercase tracking-wide text-gray-400">
-                {publishMode === 'manual' && <th className="w-10 px-4 py-2" />}
+                {publishMode === 'manual' && (
+                  <th className="w-10 px-4 py-2">
+                    <input
+                      type="checkbox"
+                      checked={digest.length > 0 && selected.size === digest.length}
+                      onChange={toggleSelectAll}
+                      className="h-3.5 w-3.5"
+                      aria-label="Select all"
+                    />
+                  </th>
+                )}
                 <th className="px-4 py-2 font-medium">Company</th>
                 <th className="px-4 py-2 font-medium">Sentiment</th>
                 <th className="px-4 py-2 font-medium">Price</th>
