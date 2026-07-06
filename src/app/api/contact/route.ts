@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAnonSupabase } from '@/lib/supabase';
 import { notifyFounder, sendLeadEmail } from '@/lib/email/client';
+import { sendAdminPush } from '@/lib/push/admin-push';
 
 // Allowed MIME types for file upload
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
@@ -92,7 +93,12 @@ export async function POST(request: NextRequest) {
                     email,
                     'We received your inquiry — Levitate Labs',
                     `Hi ${name},\n\nThank you for reaching out to Levitate Labs! We've received your message and our team will respond within 24 hours.\n\nBest regards,\nThe Levitate Labs Team\nlevitatelabs.online`
-                )
+                ),
+                sendAdminPush({
+                    title: `New inquiry: ${name}`,
+                    body: `${budget}${service_category ? ` · ${service_category}` : ''} — ${message.slice(0, 120)}`,
+                    url: '/admin/dashboard/leads',
+                }),
             ]);
         } catch { /* non-fatal */ }
 
