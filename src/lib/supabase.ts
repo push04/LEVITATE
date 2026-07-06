@@ -1,6 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { createClient as createClientJs } from '@supabase/supabase-js';
 import { getSupabasePublishableKey, getSupabaseServiceRoleKey, getSupabaseUrl } from '@/lib/supabase-env';
+import type { LeadStatus } from '@/lib/lead-status';
 
 // Lazy singleton - only created when first accessed, not at build time
 let _supabase: ReturnType<typeof createBrowserClient> | null = null
@@ -65,7 +66,7 @@ export interface Lead {
     message: string | null;
     budget: string | null;
     file_url: string | null;
-    status: 'New' | 'Contacted' | 'Follow Up' | 'Closed';
+    status: LeadStatus;
     created_at: string;
     // Manual Entry Fields
     phone?: string;

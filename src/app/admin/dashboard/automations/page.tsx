@@ -10,6 +10,7 @@ import {
   Users, ArrowRight, MapPin, Star, Mail, Inbox, Send, FileText
 } from 'lucide-react'
 import OutreachTemplateManager from '@/components/admin/OutreachTemplateManager'
+import { LEAD_STATUSES, LEAD_STATUS_PILL_CLASS, LEAD_STATUS_HEX } from '@/lib/lead-status'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -722,16 +723,9 @@ interface AutomationLead {
   website_link: string | null
 }
 
-const STATUS_ORDER = ['New', 'Contacted', 'Follow Up', 'Closed']
-const STATUS_COLORS: Record<string, string> = {
-  'New':        'bg-blue-50 text-blue-700 border-blue-200',
-  'Contacted':  'bg-amber-50 text-amber-700 border-amber-200',
-  'Follow Up':  'bg-orange-50 text-orange-700 border-orange-200',
-  'Closed':     'bg-emerald-50 text-emerald-700 border-emerald-200',
-}
-const FUNNEL_COLORS: Record<string, string> = {
-  'New': 'bg-blue-500', 'Contacted': 'bg-yellow-500', 'Follow Up': 'bg-orange-500', 'Closed': 'bg-green-500'
-}
+const STATUS_ORDER = LEAD_STATUSES
+const STATUS_COLORS = LEAD_STATUS_PILL_CLASS
+const FUNNEL_COLORS = LEAD_STATUS_HEX
 
 function PipelineTab() {
   const [leads, setLeads]       = useState<AutomationLead[]>([])
@@ -795,7 +789,7 @@ function PipelineTab() {
 
   // Also count any other statuses
   leads.forEach(l => {
-    if (!STATUS_ORDER.includes(l.status)) {
+    if (!(STATUS_ORDER as readonly string[]).includes(l.status)) {
       byStatus[l.status] = (byStatus[l.status] ?? 0) + 1
     }
   })
@@ -817,7 +811,7 @@ function PipelineTab() {
     <div className="space-y-5">
 
       {/* Funnel cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {STATUS_ORDER.map(s => {
           const count = byStatus[s] ?? 0
           const pct   = total > 0 ? Math.round((count / total) * 100) : 0
@@ -830,7 +824,7 @@ function PipelineTab() {
               <p className="text-xs text-[var(--muted)] mb-1">{s}</p>
               <p className="text-2xl font-bold">{count}</p>
               <div className="mt-2 bg-[var(--secondary)] rounded-full h-1.5">
-                <div className={`h-full rounded-full ${FUNNEL_COLORS[s] ?? 'bg-gray-500'}`} style={{ width: `${pct}%` }} />
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: FUNNEL_COLORS[s] ?? '#6b7280' }} />
               </div>
               <p className="text-xs text-[var(--muted)] mt-1">{pct}% of {total}</p>
             </div>

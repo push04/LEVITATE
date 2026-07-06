@@ -17,12 +17,15 @@ import {
 import { supabase, type Lead, type PotentialLead } from '@/lib/supabase';
 import OutreachModal from '@/components/admin/OutreachModal';
 import BlogManager from '@/components/admin/BlogManager';
+import { LEAD_STATUSES, type LeadStatus } from '@/lib/lead-status';
 
 const statusConfig = {
     New: { color: 'bg-blue-500', icon: Clock3, label: 'New' },
     Contacted: { color: 'bg-yellow-500', icon: Phone, label: 'Contacted' },
     'Follow Up': { color: 'bg-purple-500', icon: Clock3, label: 'Follow Up' },
+    Done: { color: 'bg-teal-500', icon: CheckCircle, label: 'Done' },
     Closed: { color: 'bg-green-500', icon: CheckCircle, label: 'Closed' },
+    Paid: { color: 'bg-emerald-500', icon: CheckCircle, label: 'Paid' },
 };
 
 export default function AdminDashboard() {
@@ -31,7 +34,7 @@ export default function AdminDashboard() {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-    const [filter, setFilter] = useState<'all' | 'New' | 'Contacted' | 'Follow Up' | 'Closed'>('all');
+    const [filter, setFilter] = useState<'all' | LeadStatus>('all');
     const [sortBy, setSortBy] = useState<'date' | 'value'>('date');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -180,7 +183,7 @@ export default function AdminDashboard() {
         }
     };
 
-    const updateLeadStatus = async (id: string, status: 'New' | 'Contacted' | 'Closed') => {
+    const updateLeadStatus = async (id: string, status: LeadStatus) => {
         try {
             const response = await fetch('/api/admin/leads', {
                 method: 'PATCH',
@@ -679,7 +682,7 @@ export default function AdminDashboard() {
                                     <div className="p-4 border-b border-[var(--border)] flex flex-wrap items-center justify-between gap-4">
                                         <h2 className="font-bold">Inquiry Feed</h2>
                                         <div className="flex gap-2">
-                                            {(['all', 'New', 'Contacted', 'Follow Up', 'Closed'] as const).map((status) => (
+                                            {(['all', ...LEAD_STATUSES] as const).map((status) => (
                                                 <button
                                                     key={status}
                                                     onClick={() => setFilter(status)}
@@ -1226,10 +1229,9 @@ export default function AdminDashboard() {
                                             value={newClient.status || 'New'}
                                             onChange={e => setNewClient({ ...newClient, status: e.target.value })}
                                         >
-                                            <option value="New">Status: New</option>
-                                            <option value="Contacted">Status: Contacted</option>
-                                            <option value="Follow Up">Status: Follow Up</option>
-                                            <option value="Closed">Status: Closed</option>
+                                            {LEAD_STATUSES.map((s) => (
+                                                <option key={s} value={s}>Status: {s}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
@@ -1323,7 +1325,7 @@ function LeadCard({
     onGenerateOutreach
 }: {
     lead: Lead;
-    onStatusChange: (id: string, status: 'New' | 'Contacted' | 'Closed') => void;
+    onStatusChange: (id: string, status: LeadStatus) => void;
     onSelect: () => void;
     isSelected: boolean;
     openEditModal: (lead: Lead) => void;
@@ -1422,7 +1424,7 @@ function LeadCard({
                                     exit={{ opacity: 0, y: -10 }}
                                     className="absolute right-0 mt-1 w-32 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg overflow-hidden z-10"
                                 >
-                                    {(['New', 'Contacted', 'Closed'] as const).map((s) => (
+                                    {LEAD_STATUSES.map((s) => (
                                         <button
                                             key={s}
                                             onClick={() => {
