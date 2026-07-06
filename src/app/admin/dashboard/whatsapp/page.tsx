@@ -42,6 +42,14 @@ function personalizeClient(template: string, name: string): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => (key.toLowerCase() === 'name' ? (name || `{{${key}}}`) : `{{${key}}}`))
 }
 
+// wa.me needs digits only (country code + number, no +/spaces/dashes) - opens
+// WhatsApp Web or the desktop/mobile app directly to a chat with the message
+// pre-filled, for sending manually outside the daemon queue.
+function buildWhatsAppLink(toNumber: string, message: string): string {
+  const digits = toNumber.replace(/\D/g, '')
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`
+}
+
 // Shows the resolved message per contact and lets the admin override any
 // single contact's message — everyone else keeps using the shared template.
 function ContactPreviewList({
@@ -752,6 +760,15 @@ export default function WhatsAppAdmin() {
                     {msg.status === 'failed'  && <XCircle className="w-2.5 h-2.5" />}
                     {msg.status.charAt(0).toUpperCase() + msg.status.slice(1)}
                   </span>
+                  <a
+                    href={buildWhatsAppLink(msg.to_number, msg.message)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-1 rounded hover:bg-green-50 hover:text-green-600 text-[var(--muted)]"
+                    title="Open in WhatsApp to send manually"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </a>
                   <button onClick={() => deleteMessage(msg.id)} className="p-1 rounded hover:bg-red-50 hover:text-red-500 text-[var(--muted)]">
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -811,10 +828,21 @@ export default function WhatsAppAdmin() {
                     {new Date(msg.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
                   </td>
                   <td className="px-5 py-3.5">
-                    <button onClick={() => deleteMessage(msg.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-red-50 hover:text-red-500 text-[var(--muted)] transition-all">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <a
+                        href={buildWhatsAppLink(msg.to_number, msg.message)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1.5 rounded hover:bg-green-50 hover:text-green-600 text-[var(--muted)] transition-all"
+                        title="Open in WhatsApp to send manually"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </a>
+                      <button onClick={() => deleteMessage(msg.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-red-50 hover:text-red-500 text-[var(--muted)] transition-all">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
