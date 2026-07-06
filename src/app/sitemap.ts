@@ -9,7 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/48-hour-challenge', '/website-in-24-hours',
     '/for/clinics', '/for/coaching-centres', '/for/restaurants', '/for/real-estate',
     '/partners/agency', '/partners/ca-referral',
-    '/tools/business-finder',
+    '/tools/business-finder', '/tools/bizharvest', '/tools/tenderpulse',
   ].map(path => ({ url: `${baseUrl}${path}`, lastModified: new Date() }));
 
   // Blog posts — only if Supabase is properly configured
