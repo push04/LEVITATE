@@ -12,7 +12,7 @@ export type PredictionTracking = {
 }
 
 // One prediction row per ticker per day (predictions.ticker,prediction_date is
-// unique) — this loads the most recent one for each ticker, plus that
+// unique) - this loads the most recent one for each ticker, plus that
 // ticker's own historical hit-rate, in a single query rather than N+1s.
 export async function loadPredictionTracking(supabase: SupabaseClient, tickers: string[]): Promise<Map<string, PredictionTracking>> {
   if (tickers.length === 0) return new Map()

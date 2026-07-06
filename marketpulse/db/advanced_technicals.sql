@@ -1,4 +1,4 @@
--- More advanced technicals — golden/death cross, trend strength, volume
+-- More advanced technicals - golden/death cross, trend strength, volume
 -- confirmation. Run once in the Supabase SQL editor.
 
 alter table technical_indicators add column if not exists sma_200 numeric;

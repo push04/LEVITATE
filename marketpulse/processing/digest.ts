@@ -35,18 +35,18 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
   const supabase = getSupabaseClient();
   const digestDate = today();
 
-  // Checked once, not per-ticker — avoids every single ticker's technicals
+  // Checked once, not per-ticker - avoids every single ticker's technicals
   // query silently failing (and previously, silently being swallowed) if
   // marketpulse/db/more_technicals.sql hasn't been run yet.
   const { error: advancedColumnsProbe } = await supabase.from("technical_indicators").select(ADVANCED_TECHNICAL_COLUMNS).limit(1);
   const hasAdvancedTechnicals = !advancedColumnsProbe;
   if (!hasAdvancedTechnicals) {
-    console.warn("[digest] cci_20/williams_r_14 columns not found — run marketpulse/db/more_technicals.sql to enable them. Using core technicals only for now.");
+    console.warn("[digest] cci_20/williams_r_14 columns not found - run marketpulse/db/more_technicals.sql to enable them. Using core technicals only for now.");
   }
   const technicalSelectColumns = hasAdvancedTechnicals ? `${CORE_TECHNICAL_COLUMNS}, ${ADVANCED_TECHNICAL_COLUMNS}` : CORE_TECHNICAL_COLUMNS;
 
   // Each optional daily_digest column group is added by its own migration
-  // file and may land independently of the others — probe each one
+  // file and may land independently of the others - probe each one
   // separately rather than an all-or-nothing "does the upsert fail at all"
   // check, so e.g. insider_trades.sql being applied doesn't get its columns
   // silently dropped just because richer_metrics.sql hasn't run yet too.
@@ -68,7 +68,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
   if (!hasRicherMetrics) missingMigrations.push("marketpulse/db/richer_metrics.sql");
   if (!hasStructuredFindings) missingMigrations.push("marketpulse/db/structured_findings.sql");
   if (missingMigrations.length > 0) {
-    console.warn(`[digest] some optional columns not found — run ${missingMigrations.join(", ")} to enable them. Digest saved without them for now.`);
+    console.warn(`[digest] some optional columns not found - run ${missingMigrations.join(", ")} to enable them. Digest saved without them for now.`);
   }
 
   const { data: settings } = await supabase
@@ -109,7 +109,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
     sentimentByTicker.set(row.ticker as string, list);
   }
 
-  // Informational only for now — surfaced per-ticker below, not yet part of
+  // Informational only for now - surfaced per-ticker below, not yet part of
   // trend_signal scoring (not enough accumulated history yet to backtest
   // whether it predicts anything, unlike the price technicals).
   const insiderSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -125,7 +125,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
     insiderCountsByTicker.set(t.ticker as string, counts);
   }
 
-  // Same informational-only status as insider trades above — Yahoo only
+  // Same informational-only status as insider trades above - Yahoo only
   // gives current-snapshot fundamentals, not a historical series, so there's
   // nothing to backtest against yet.
   const { data: fundamentalsRows } = await supabase
@@ -135,7 +135,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
 
   // Signal persistence: backtesting showed requiring the same raw signal to
   // hold for 2 consecutive days (not act on a single-day blip) measurably
-  // improves accuracy. Compare against yesterday's RAW signal specifically —
+  // improves accuracy. Compare against yesterday's RAW signal specifically -
   // comparing against yesterday's already-persistence-adjusted signal would
   // make a real multi-day trend never re-confirm once it first got dropped
   // to neutral for lacking a prior day to compare against.
@@ -165,7 +165,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
   for (const w of watchlist ?? []) {
     const ticker = w.ticker as string;
 
-    // Up to a year of history in one query — covers the day-over-day change,
+    // Up to a year of history in one query - covers the day-over-day change,
     // the 20-day average volume, and a real 52-week high/low, all from the
     // same dataset instead of three separate round-trips.
     const { data: yearPrices } = await supabase
@@ -197,7 +197,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
       continue;
     }
     // Dynamic select-string means supabase-js can't statically infer the row
-    // shape (falls back to a ParserError type) — cast to the shape we know
+    // shape (falls back to a ParserError type) - cast to the shape we know
     // it has at runtime given technicalSelectColumns above.
     const latestTechnical = latestTechnicalRaw as Record<string, number | null> | null;
 
@@ -211,7 +211,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
 
     if (divergenceFlag) divergences++;
 
-    // Primary analysis engine: deterministic, computed from real technicals —
+    // Primary analysis engine: deterministic, computed from real technicals -
     // not Groq. `trend` (from Groq's news sentiment) is kept as a separate,
     // secondary signal specifically to power the divergence check above.
     const technicalRead = analyzeTechnicals({
@@ -245,7 +245,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
 
     const priceDirection = priceChangePct == null ? "flat" : priceChangePct > 0 ? "up" : priceChangePct < 0 ? "down" : "flat";
     const summary = divergenceFlag
-      ? `News sentiment is ${trend} on ${ticker} while the price is ${priceDirection} ${Math.abs(priceChangePct ?? 0)}% — worth a second look.`
+      ? `News sentiment is ${trend} on ${ticker} while the price is ${priceDirection} ${Math.abs(priceChangePct ?? 0)}% - worth a second look.`
       : `${ticker}: sentiment ${trend}${sentimentRows.length ? ` (${sentimentRows.length} recent ${sentimentRows.length === 1 ? "story" : "stories"})` : ""}, price ${priceDirection}${priceChangePct != null ? ` ${priceChangePct}%` : ""}.`;
 
     rows.push({
@@ -305,7 +305,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
     });
     tickersInDigest++;
 
-    // Record today's signal as a checkable prediction — evaluated
+    // Record today's signal as a checkable prediction - evaluated
     // automatically by processing/evaluate_predictions.ts once
     // PREDICTION_TARGET_DAYS have passed. This is what the accuracy track
     // record is built from; nothing here is asserted without being checked.
@@ -332,7 +332,7 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
     if (predictionError) console.warn("[digest] failed to record predictions:", predictionError.message);
   }
 
-  console.log(`[digest] done — ${tickersInDigest} tickers in today's digest, ${divergences} divergence(s) flagged, publish mode: ${publishMode}`);
+  console.log(`[digest] done - ${tickersInDigest} tickers in today's digest, ${divergences} divergence(s) flagged, publish mode: ${publishMode}`);
   return { tickersInDigest, divergences };
 }
 

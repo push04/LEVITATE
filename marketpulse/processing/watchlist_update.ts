@@ -15,13 +15,13 @@ type UniverseEntry = {
 const MAX_NEWS_FOR_PROMPT = 150;
 const MAX_TRENDING_PICKS = 30;
 // Groq extracts candidate tickers per chunk from its own knowledge (no
-// universe list in the prompt — with ~500 real NSE tickers now, embedding
+// universe list in the prompt - with ~500 real NSE tickers now, embedding
 // the whole list in every call would itself risk HTTP 413 again). Every
 // candidate gets validated against the real nse_universe table afterward,
 // so a hallucinated/incorrect ticker is simply dropped, never trusted blind.
 const HEADLINES_PER_CHUNK = 40;
 // Market movers are recomputed fresh every day, so a ticker not re-confirmed
-// within a few days genuinely isn't moving/trending anymore — a long window
+// within a few days genuinely isn't moving/trending anymore - a long window
 // here would let the active set grow unbounded (and with it, technicals +
 // Groq sentiment scoring cost) since a different set of movers gets selected
 // each day.
@@ -41,8 +41,8 @@ async function askGroqForTickersInChunk(headlines: string[]): Promise<Array<{ ti
   const system = `You are a financial news analyst for the Indian stock market (NSE). Given a batch of recent news headlines, identify any specific NSE-listed companies that are prominently mentioned or central to a major event (results, regulatory action, big deal, notable price move).
 
 Rules:
-- Return the company's actual NSE ticker symbol (uppercase, as traded on NSE — e.g. RELIANCE, TCS, INFY, HDFCBANK). Only include a ticker if you are confident it is the correct, real NSE symbol for that company; if you're not sure of the exact symbol, omit it rather than guessing.
-- Do not include general market commentary, indices, or vague sector mentions — only specific, named companies.
+- Return the company's actual NSE ticker symbol (uppercase, as traded on NSE - e.g. RELIANCE, TCS, INFY, HDFCBANK). Only include a ticker if you are confident it is the correct, real NSE symbol for that company; if you're not sure of the exact symbol, omit it rather than guessing.
+- Do not include general market commentary, indices, or vague sector mentions - only specific, named companies.
 - Return at most ${MAX_TRENDING_PICKS} tickers, ranked most-prominent first.
 - Respond ONLY with a JSON array, no prose: [{"ticker": "RELIANCE", "reason": "one short phrase on why it's in the news"}, ...]`;
 
@@ -105,8 +105,8 @@ Rules:
   return [];
 }
 
-// Processes headlines in small chunks — send some, merge the result, move to
-// the next chunk — rather than one giant prompt. Every candidate ticker Groq
+// Processes headlines in small chunks - send some, merge the result, move to
+// the next chunk - rather than one giant prompt. Every candidate ticker Groq
 // returns is validated against the real nse_universe table before use; this
 // function itself does zero validation, that happens in updateWatchlist().
 async function askGroqForTrendingTickers(headlines: string[]): Promise<Array<{ ticker: string; reason: string }>> {
@@ -162,14 +162,14 @@ export async function updateWatchlist(): Promise<{ active: number; trending: num
   const headlines = (recentNews ?? []).map((n) => n.title as string);
   const groqCandidates = await askGroqForTrendingTickers(headlines);
   // Validate every Groq-suggested ticker against the real, NSE-sourced
-  // universe — anything Groq got wrong (hallucinated or misremembered) is
+  // universe - anything Groq got wrong (hallucinated or misremembered) is
   // silently dropped here, never trusted blind.
   const trending = groqCandidates
     .filter((t) => validTickers.has(t.ticker))
     .slice(0, MAX_TRENDING_PICKS);
   console.log(`[watchlist_update] Groq suggested ${groqCandidates.length} tickers from ${headlines.length} headlines, ${trending.length} validated against the real NSE universe`);
 
-  // 3. Real, objective market movers — top gainers/losers/most-active by
+  // 3. Real, objective market movers - top gainers/losers/most-active by
   // actual price change % and volume across the full universe (populated by
   // ingestion/market_data_pull.ts, which pulls the whole universe, not just
   // today's watchlist). No hand-picked tickers anywhere in this selection.
@@ -177,7 +177,7 @@ export async function updateWatchlist(): Promise<{ active: number; trending: num
   const moverList = [...movers.gainers, ...movers.losers, ...movers.mostActive];
 
   // 4. The active watchlist is the union of real market movers and Groq's
-  // news-trending picks — nothing here is a fixed/hardcoded list.
+  // news-trending picks - nothing here is a fixed/hardcoded list.
   const tickersToActivate = new Map<string, string>(); // ticker -> reason
   for (const m of moverList) tickersToActivate.set(m.ticker, m.reason);
   for (const t of trending) tickersToActivate.set(t.ticker, t.reason || "Trending in recent news");
@@ -222,7 +222,7 @@ export async function updateWatchlist(): Promise<{ active: number; trending: num
     .select("*", { count: "exact", head: true })
     .eq("active", true);
 
-  console.log(`[watchlist_update] done — ${activeCount ?? 0} active tickers (${activated} confirmed this run)`);
+  console.log(`[watchlist_update] done - ${activeCount ?? 0} active tickers (${activated} confirmed this run)`);
   return { active: activeCount ?? 0, trending: trending.length, pruned: prunedCount };
 }
 

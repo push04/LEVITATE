@@ -13,11 +13,11 @@ import HomeDeveloper from '@/components/sections/HomeDeveloper';
 import s from '@/styles/home.module.css';
 
 export const metadata: Metadata = {
-  title: 'Levitate Labs — Agentic AI for Indian Businesses',
+  title: 'Levitate Labs - Agentic AI for Indian Businesses',
   description:
     'LevitateOS automates your leads, follow-ups, payments, and reporting. WhatsApp-first AI business operating system for Indian MSMEs.',
   openGraph: {
-    title: 'Levitate Labs — Agentic AI for Indian Businesses',
+    title: 'Levitate Labs - Agentic AI for Indian Businesses',
     description: 'LevitateOS: WhatsApp-first AI business OS for Indian businesses.',
     url: 'https://levitatelabs.online',
     siteName: 'Levitate Labs',
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
         url: 'https://levitatelabs.online/api/og?title=Levitate%20Labs&type=default',
         width: 1200,
         height: 630,
-        alt: 'Levitate Labs — Agentic AI for Indian Businesses',
+        alt: 'Levitate Labs - Agentic AI for Indian Businesses',
       },
     ],
   },

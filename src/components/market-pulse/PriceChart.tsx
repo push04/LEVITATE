@@ -24,7 +24,7 @@ export default function PriceChart({ ticker, priceEndpoint }: { ticker: string; 
 
         const container = containerRef.current;
         // width is set for real by the ResizeObserver below, right after
-        // creation — createChart itself just needs a starting value, which
+        // creation - createChart itself just needs a starting value, which
         // matters because this component is often mounted while collapsed
         // inside a <details> accordion (clientWidth reads 0 there) and
         // nothing would otherwise ever tell the chart it became visible.
@@ -68,7 +68,7 @@ export default function PriceChart({ ticker, priceEndpoint }: { ticker: string; 
         );
 
         // Volume as a separate pane at the bottom of the same chart, not a
-        // whole extra widget — gives the card real visual depth instead of
+        // whole extra widget - gives the card real visual depth instead of
         // just a single candlestick line.
         const volumeSeries = chart.addSeries(HistogramSeries, {
           priceFormat: { type: 'volume' },

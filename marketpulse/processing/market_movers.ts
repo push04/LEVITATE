@@ -13,12 +13,12 @@ export type MarketMover = {
   reason: string;
 };
 
-// Real, objective market-movers ranking — no hand-picked ticker list. Reads
+// Real, objective market-movers ranking - no hand-picked ticker list. Reads
 // whatever price_data ingestion/market_data_pull.ts already pulled for the
 // FULL nse_universe.json pool (not just today's watchlist) and ranks by
 // actual price change % and volume, exactly what a market-movers screener
 // would show. This is one of the two inputs to watchlist_update.ts (the
-// other being Groq's news-trending pick) — between them, the daily watchlist
+// other being Groq's news-trending pick) - between them, the daily watchlist
 // is entirely determined by what the market and the news actually did today.
 export async function findMarketMovers(): Promise<{ gainers: MarketMover[]; losers: MarketMover[]; mostActive: MarketMover[] }> {
   const supabase = getSupabaseClient();
@@ -31,7 +31,7 @@ export async function findMarketMovers(): Promise<{ gainers: MarketMover[]; lose
 
   // One batched query for the last ~5 days across ALL of price_data (not
   // filtered `.in(ticker, ...)` against the full ~500-ticker universe, which
-  // would build an unwieldy query string) — cheap since it's a single narrow
+  // would build an unwieldy query string) - cheap since it's a single narrow
   // date-range scan, and we only care about tickers that actually have rows.
   const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const { data: recentRows, error } = await supabase

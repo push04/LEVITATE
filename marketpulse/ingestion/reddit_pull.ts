@@ -14,11 +14,11 @@ function loadSubreddits(): SubredditConfig[] {
   return JSON.parse(raw);
 }
 
-// Official Reddit OAuth REST API — the same authenticated endpoint the
+// Official Reddit OAuth REST API - the same authenticated endpoint the
 // Python PRAW library wraps. Implemented directly here (rather than pulling
 // in a Python dependency) to stay consistent with the rest of this project,
 // which is TypeScript end to end. "Script app" client-credentials grant is
-// sufficient for read-only public post access — no user login needed.
+// sufficient for read-only public post access - no user login needed.
 async function getAccessToken(clientId: string, clientSecret: string, userAgent: string): Promise<string> {
   const res = await fetch("https://www.reddit.com/api/v1/access_token", {
     method: "POST",
@@ -61,7 +61,7 @@ async function fetchSubredditPosts(token: string, userAgent: string, subreddit: 
   const children: Array<{ data: Record<string, unknown> }> = data.data?.children ?? [];
 
   return children.map(({ data: p }) => ({
-    id: p.name as string, // Reddit's fullname (e.g. "t3_abc123") — globally unique, doubles as our primary key
+    id: p.name as string, // Reddit's fullname (e.g. "t3_abc123") - globally unique, doubles as our primary key
     subreddit,
     title: (p.title as string) ?? "",
     selftext: typeof p.selftext === "string" && p.selftext.length > 0 ? p.selftext.slice(0, 4000) : null,
@@ -80,7 +80,7 @@ export async function pullReddit(): Promise<{ inserted: number; skipped: number;
   const userAgent = process.env.REDDIT_USER_AGENT || "marketpulse/1.0";
 
   if (!clientId || !clientSecret) {
-    console.warn("[reddit_pull] REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET not set — skipping Reddit ingestion");
+    console.warn("[reddit_pull] REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET not set - skipping Reddit ingestion");
     return { inserted: 0, skipped: 0, failedSubreddits: [] };
   }
 
@@ -101,7 +101,7 @@ export async function pullReddit(): Promise<{ inserted: number; skipped: number;
         for (const post of posts) {
           const { error } = await supabase.from("reddit_posts").insert(post);
           if (error) {
-            if (error.code === "23505") skipped++; // already ingested — expected steady state
+            if (error.code === "23505") skipped++; // already ingested - expected steady state
             else throw error;
           } else {
             inserted++;
@@ -119,7 +119,7 @@ export async function pullReddit(): Promise<{ inserted: number; skipped: number;
     return { inserted, skipped, failedSubreddits: subreddits.map((s) => s.name) };
   }
 
-  console.log(`[reddit_pull] done — inserted ${inserted}, skipped ${skipped} duplicates, ${failedSubreddits.length} subreddits failed`);
+  console.log(`[reddit_pull] done - inserted ${inserted}, skipped ${skipped} duplicates, ${failedSubreddits.length} subreddits failed`);
   return { inserted, skipped, failedSubreddits };
 }
 

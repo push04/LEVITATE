@@ -1,4 +1,4 @@
--- Reddit ingestion — run once in the Supabase SQL editor.
+-- Reddit ingestion - run once in the Supabase SQL editor.
 -- Posts from Indian stock-market subreddits, pulled via Reddit's official
 -- OAuth REST API (config/subreddits.json). Feeds into sentiment_scores the
 -- same way news_articles does (source_type = 'reddit').

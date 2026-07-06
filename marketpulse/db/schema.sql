@@ -1,4 +1,4 @@
--- MarketPulse — Supabase/Postgres schema
+-- MarketPulse - Supabase/Postgres schema
 -- Run this whole file once in the Supabase SQL editor (Project > SQL Editor > New query).
 -- Safe to re-run on a fresh project; drops nothing on an existing one.
 
@@ -7,7 +7,7 @@ create extension if not exists "pgcrypto";
 -- Dynamic watchlist: Groq reviews the last ~48h of ingested news each run and
 -- picks which tickers (from config/nse_universe.json, a curated known-valid
 -- universe) are actually trending right now. `pinned` rows (the Nifty/Sensex
--- indices) are always active regardless of what Groq returns — everything
+-- indices) are always active regardless of what Groq returns - everything
 -- else ages out (active=false) if it stops showing up in the trend pass.
 create table if not exists watchlist (
   ticker text primary key,
@@ -97,7 +97,7 @@ create table if not exists daily_digest (
 );
 create index if not exists daily_digest_date_idx on daily_digest(digest_date desc);
 
--- Broadcasts to every PostgREST replica behind Supabase's connection pooler —
+-- Broadcasts to every PostgREST replica behind Supabase's connection pooler -
 -- without this, some requests (reads) can succeed against an already-synced
 -- replica while others (writes) hit a stale one and fail with "table not
 -- found in schema cache" even though the table exists.

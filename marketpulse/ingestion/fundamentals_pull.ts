@@ -4,7 +4,7 @@ import https from "node:https";
 import { getSupabaseClient } from "../db/supabase_client.js";
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-// Fundamentals move slowly (quarterly results, gradual analyst revisions) —
+// Fundamentals move slowly (quarterly results, gradual analyst revisions) -
 // no need to re-hit Yahoo every 2-3 hour run. Same resync-guard pattern as
 // universe_sync.ts, just on a much longer cycle.
 const RESYNC_INTERVAL_HOURS = 48;
@@ -75,7 +75,7 @@ export async function pullFundamentals(): Promise<{ updated: number; skippedRece
   if (mostRecent?.updated_at) {
     const hoursSince = (Date.now() - new Date(mostRecent.updated_at).getTime()) / (60 * 60 * 1000);
     if (hoursSince < RESYNC_INTERVAL_HOURS) {
-      console.log(`[fundamentals_pull] synced ${hoursSince.toFixed(1)}h ago (< ${RESYNC_INTERVAL_HOURS}h) — skipping`);
+      console.log(`[fundamentals_pull] synced ${hoursSince.toFixed(1)}h ago (< ${RESYNC_INTERVAL_HOURS}h) - skipping`);
       return { updated: 0, skippedRecent: true };
     }
   }
@@ -111,7 +111,7 @@ export async function pullFundamentals(): Promise<{ updated: number; skippedRece
     }
   }
 
-  console.log(`[fundamentals_pull] done — ${updated}/${tickers.length} tickers updated`);
+  console.log(`[fundamentals_pull] done - ${updated}/${tickers.length} tickers updated`);
   return { updated, skippedRecent: false };
 }
 

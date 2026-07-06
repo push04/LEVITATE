@@ -23,7 +23,7 @@ create table if not exists predictions (
 create index if not exists predictions_target_date_idx on predictions(target_date) where not evaluated;
 create index if not exists predictions_signal_outcome_idx on predictions(signal, outcome);
 
--- Backtest runs — a separate, explicit "we ran the same logic against
+-- Backtest runs - a separate, explicit "we ran the same logic against
 -- history" record, kept distinct from live day-by-day predictions above.
 create table if not exists backtest_runs (
   id uuid primary key default gen_random_uuid(),

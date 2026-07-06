@@ -44,7 +44,7 @@ export async function pullNews(): Promise<{ inserted: number; skipped: number; f
 
         if (error) {
           // Unique violation on `link` just means we've already ingested this
-          // article on a previous run — that's the expected steady state, not
+          // article on a previous run - that's the expected steady state, not
           // a failure.
           if (error.code === "23505") skipped++;
           else throw error;
@@ -59,7 +59,7 @@ export async function pullNews(): Promise<{ inserted: number; skipped: number; f
     }
   }
 
-  console.log(`[news_pull] done — inserted ${inserted}, skipped ${skipped} duplicates, ${failedFeeds.length} feeds failed`);
+  console.log(`[news_pull] done - inserted ${inserted}, skipped ${skipped} duplicates, ${failedFeeds.length} feeds failed`);
   return { inserted, skipped, failedFeeds };
 }
 

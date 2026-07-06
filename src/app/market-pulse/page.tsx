@@ -4,16 +4,18 @@ import { ArrowRight } from 'lucide-react';
 import { getServiceSupabase } from '@/lib/supabase';
 import { buildDigestSelectColumns } from '@/lib/market-pulse-columns';
 import { loadPredictionTracking, type PredictionTracking } from '@/lib/market-pulse-predictions';
+import { loadTickerNews, type TickerNewsItem } from '@/lib/market-pulse-ticker-news';
 import DigestCard from '@/components/market-pulse/DigestCard';
 import WatchlistSection from '@/components/market-pulse/WatchlistSection';
+import SectorOverview from '@/components/market-pulse/SectorOverview';
 import type { Fundamentals, Finding, RiskFinding } from '@/components/market-pulse/StockMetrics';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Market Pulse — Levitate Labs',
+  title: 'Market Pulse - Levitate Labs',
   description:
-    'A daily read on Indian stock market sentiment, price movement, and technicals — built for business owners deciding where surplus cash might go.',
+    'A daily read on Indian stock market sentiment, price movement, and technicals - built for business owners deciding where surplus cash might go.',
 };
 
 type DigestRow = {
@@ -51,6 +53,7 @@ type DigestRow = {
   signal_findings: Finding[] | null;
   risk_findings: RiskFinding[] | null;
   prediction: PredictionTracking | null;
+  news: TickerNewsItem[] | null;
 };
 
 async function getPublishedDigest() {
@@ -69,7 +72,7 @@ async function getPublishedDigest() {
   const digestDate = latestDateRow.digest_date as string;
 
   // Optional columns land via separate migrations that may not all be
-  // applied yet — probed per-group (see buildDigestSelectColumns) so one
+  // applied yet - probed per-group (see buildDigestSelectColumns) so one
   // pending migration never hides fields from ones already applied.
   const BASE_DIGEST_COLUMNS =
     'ticker, company_name, sector, sentiment_trend, price_change_pct, rsi_14, trend_signal, divergence_flag, summary_text, detailed_analysis, risk_notes, risk_level';
@@ -84,22 +87,24 @@ async function getPublishedDigest() {
     .order('avg_confidence', { ascending: false });
 
   // Dynamic select-string means supabase-js can't statically infer the row
-  // shape (falls back to a GenericStringError type) — cast to the shape we
+  // shape (falls back to a GenericStringError type) - cast to the shape we
   // know it has at runtime given selectColumns above.
   const data = dataRaw as unknown as Array<Record<string, unknown> & { ticker: string }> | null;
 
   const { data: fundamentalsRows } = await supabase
     .from('fundamentals')
-    .select('ticker, pe_forward, return_on_equity, return_on_assets, debt_to_equity, revenue_growth, earnings_growth, profit_margin, analyst_target_mean_price, analyst_recommendation_key, number_of_analyst_opinions');
+    .select('ticker, pe_forward, return_on_equity, return_on_assets, debt_to_equity, revenue_growth, earnings_growth, profit_margin, analyst_target_mean_price, analyst_recommendation_key, number_of_analyst_opinions, beta');
   const fundamentalsByTicker = new Map((fundamentalsRows ?? []).map((f) => [f.ticker, f]));
 
   const tickers = (data ?? []).map((d) => d.ticker);
   const predictionByTicker = await loadPredictionTracking(supabase, tickers);
+  const newsByTicker = await loadTickerNews(supabase, tickers);
 
   const digest = (data ?? []).map((d) => ({
     ...d,
     fundamentals: fundamentalsByTicker.get(d.ticker) ?? null,
     prediction: predictionByTicker.get(d.ticker) ?? null,
+    news: newsByTicker.get(d.ticker) ?? null,
   }));
 
   return { digestDate, digest: digest as DigestRow[] };
@@ -158,7 +163,7 @@ export default async function MarketPulsePage() {
           </h1>
           <p className="mt-6 max-w-2xl type-body text-[17px] leading-8 text-[var(--text-secondary)]">
             A daily read on Indian (NSE/BSE) stock market sentiment, price movement, and
-            technicals — built as a starting point for business owners thinking about where
+            technicals - built as a starting point for business owners thinking about where
             surplus cash might go. The watchlist below is chosen fresh every day from actual
             market movers and news coverage, not a fixed list.
           </p>
@@ -172,7 +177,7 @@ export default async function MarketPulsePage() {
         <section className="px-6 py-24">
           <div className="mx-auto max-w-4xl rounded-[20px] border border-[var(--border-default)] bg-[var(--bg-surface)] p-12 text-center">
             <p className="type-body text-[var(--text-secondary)]">
-              Nothing published yet — check back shortly.
+              Nothing published yet - check back shortly.
             </p>
           </div>
         </section>
@@ -195,6 +200,8 @@ export default async function MarketPulsePage() {
             </div>
           </section>
 
+          <SectorOverview items={digest} />
+
           {divergences.length > 0 && (
             <section className="px-6 py-16">
               <div className="mx-auto max-w-4xl">
@@ -203,7 +210,7 @@ export default async function MarketPulsePage() {
                   Sentiment and price disagree
                 </h2>
                 <p className="mt-2 max-w-xl type-body text-[var(--text-secondary)]">
-                  These moved opposite to what the news coverage suggests — the market may not
+                  These moved opposite to what the news coverage suggests - the market may not
                   have caught up yet, or the reaction may be overdone.
                 </p>
                 <div className="mt-8 space-y-6">
@@ -223,7 +230,7 @@ export default async function MarketPulsePage() {
               </h2>
               <p className="mt-2 max-w-xl type-body text-[var(--text-secondary)]">
                 Selected fresh today from real price movement (top gainers, losers, and most-active
-                shares) and what&rsquo;s trending in the news — not a fixed list of stocks.
+                shares) and what&rsquo;s trending in the news - not a fixed list of stocks.
               </p>
 
               <div className="mt-8">
@@ -248,18 +255,18 @@ export default async function MarketPulsePage() {
                   <div className="rounded-[16px] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-6">
                     <div className="type-subheading text-[var(--text-tertiary)]">Live predictions, evaluated</div>
                     <div className="font-serif-display mt-2 text-[36px] text-[var(--text-primary)]">
-                      {trackRecord.live.accuracyPct != null ? `${trackRecord.live.accuracyPct}%` : '—'}
+                      {trackRecord.live.accuracyPct != null ? `${trackRecord.live.accuracyPct}%` : '-'}
                     </div>
                     <p className="mt-1 type-caption">
                       {trackRecord.live.total > 0
                         ? `${trackRecord.live.correct} of ${trackRecord.live.total} calls correct so far, 7 trading days out`
-                        : 'No predictions have matured yet — check back soon'}
+                        : 'No predictions have matured yet - check back soon'}
                     </p>
                   </div>
                   <div className="rounded-[16px] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-6">
                     <div className="type-subheading text-[var(--text-tertiary)]">Backtested against history</div>
                     <div className="font-serif-display mt-2 text-[36px] text-[var(--text-primary)]">
-                      {trackRecord.backtest?.overall_accuracy_pct != null ? `${trackRecord.backtest.overall_accuracy_pct}%` : '—'}
+                      {trackRecord.backtest?.overall_accuracy_pct != null ? `${trackRecord.backtest.overall_accuracy_pct}%` : '-'}
                     </div>
                     <p className="mt-1 type-caption">
                       {trackRecord.backtest
@@ -277,7 +284,7 @@ export default async function MarketPulsePage() {
               <p className="type-caption leading-5">
                 Informational only, not investment advice. The technical read and risk notes above
                 are generated by a deterministic rules engine from real price and indicator data
-                (RSI, MACD, moving averages, Bollinger Bands, ATR) — sentiment tags are derived from
+                (RSI, MACD, moving averages, Bollinger Bands, ATR) - sentiment tags are derived from
                 AI classification of public news headlines and can be wrong. Nothing here is a
                 prediction or a recommendation to buy or sell. Please do your own research or
                 consult a SEBI-registered advisor before investing.
@@ -294,7 +301,7 @@ export default async function MarketPulsePage() {
           </h2>
           <p className="mx-auto mt-3 max-w-xl type-body text-[var(--text-secondary)]">
             Growth OS and Scale Suite customers get the full daily digest, recent news with
-            sentiment tags, and a self-updating watchlist — inside LevitateOS.
+            sentiment tags, and a self-updating watchlist - inside LevitateOS.
           </p>
           <Link
             href="/pricing"

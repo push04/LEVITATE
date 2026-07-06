@@ -20,7 +20,7 @@ async function classify(
   validTickers: Set<string>
 ): Promise<{ ticker: string | null; sector: string | null; sentiment: string; confidence: number; summary: string } | null> {
   const system = `You are a financial sentiment classifier for the Indian stock market. Given a news headline (and optional summary), identify:
-1. The single most relevant NSE ticker it relates to, ONLY if it is unambiguously and specifically about one company from Nifty/Sensex-listed large or mid caps (otherwise null — do not guess)
+1. The single most relevant NSE ticker it relates to, ONLY if it is unambiguously and specifically about one company from Nifty/Sensex-listed large or mid caps (otherwise null - do not guess)
 2. The sector it relates to (e.g. "Banking", "IT", "Energy", "Auto", or null if too general)
 3. Sentiment: "bullish", "bearish", or "neutral" (from a stock-market investor's point of view)
 4. Confidence: 0.0 to 1.0
@@ -76,7 +76,7 @@ Respond ONLY in JSON, no prose: {"ticker": "RELIANCE" or null, "sector": "Energy
 export async function scoreSentiment(): Promise<{ scored: number; skipped: number }> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    console.warn("[sentiment_score] GROQ_API_KEY not set — skipping");
+    console.warn("[sentiment_score] GROQ_API_KEY not set - skipping");
     return { scored: 0, skipped: 0 };
   }
 
@@ -119,7 +119,7 @@ export async function scoreSentiment(): Promise<{ scored: number; skipped: numbe
     else scored++;
   }
 
-  // Reddit posts — same classifier, title + selftext in place of headline + summary.
+  // Reddit posts - same classifier, title + selftext in place of headline + summary.
   // Uses half the overall budget so news (generally higher-signal, lower-noise)
   // isn't crowded out by a much larger volume of Reddit chatter.
   const redditLimit = Math.floor(limit / 2);
@@ -150,7 +150,7 @@ export async function scoreSentiment(): Promise<{ scored: number; skipped: numbe
     else scored++;
   }
 
-  console.log(`[sentiment_score] done — scored ${scored}, skipped ${skipped} (${newsToScore.length} news + ${redditToScore.length} reddit candidates)`);
+  console.log(`[sentiment_score] done - scored ${scored}, skipped ${skipped} (${newsToScore.length} news + ${redditToScore.length} reddit candidates)`);
   return { scored, skipped };
 }
 

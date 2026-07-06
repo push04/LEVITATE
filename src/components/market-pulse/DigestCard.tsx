@@ -9,11 +9,13 @@ import {
   RiskChecklist,
   PotentialRange,
   PredictionTrackerCard,
+  TickerNewsList,
   type Fundamentals,
   type TechnicalMetrics,
   type Finding,
   type RiskFinding,
   type PredictionTracking,
+  type TickerNewsItem,
 } from '@/components/market-pulse/StockMetrics';
 
 export type DigestCardData = {
@@ -33,16 +35,17 @@ export type DigestCardData = {
   signal_findings?: Finding[] | null;
   risk_findings?: RiskFinding[] | null;
   prediction?: PredictionTracking | null;
+  news?: TickerNewsItem[] | null;
 } & TechnicalMetrics;
 
 function formatPct(value: number | null) {
-  if (value == null) return '—';
+  if (value == null) return '-';
   const sign = value > 0 ? '+' : '';
   return `${sign}${value.toFixed(2)}%`;
 }
 
 // A single word ("bullish"/"neutral") next to another single word reads as
-// one ambiguous phrase ("Bullish Neutral Signal?") — every pill here carries
+// one ambiguous phrase ("Bullish Neutral Signal?") - every pill here carries
 // an explicit source label so News vs. Technicals is never in question.
 function SignalPill({ source, value }: { source: string; value: string }) {
   const tone =
@@ -168,6 +171,11 @@ export default function DigestCard({
         {d.fundamentals && (
           <div className="mt-4">
             <FundamentalsGrid f={d.fundamentals} currentPrice={d.current_price} />
+          </div>
+        )}
+        {d.news && d.news.length > 0 && (
+          <div className="mt-4">
+            <TickerNewsList items={d.news} />
           </div>
         )}
         {((d.insider_buy_count_30d ?? 0) > 0 || (d.insider_sell_count_30d ?? 0) > 0) && (

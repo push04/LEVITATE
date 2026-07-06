@@ -1,4 +1,4 @@
-import { CheckCircle2, XCircle, MinusCircle, TriangleAlert, LineChart, Wallet, ListChecks, CalendarClock, Gauge } from 'lucide-react';
+import { CheckCircle2, XCircle, MinusCircle, TriangleAlert, LineChart, Wallet, ListChecks, CalendarClock, Gauge, Newspaper, ExternalLink } from 'lucide-react';
 
 type Zone = { upto: number; color: string; label?: string };
 
@@ -40,7 +40,7 @@ function OscillatorBar({
   );
 }
 
-// Where today's close sits between the 52-week low and high — a single bar
+// Where today's close sits between the 52-week low and high - a single bar
 // with a marker, instead of two disconnected numbers.
 function RangeBar({ current, low, high }: { current: number | null; low: number | null; high: number | null }) {
   if (current == null || low == null || high == null || high <= low) return null;
@@ -195,8 +195,8 @@ export function TechnicalVisuals({ m }: { m: TechnicalMetrics }) {
 export type Finding = { text: string; tone: 'bullish' | 'bearish' | 'neutral' };
 export type RiskFinding = { text: string; severity: 'high' | 'medium' };
 
-// The deterministic engine's reasoning as a scannable checklist — one icon
-// + line per signal — instead of a single run-on paragraph that reads the
+// The deterministic engine's reasoning as a scannable checklist - one icon
+// + line per signal - instead of a single run-on paragraph that reads the
 // same regardless of what it's actually saying.
 export function FindingsChecklist({ findings }: { findings: Finding[] | null | undefined }) {
   if (!findings || findings.length === 0) return null;
@@ -249,6 +249,7 @@ export type Fundamentals = {
   analyst_target_mean_price: number | null;
   analyst_recommendation_key: string | null;
   number_of_analyst_opinions: number | null;
+  beta: number | null;
 };
 
 function pctStat(label: string, value: number | null) {
@@ -257,7 +258,7 @@ function pctStat(label: string, value: number | null) {
 }
 
 export function FundamentalsGrid({ f, currentPrice }: { f: Fundamentals; currentPrice: number | null }) {
-  const hasValuation = f.pe_forward != null || f.debt_to_equity != null;
+  const hasValuation = f.pe_forward != null || f.debt_to_equity != null || f.beta != null;
   const hasPerformance = f.return_on_equity != null || f.revenue_growth != null || f.earnings_growth != null || f.profit_margin != null;
   const hasAnalyst = f.analyst_target_mean_price != null || f.analyst_recommendation_key != null;
   if (!hasValuation && !hasPerformance && !hasAnalyst) return null;
@@ -274,6 +275,7 @@ export function FundamentalsGrid({ f, currentPrice }: { f: Fundamentals; current
           <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {f.pe_forward != null && <StatChip label="Forward P/E" value={f.pe_forward.toFixed(1)} />}
             {f.debt_to_equity != null && <StatChip label="Debt/Equity" value={f.debt_to_equity.toFixed(1)} />}
+            {f.beta != null && <StatChip label="Beta (vs market)" value={f.beta.toFixed(2)} />}
           </div>
         </div>
       )}
@@ -309,7 +311,7 @@ export function FundamentalsGrid({ f, currentPrice }: { f: Fundamentals; current
   );
 }
 
-// Volatility-scaled expected move, NOT a directional forecast — how far this
+// Volatility-scaled expected move, NOT a directional forecast - how far this
 // stock has typically moved historically, scaled from its daily ATR to the
 // prediction horizon via the standard sqrt(time) rule (independent daily
 // moves compound as sqrt(n), not n). Framed as "how much could this swing",
@@ -325,7 +327,7 @@ export function PotentialRange({ currentPrice, atr14, horizonDays = 7 }: { curre
     <div>
       <SectionHeader icon={Gauge} label={`${horizonDays}-day potential (volatility-based)`} />
       <p className="mt-1 type-caption text-[var(--text-tertiary)]">
-        Not a forecast of direction — how far this stock has typically swung, scaled from its recent daily volatility (ATR).
+        Not a forecast of direction - how far this stock has typically swung, scaled from its recent daily volatility (ATR).
       </p>
       <div className="mt-2 flex items-center justify-between rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-2.5">
         <span className="type-body font-semibold text-[#9a5252]">₹{lower.toFixed(2)}</span>
@@ -347,8 +349,8 @@ export type PredictionTracking = {
   accuracy: { correct: number; total: number; pct: number | null };
 };
 
-// The requested accountability view: WHEN was this called, and — checked
-// against the real price, whether the target date has arrived yet or not —
+// The requested accountability view: WHEN was this called, and - checked
+// against the real price, whether the target date has arrived yet or not -
 // is it actually tracking that call so far. Distinct from the site-wide
 // track record (Track record section): this is this ticker's own history.
 export function PredictionTrackerCard({ prediction, currentPrice }: { prediction: PredictionTracking | null; currentPrice: number | null }) {
@@ -366,7 +368,7 @@ export function PredictionTrackerCard({ prediction, currentPrice }: { prediction
     statusLabel = prediction.outcome === 'correct' ? 'Correct' : prediction.outcome === 'incorrect' ? 'Incorrect' : 'Inconclusive';
     statusTone = prediction.outcome === 'correct' ? 'bullish' : prediction.outcome === 'incorrect' ? 'bearish' : 'neutral';
   } else {
-    // Not evaluated yet — infer whether it's currently tracking the call,
+    // Not evaluated yet - infer whether it's currently tracking the call,
     // using the same directional logic as evaluate_predictions.ts, just
     // provisionally (this can still flip before the target date arrives).
     const directionalThreshold = 1;
@@ -402,6 +404,50 @@ export function PredictionTrackerCard({ prediction, currentPrice }: { prediction
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+export type TickerNewsItem = {
+  title: string;
+  link: string | null;
+  source: string | null;
+  sentiment: string;
+  confidence: number;
+  summary: string;
+  publishedAt: string | null;
+};
+
+// The "why" behind the News pill's sentiment - the actual headlines and an
+// AI-condensed one-line summary of each, not just a bare "bullish" tag.
+export function TickerNewsList({ items }: { items: TickerNewsItem[] | null | undefined }) {
+  if (!items || items.length === 0) return null;
+
+  return (
+    <div>
+      <SectionHeader icon={Newspaper} label="Recent news for this stock" />
+      <ul className="mt-2 space-y-2.5">
+        {items.map((item, i) => {
+          const toneClass =
+            item.sentiment === 'bullish' ? 'text-[var(--status-closed)]' : item.sentiment === 'bearish' ? 'text-[#9a5252]' : 'text-[var(--text-tertiary)]';
+          return (
+            <li key={i} className="rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-overlay)] p-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="type-body text-[var(--text-secondary)]">{item.summary}</p>
+                {item.link && (
+                  <a href={item.link} target="_blank" rel="noreferrer" className="shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-accent)]">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 type-caption text-[var(--text-tertiary)]">
+                {item.source && <span className="uppercase">{item.source}</span>}
+                <span className={`capitalize font-medium ${toneClass}`}>{item.sentiment}</span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

@@ -1,8 +1,8 @@
--- Company fundamentals — a genuinely different information source from
+-- Company fundamentals - a genuinely different information source from
 -- price/technicals: valuation, profitability, leverage, growth, and analyst
 -- consensus (target price, recommendation). Pulled from Yahoo Finance's
 -- quoteSummary endpoint (see ingestion/fundamentals_pull.ts). Informational
--- for now, not yet part of trend_signal scoring — there's no historical
+-- for now, not yet part of trend_signal scoring - there's no historical
 -- fundamentals series to backtest against (only current snapshots are
 -- available for free), unlike price technicals which had a year of history
 -- to validate against from day one.

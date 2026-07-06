@@ -1,4 +1,4 @@
--- Structured versions of detailed_analysis/risk_notes — same underlying
+-- Structured versions of detailed_analysis/risk_notes - same underlying
 -- content, but as a JSON array of { text, tone } / { text, severity } so the
 -- frontend can render a real checklist (icon + color per line) instead of
 -- one run-on paragraph.

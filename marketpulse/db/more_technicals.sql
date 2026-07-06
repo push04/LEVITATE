@@ -1,4 +1,4 @@
--- CCI and Williams %R — added after backtesting confirmed both carry a real,
+-- CCI and Williams %R - added after backtesting confirmed both carry a real,
 -- monotonic mean-reversion signal (extremes predict a 7-day fade, not
 -- continuation), which measurably improved backtested accuracy on top of the
 -- existing indicator set. Parabolic SAR was also tested and dropped: its

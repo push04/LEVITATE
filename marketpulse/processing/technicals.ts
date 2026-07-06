@@ -6,7 +6,7 @@ import { getSupabaseClient } from "../db/supabase_client.js";
 type PriceRow = { date: string; open: number; high: number; low: number; close: number; volume: number };
 
 // technicalindicators' `.calculate()` returns an array shorter than the input
-// (it needs `period` warmup values before it can produce a first result) —
+// (it needs `period` warmup values before it can produce a first result) -
 // this aligns each output value back to the trailing date it belongs to.
 function alignToDates<T>(dates: string[], values: T[]): Array<{ date: string; value: T }> {
   const offset = dates.length - values.length;
@@ -59,12 +59,12 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
     const macd = alignToDates(dates, macdRaw);
     const sma20 = alignToDates(dates, SMA.calculate({ period: 20, values: closes }));
     const sma50 = alignToDates(dates, SMA.calculate({ period: 50, values: closes }));
-    const sma200 = alignToDates(dates, SMA.calculate({ period: 200, values: closes })); // needs ~1y of history — empty until enough accumulates
+    const sma200 = alignToDates(dates, SMA.calculate({ period: 200, values: closes })); // needs ~1y of history - empty until enough accumulates
     const ema20 = alignToDates(dates, EMA.calculate({ period: 20, values: closes }));
     const bb = alignToDates(dates, BollingerBands.calculate({ period: 20, values: closes, stdDev: 2 }));
     const atr14 = alignToDates(dates, ATR.calculate({ period: 14, high: highs, low: lows, close: closes }));
     // ADX: trend STRENGTH (as opposed to MACD/SMA which give trend direction)
-    // — a market can be "bullish by direction" but weak/choppy by strength.
+    // - a market can be "bullish by direction" but weak/choppy by strength.
     const adx14 = alignToDates(dates, ADX.calculate({ period: 14, high: highs, low: lows, close: closes }));
     // OBV: does volume actually confirm the price trend, or is it diverging
     // (a classic "smart money" tell). Its own 20-day SMA shows OBV's trend.
@@ -73,7 +73,7 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
     const obvSma20 = alignToDates(dates, SMA.calculate({ period: 20, values: obvValues }));
     const stoch = alignToDates(dates, Stochastic.calculate({ period: 14, signalPeriod: 3, high: highs, low: lows, close: closes }));
     // CCI/Williams %R: backtested as mean-reversion "fade the extreme" signals
-    // (see technical_analysis.ts) — genuinely predictive here, unlike trying
+    // (see technical_analysis.ts) - genuinely predictive here, unlike trying
     // to use RSI/Bollinger extremes the same way, which empirically didn't hold up.
     const cci20 = alignToDates(dates, CCI.calculate({ period: 20, high: highs, low: lows, close: closes }));
     const williamsR14 = alignToDates(dates, WilliamsR.calculate({ period: 14, high: highs, low: lows, close: closes }));
@@ -143,13 +143,13 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
     let { error: upsertError } = await supabase.from("technical_indicators").upsert(payload, { onConflict: "ticker,date" });
     if (upsertError?.code === "PGRST204") {
       // marketpulse/db/more_technicals.sql hasn't been run yet (adds
-      // cci_20/williams_r_14) — don't let that block every other indicator
+      // cci_20/williams_r_14) - don't let that block every other indicator
       // from updating; retry without the two new columns.
       const strippedPayload = payload.map(({ cci_20, williams_r_14, ...rest }) => rest);
       const retry = await supabase.from("technical_indicators").upsert(strippedPayload, { onConflict: "ticker,date" });
       upsertError = retry.error;
       if (!upsertError && !warnedMissingColumns) {
-        console.warn("[technicals] cci_20/williams_r_14 columns not found — run marketpulse/db/more_technicals.sql to enable them.");
+        console.warn("[technicals] cci_20/williams_r_14 columns not found - run marketpulse/db/more_technicals.sql to enable them.");
         warnedMissingColumns = true;
       }
     }
@@ -162,7 +162,7 @@ export async function computeTechnicals(): Promise<{ tickersProcessed: number; r
     rowsUpserted += payload.length;
   }
 
-  console.log(`[technicals] done — ${tickersProcessed} tickers processed, ${rowsUpserted} rows upserted`);
+  console.log(`[technicals] done - ${tickersProcessed} tickers processed, ${rowsUpserted} rows upserted`);
   return { tickersProcessed, rowsUpserted };
 }
 

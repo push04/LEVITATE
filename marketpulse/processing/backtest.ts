@@ -28,7 +28,7 @@ type TechRow = {
 };
 
 // Validates the exact same deterministic signal logic (technical_analysis.ts)
-// against real, already-ingested history — not a live prediction, a check of
+// against real, already-ingested history - not a live prediction, a check of
 // "if we'd been running this every day for the past year, how often would
 // the signal have been right?" Uses whatever's already in price_data /
 // technical_indicators; doesn't pull anything new.
@@ -59,7 +59,7 @@ export async function runBacktest(): Promise<{ overallAccuracyPct: number | null
 
     // Same signal-persistence rule as digest.ts: require the raw signal to
     // hold for 2 consecutive days before acting on it (backtested improvement
-    // 41.7% -> 45.3%) — tracked here since techRows is iterated chronologically.
+    // 41.7% -> 45.3%) - tracked here since techRows is iterated chronologically.
     let previousRawSignal: string | null = null;
 
     for (const tech of techRows) {
@@ -107,7 +107,7 @@ export async function runBacktest(): Promise<{ overallAccuracyPct: number | null
       previousRawSignal = rawSignal;
 
       // Find the actual price >= TARGET_DAYS calendar days later to check
-      // the outcome — same "nearest trading day at/after target" approach
+      // the outcome - same "nearest trading day at/after target" approach
       // evaluate_predictions.ts uses for live predictions.
       const targetDate = new Date(tech.date);
       targetDate.setUTCDate(targetDate.getUTCDate() + TARGET_DAYS);
@@ -144,7 +144,7 @@ export async function runBacktest(): Promise<{ overallAccuracyPct: number | null
   if (insertError) console.warn("[backtest] failed to store run:", insertError.message);
 
   console.log(
-    `[backtest] ${totalSignals} historical signals checked — overall accuracy ${overallAccuracyPct ?? "n/a"}% ` +
+    `[backtest] ${totalSignals} historical signals checked - overall accuracy ${overallAccuracyPct ?? "n/a"}% ` +
       `(bullish ${tally.bullish.correct}/${tally.bullish.total}, bearish ${tally.bearish.correct}/${tally.bearish.total}, neutral ${tally.neutral.correct}/${tally.neutral.total})`
   );
 

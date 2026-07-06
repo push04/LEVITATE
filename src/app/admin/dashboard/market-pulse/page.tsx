@@ -19,7 +19,7 @@ type DigestRow = {
 };
 
 function formatPct(value: number | null) {
-  if (value == null) return '—';
+  if (value == null) return '-';
   const sign = value > 0 ? '+' : '';
   return `${sign}${value.toFixed(2)}%`;
 }
@@ -134,7 +134,7 @@ export default function AdminMarketPulsePage() {
           </button>
           {digestDate && (
             <span className="text-[11px] text-gray-400">
-              {digestDate} — {publishedCount}/{digest.length} published
+              {digestDate} - {publishedCount}/{digest.length} published
             </span>
           )}
         </div>
@@ -142,7 +142,7 @@ export default function AdminMarketPulsePage() {
 
       {digest.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white p-12 text-center text-gray-400">
-          No digest yet — run the marketpulse scraper to generate today&apos;s data.
+          No digest yet - run the marketpulse scraper to generate today&apos;s data.
         </div>
       ) : (
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">

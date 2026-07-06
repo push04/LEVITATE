@@ -1,8 +1,8 @@
--- MarketPulse publish controls — run once in the Supabase SQL editor.
+-- MarketPulse publish controls - run once in the Supabase SQL editor.
 -- Lets the admin dashboard choose between auto-publishing every day's digest
 -- to the public levitatelabs.online page, or reviewing and selecting which
 -- tickers go public each day. Paying business-dashboard customers always see
--- the full digest regardless of this setting — this only gates the public,
+-- the full digest regardless of this setting - this only gates the public,
 -- unauthenticated page.
 
 create table if not exists market_pulse_settings (

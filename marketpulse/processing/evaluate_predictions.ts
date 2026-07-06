@@ -26,7 +26,7 @@ export function outcomeFor(signal: string, priceChangePct: number): "correct" | 
 }
 
 // Auto-evaluates every prediction whose target_date has arrived, against
-// what the price actually did — this is the accountability mechanism: every
+// what the price actually did - this is the accountability mechanism: every
 // signal digest.ts records gets checked, none are just asserted and
 // forgotten. Powers the public/business "track record" display.
 export async function evaluatePredictions(): Promise<{ evaluated: number }> {
@@ -44,7 +44,7 @@ export async function evaluatePredictions(): Promise<{ evaluated: number }> {
 
   for (const p of due ?? []) {
     // Nearest available trading-day price on/after the target date (markets
-    // don't trade every calendar day — weekends/holidays would otherwise
+    // don't trade every calendar day - weekends/holidays would otherwise
     // leave a prediction stuck un-evaluatable forever).
     const { data: priceRow } = await supabase
       .from("price_data")
@@ -55,7 +55,7 @@ export async function evaluatePredictions(): Promise<{ evaluated: number }> {
       .limit(1)
       .maybeSingle();
 
-    if (!priceRow) continue; // no price yet at/after target — try again next run
+    if (!priceRow) continue; // no price yet at/after target - try again next run
 
     const priceChangePct = Math.round(((priceRow.close - p.price_at_prediction) / p.price_at_prediction) * 10000) / 100;
     const outcome = outcomeFor(p.signal, priceChangePct);

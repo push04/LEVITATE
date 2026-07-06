@@ -31,7 +31,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Same public endpoint the `yfinance` Python library wraps — no API key needed.
+// Same public endpoint the `yfinance` Python library wraps - no API key needed.
 async function fetchOhlc(yahooSymbol: string): Promise<Array<{ date: string; open: number; high: number; low: number; close: number; volume: number }>> {
   // 1y (not 3mo) so technical_analysis.ts can compute real 52-week high/low
   // proximity, not just short-window indicators.
@@ -132,7 +132,7 @@ export async function pullMarketData(): Promise<{ tickersUpdated: number; rowsUp
     if (i + CONCURRENCY < rows.length) await sleep(DELAY_BETWEEN_BATCHES_MS);
   }
 
-  console.log(`[market_data_pull] done — ${tickersUpdated}/${rows.length} tickers updated, ${rowsUpserted} price rows upserted, ${failed.length} failed`);
+  console.log(`[market_data_pull] done - ${tickersUpdated}/${rows.length} tickers updated, ${rowsUpserted} price rows upserted, ${failed.length} failed`);
   return { tickersUpdated, rowsUpserted, failed };
 }
 

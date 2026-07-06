@@ -6,7 +6,7 @@ import { getSupabaseClient } from "../db/supabase_client.js";
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 // How far back to pull each run. Wider than the run interval so a missed or
-// failed run doesn't create a permanent gap — dedup on nse_did (the unique
+// failed run doesn't create a permanent gap - dedup on nse_did (the unique
 // constraint below) makes re-fetching overlap harmless.
 const LOOKBACK_DAYS = 15;
 
@@ -26,7 +26,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// NSE's site sits behind Akamai bot-management — the homepage itself often
+// NSE's site sits behind Akamai bot-management - the homepage itself often
 // 403s from non-residential IPs, but (empirically) the corporates-pit API
 // still returns real data as long as it's called with a realistic
 // User-Agent/Accept/Referer, with or without a session cookie. Best-effort
@@ -50,7 +50,7 @@ function formatNseDate(d: Date): string {
   return `${dd}-${mm}-${yyyy}`;
 }
 
-// NSE returns dates like "02-May-2026" or "02-May-2026 16:46" — parse to ISO.
+// NSE returns dates like "02-May-2026" or "02-May-2026 16:46" - parse to ISO.
 function parseNseDate(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const datePart = raw.split(" ")[0];
@@ -127,7 +127,7 @@ export async function pullInsiderTrading(): Promise<{ inserted: number; skipped:
   let skipped = 0;
 
   for (const r of records) {
-    if (!r.symbol || !validTickers.has(r.symbol)) continue; // only real, known tickers — no hallucinated/unmatched symbols
+    if (!r.symbol || !validTickers.has(r.symbol)) continue; // only real, known tickers - no hallucinated/unmatched symbols
 
     const transactionType = r.tdpTransactionType?.trim() || null;
     if (transactionType !== "Buy" && transactionType !== "Sell") continue; // skip non-directional/unclear entries
@@ -149,14 +149,14 @@ export async function pullInsiderTrading(): Promise<{ inserted: number; skipped:
     });
 
     if (error) {
-      if (error.code === "23505") skipped++; // already ingested — expected steady state
+      if (error.code === "23505") skipped++; // already ingested - expected steady state
       else console.warn(`[insider_trading_pull] insert failed for ${r.symbol}:`, error.message);
     } else {
       inserted++;
     }
   }
 
-  console.log(`[insider_trading_pull] done — ${records.length} filings seen, ${inserted} inserted, ${skipped} duplicates skipped`);
+  console.log(`[insider_trading_pull] done - ${records.length} filings seen, ${inserted} inserted, ${skipped} duplicates skipped`);
   return { inserted, skipped };
 }
 

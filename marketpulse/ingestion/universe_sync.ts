@@ -4,7 +4,7 @@ import https from "node:https";
 import { getSupabaseClient } from "../db/supabase_client.js";
 
 // Node's built-in `fetch` (undici) hangs indefinitely against NSE's archive
-// server — reproduced cause: Node resolves/attempts IPv6 first by default,
+// server - reproduced cause: Node resolves/attempts IPv6 first by default,
 // and IPv6 routing to this host is broken on at least some networks, so it
 // hangs until timeout instead of falling back to IPv4 quickly (curl and
 // browsers do proper Happy-Eyeballs fallback; Node's fetch doesn't here).
@@ -31,7 +31,7 @@ function sleep(ms: number) {
 }
 
 // This endpoint is intermittently flaky from some networks (even with the
-// IPv4 fix above) — a few retries with backoff is normal, sane behavior for
+// IPv4 fix above) - a few retries with backoff is normal, sane behavior for
 // a once-daily unattended script, independent of whatever the root cause of
 // any given failure is.
 async function fetchText(url: string, userAgent: string, attempts = 4): Promise<string> {
@@ -51,7 +51,7 @@ async function fetchText(url: string, userAgent: string, attempts = 4): Promise<
   throw lastErr;
 }
 
-// The two benchmark indices — not "picked stocks", the market itself.
+// The two benchmark indices - not "picked stocks", the market itself.
 const PINNED_INDICES = [
   { ticker: "NIFTY50", yahoo_symbol: "^NSEI", company_name: "Nifty 50 Index", sector: "Index" },
   { ticker: "SENSEX", yahoo_symbol: "^BSESN", company_name: "BSE Sensex Index", sector: "Index" },
@@ -70,7 +70,7 @@ function parseNse500Csv(csv: string): CsvRow[] {
   const rows: CsvRow[] = [];
   for (const line of lines.slice(1)) {
     if (!line.trim()) continue;
-    // Company names can contain commas inside quotes — handle simply since
+    // Company names can contain commas inside quotes - handle simply since
     // NSE's own export quotes any field containing a comma.
     const cols = line.match(/(".*?"|[^",]+)(?=,|$)/g)?.map((c) => c.replace(/^"|"$/g, "").trim()) ?? [];
     if (cols.length <= Math.max(symbolIdx, nameIdx, industryIdx, seriesIdx)) continue;
@@ -87,13 +87,13 @@ function parseNse500Csv(csv: string): CsvRow[] {
   return rows;
 }
 
-// NSE's Nifty 500 membership doesn't change intraday — if this pipeline runs
+// NSE's Nifty 500 membership doesn't change intraday - if this pipeline runs
 // every 2-3 hours (rather than once a day), re-fetching every single run
 // would hit NSE's own rate-limiting for no benefit. Skip the network call
 // entirely if the universe was already synced recently.
 const RESYNC_INTERVAL_HOURS = 12;
 
-// Syncs the real, NSE-published Nifty 500 constituent list — this is the
+// Syncs the real, NSE-published Nifty 500 constituent list - this is the
 // candidate pool market_data_pull.ts checks daily and market_movers.ts /
 // watchlist_update.ts rank/select from. Nothing here is hand-picked; it's
 // whatever NSE itself currently lists. If the fetch fails on a given day,
@@ -115,7 +115,7 @@ export async function syncUniverse(): Promise<{ synced: number }> {
     const hoursSinceSync = (Date.now() - new Date(mostRecent.synced_at).getTime()) / (60 * 60 * 1000);
     if (hoursSinceSync < RESYNC_INTERVAL_HOURS) {
       const { count } = await supabase.from("nse_universe").select("*", { count: "exact", head: true });
-      console.log(`[universe_sync] synced ${hoursSinceSync.toFixed(1)}h ago (< ${RESYNC_INTERVAL_HOURS}h) — skipping re-fetch, ${count ?? 0} tickers already in place`);
+      console.log(`[universe_sync] synced ${hoursSinceSync.toFixed(1)}h ago (< ${RESYNC_INTERVAL_HOURS}h) - skipping re-fetch, ${count ?? 0} tickers already in place`);
       return { synced: count ?? 0 };
     }
   }
@@ -130,7 +130,7 @@ export async function syncUniverse(): Promise<{ synced: number }> {
       "Mozilla/5.0 (compatible; MarketPulse/1.0; +https://levitatelabs.online)"
     );
     const rows = parseNse500Csv(csv);
-    if (rows.length < 100) throw new Error(`Parsed suspiciously few rows (${rows.length}) — NSE may have changed the CSV format`);
+    if (rows.length < 100) throw new Error(`Parsed suspiciously few rows (${rows.length}) - NSE may have changed the CSV format`);
 
     const payload = rows.map((r) => ({
       ticker: r.ticker,
@@ -141,7 +141,7 @@ export async function syncUniverse(): Promise<{ synced: number }> {
       synced_at: new Date().toISOString(),
     }));
 
-    // Upsert in batches — 500 rows in one request is fine for PostgREST, but
+    // Upsert in batches - 500 rows in one request is fine for PostgREST, but
     // stay conservative in case of payload limits.
     const BATCH = 200;
     for (let i = 0; i < payload.length; i += BATCH) {

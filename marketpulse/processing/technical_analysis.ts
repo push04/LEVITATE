@@ -1,4 +1,4 @@
-// Deterministic, rules-based technical read — computed entirely from real
+// Deterministic, rules-based technical read - computed entirely from real
 // indicator values (no LLM). This is the primary analysis/outlook/risk
 // engine for the digest; Groq is only used elsewhere for narrow NLP tasks
 // (per-article sentiment tagging, trend-ticker discovery as a secondary
@@ -73,7 +73,7 @@ export function analyzeTechnicals(t: TechnicalSnapshot): TechnicalRead {
       bullishPoints += 1; // still net-bullish momentum, but flagged as extended
     } else if (t.rsi14 <= 30) {
       note(`RSI at ${t.rsi14.toFixed(1)} is in oversold territory, suggesting selling may be overdone in the near term.`, "bearish");
-      risk(`Oversold RSI (${t.rsi14.toFixed(1)}) can persist in a strong downtrend — oversold is not automatically a buy signal.`, "medium");
+      risk(`Oversold RSI (${t.rsi14.toFixed(1)}) can persist in a strong downtrend - oversold is not automatically a buy signal.`, "medium");
       bearishPoints += 1;
     } else if (t.rsi14 >= 55) {
       note(`RSI at ${t.rsi14.toFixed(1)} shows constructive momentum without being overbought.`, "bullish");
@@ -108,19 +108,19 @@ export function analyzeTechnicals(t: TechnicalSnapshot): TechnicalRead {
       bearishPoints += 1;
     } else {
       note(`Price is mixed relative to its 20- and 50-day moving averages, suggesting a range-bound or transitional phase.`, "neutral");
-      risk(`No clear trend structure from moving averages — whipsaw risk is higher in a range-bound market.`, "medium");
+      risk(`No clear trend structure from moving averages - whipsaw risk is higher in a range-bound market.`, "medium");
     }
   }
 
   // --- Long-term structure: SMA50 vs SMA200 ("golden/death cross" state) ---
   if (t.sma50 != null && t.sma200 != null) {
     if (t.sma50 > t.sma200) {
-      note(`The 50-day moving average is above the 200-day (golden-cross configuration) — the longer-term trend structure is bullish.`, "bullish");
+      note(`The 50-day moving average is above the 200-day (golden-cross configuration) - the longer-term trend structure is bullish.`, "bullish");
       bullishPoints += 1;
     } else {
-      note(`The 50-day moving average is below the 200-day (death-cross configuration) — the longer-term trend structure is bearish.`, "bearish");
+      note(`The 50-day moving average is below the 200-day (death-cross configuration) - the longer-term trend structure is bearish.`, "bearish");
       bearishPoints += 1;
-      risk(`Long-term structure is bearish (50-day average below 200-day) — any near-term bullish signals are counter-trend against the bigger picture.`, "medium");
+      risk(`Long-term structure is bearish (50-day average below 200-day) - any near-term bullish signals are counter-trend against the bigger picture.`, "medium");
     }
   }
 
@@ -131,24 +131,24 @@ export function analyzeTechnicals(t: TechnicalSnapshot): TechnicalRead {
   if (t.adx14 != null) {
     if (t.adx14 < 20) {
       trendIsWeak = true;
-      note(`ADX at ${t.adx14.toFixed(1)} indicates a weak or absent trend — directional signals above are less reliable in this kind of choppy market.`, "neutral");
-      risk(`Low ADX (${t.adx14.toFixed(1)}) — this looks range-bound rather than trending, which raises the odds that direction-based signals whipsaw.`, "medium");
+      note(`ADX at ${t.adx14.toFixed(1)} indicates a weak or absent trend - directional signals above are less reliable in this kind of choppy market.`, "neutral");
+      risk(`Low ADX (${t.adx14.toFixed(1)}) - this looks range-bound rather than trending, which raises the odds that direction-based signals whipsaw.`, "medium");
     } else if (t.adx14 >= 40) {
       note(`ADX at ${t.adx14.toFixed(1)} confirms a strong, well-established trend.`, "neutral");
     }
   }
 
   // --- OBV: does volume actually confirm the price trend? A classic
-  // "smart money" divergence check — price up on weak/declining volume is a
+  // "smart money" divergence check - price up on weak/declining volume is a
   // materially different signal than price up on strong, rising volume. ---
   if (t.obv != null && t.obvSma20 != null) {
     const obvBullish = t.obv > t.obvSma20;
     if (t.priceChangePct != null) {
       if (t.priceChangePct > 0 && !obvBullish) {
-        note(`Price is up but On-Balance Volume is below its 20-day average — volume isn't confirming the move, a bearish divergence worth watching.`, "bearish");
+        note(`Price is up but On-Balance Volume is below its 20-day average - volume isn't confirming the move, a bearish divergence worth watching.`, "bearish");
         risk(`Volume/price divergence (price up, OBV weak) can precede a reversal if buying interest doesn't follow through.`, "medium");
       } else if (t.priceChangePct < 0 && obvBullish) {
-        note(`Price is down but On-Balance Volume is above its 20-day average — volume isn't confirming the decline, a bullish divergence worth watching.`, "bullish");
+        note(`Price is down but On-Balance Volume is above its 20-day average - volume isn't confirming the decline, a bullish divergence worth watching.`, "bullish");
       } else if (obvBullish) {
         bullishPoints += 1;
       } else {
@@ -162,23 +162,23 @@ export function analyzeTechnicals(t: TechnicalSnapshot): TechnicalRead {
     const stochOverbought = t.stochK >= 80;
     const stochOversold = t.stochK <= 20;
     if (stochOverbought && t.rsi14 != null && t.rsi14 >= 70) {
-      note(`Stochastic (${t.stochK.toFixed(1)}) agrees with RSI on overbought conditions — two independent momentum readings both point the same way.`, "bearish");
+      note(`Stochastic (${t.stochK.toFixed(1)}) agrees with RSI on overbought conditions - two independent momentum readings both point the same way.`, "bearish");
     } else if (stochOversold && t.rsi14 != null && t.rsi14 <= 30) {
-      note(`Stochastic (${t.stochK.toFixed(1)}) agrees with RSI on oversold conditions — two independent momentum readings both point the same way.`, "bullish");
+      note(`Stochastic (${t.stochK.toFixed(1)}) agrees with RSI on oversold conditions - two independent momentum readings both point the same way.`, "bullish");
     }
   }
 
   // --- CCI / Williams %R: mean-reversion "fade the extreme" signals ---
   // Backtested against a year of real history (marketpulse/processing/
-  // backtest.ts) specifically as reversal signals, not trend-continuation —
+  // backtest.ts) specifically as reversal signals, not trend-continuation -
   // unlike RSI/MACD/MA structure above, extremes here showed a genuine,
   // monotonic tendency to fade over the following week rather than continue.
   if (t.cci20 != null) {
     if (t.cci20 >= 100) {
-      note(`CCI at ${t.cci20.toFixed(0)} is in overbought territory — historically more likely to fade than extend further over the next week.`, "bearish");
+      note(`CCI at ${t.cci20.toFixed(0)} is in overbought territory - historically more likely to fade than extend further over the next week.`, "bearish");
       bearishPoints += 1;
     } else if (t.cci20 <= -100) {
-      note(`CCI at ${t.cci20.toFixed(0)} is in oversold territory — historically more likely to bounce than continue falling over the next week.`, "bullish");
+      note(`CCI at ${t.cci20.toFixed(0)} is in oversold territory - historically more likely to bounce than continue falling over the next week.`, "bullish");
       bullishPoints += 1;
     }
   }
@@ -202,7 +202,7 @@ export function analyzeTechnicals(t: TechnicalSnapshot): TechnicalRead {
         risk(`Price at the upper Bollinger Band increases the chance of a mean-reversion pullback.`, "medium");
       } else if (posInBand <= 0.05) {
         note(`Price is trading at the lower Bollinger Band, indicating the down-move may be extended in the short term.`, "neutral");
-        risk(`Price at the lower Bollinger Band can mean-revert, but can also mark the start of a deeper decline — context matters.`, "medium");
+        risk(`Price at the lower Bollinger Band can mean-revert, but can also mark the start of a deeper decline - context matters.`, "medium");
       }
     }
   }
@@ -212,7 +212,7 @@ export function analyzeTechnicals(t: TechnicalSnapshot): TechnicalRead {
   if (t.atr14 != null && t.close > 0) {
     const atrPctOfPrice = (t.atr14 / t.close) * 100;
     if (atrPctOfPrice >= 3) {
-      risk(`Above-average volatility (ATR ${pct(atrPctOfPrice)} of price) — expect wider day-to-day swings than a typical large-cap.`, "high");
+      risk(`Above-average volatility (ATR ${pct(atrPctOfPrice)} of price) - expect wider day-to-day swings than a typical large-cap.`, "high");
       riskLevel = "elevated";
     } else if (atrPctOfPrice <= 1) {
       riskLevel = "low";
@@ -221,18 +221,18 @@ export function analyzeTechnicals(t: TechnicalSnapshot): TechnicalRead {
 
   // --- Recent price move context, incl. circuit-limit-style flagging ---
   // NSE applies exchange circuit bands at roughly 5/10/20% depending on the
-  // stock — a move at or beyond those thresholds is a materially different
+  // stock - a move at or beyond those thresholds is a materially different
   // event from ordinary daily noise, not just "larger than usual".
   if (t.priceChangePct != null) {
     const abs = Math.abs(t.priceChangePct);
     const direction = t.priceChangePct > 0 ? "gain" : "decline";
     if (abs >= 18) {
-      note(`Today's ${pct(abs, 2)} ${direction} is at or near typical NSE circuit-limit territory (~20%) — an unusually severe single-day move.`, "neutral");
-      risk(`Circuit-limit-range move (${pct(t.priceChangePct, 2)}) — this is a rare, high-severity event; treat with extra caution and check for company-specific news before assuming it's noise.`, "high");
+      note(`Today's ${pct(abs, 2)} ${direction} is at or near typical NSE circuit-limit territory (~20%) - an unusually severe single-day move.`, "neutral");
+      risk(`Circuit-limit-range move (${pct(t.priceChangePct, 2)}) - this is a rare, high-severity event; treat with extra caution and check for company-specific news before assuming it's noise.`, "high");
       riskLevel = "elevated";
     } else if (abs >= 8) {
       note(`Today's ${pct(abs, 2)} ${direction} is a large single-day move, well outside typical daily ranges for a liquid large/mid-cap.`, "neutral");
-      risk(`Large single-day move (${pct(t.priceChangePct, 2)}) — often driven by results, corporate action, or major news; can reverse sharply once the immediate reaction settles.`, "high");
+      risk(`Large single-day move (${pct(t.priceChangePct, 2)}) - often driven by results, corporate action, or major news; can reverse sharply once the immediate reaction settles.`, "high");
       riskLevel = "elevated";
     } else if (abs >= 3) {
       note(`Today's ${direction} of ${pct(abs, 2)} is a larger-than-usual single-day move.`, "neutral");
@@ -244,8 +244,8 @@ export function analyzeTechnicals(t: TechnicalSnapshot): TechnicalRead {
   if (t.volume != null && t.avgVolume20 != null && t.avgVolume20 > 0) {
     const volumeRatio = t.volume / t.avgVolume20;
     if (volumeRatio >= 3) {
-      note(`Trading volume is ${volumeRatio.toFixed(1)}x the 20-day average — a significant spike in activity, often a sign of a major news event or institutional order flow.`, "neutral");
-      risk(`Volume ${volumeRatio.toFixed(1)}x the recent average — irregular activity like this can precede continued volatility either direction.`, "high");
+      note(`Trading volume is ${volumeRatio.toFixed(1)}x the 20-day average - a significant spike in activity, often a sign of a major news event or institutional order flow.`, "neutral");
+      risk(`Volume ${volumeRatio.toFixed(1)}x the recent average - irregular activity like this can precede continued volatility either direction.`, "high");
       riskLevel = "elevated";
     } else if (volumeRatio >= 1.8) {
       note(`Trading volume is running ${volumeRatio.toFixed(1)}x above its 20-day average, above-normal activity.`, "neutral");
@@ -257,18 +257,18 @@ export function analyzeTechnicals(t: TechnicalSnapshot): TechnicalRead {
     const posInRange = (t.close - t.low52w) / (t.high52w - t.low52w);
     if (posInRange >= 0.98) {
       note(`Price is at or within 2% of its 52-week high (${t.high52w.toFixed(2)}).`, "neutral");
-      risk(`Trading near the 52-week high — no overhead resistance from recent price history, but also historically a level where profit-taking increases.`, "medium");
+      risk(`Trading near the 52-week high - no overhead resistance from recent price history, but also historically a level where profit-taking increases.`, "medium");
     } else if (posInRange <= 0.02) {
       note(`Price is at or within 2% of its 52-week low (${t.low52w.toFixed(2)}).`, "neutral");
-      risk(`Trading near the 52-week low — could reflect a genuine deterioration in fundamentals rather than a short-term dip; verify why before assuming it's a bargain.`, "medium");
+      risk(`Trading near the 52-week low - could reflect a genuine deterioration in fundamentals rather than a short-term dip; verify why before assuming it's a bargain.`, "medium");
     }
   }
 
   // A weak/absent trend (low ADX) means direction-based signals are less
-  // trustworthy — require a clearer majority before calling it bullish/bearish
+  // trustworthy - require a clearer majority before calling it bullish/bearish
   // rather than neutral, instead of any edge deciding it. Margins calibrated
   // against a full year of real backtested history (marketpulse/processing/
-  // backtest.ts): every horizon from 3-10 days showed the same pattern —
+  // backtest.ts): every horizon from 3-10 days showed the same pattern -
   // raising the required point-margin shifts weak-evidence cases into
   // neutral (consistently the most reliable bucket, ~50-68% accuracy) and
   // out of forced directional calls (which ran as low as 15-30% at margin 1),

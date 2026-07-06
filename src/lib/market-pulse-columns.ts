@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 // Each of these column groups is added to daily_digest by its own migration
-// file (marketpulse/db/*.sql) and may land independently of the others —
+// file (marketpulse/db/*.sql) and may land independently of the others -
 // probing each group separately (instead of one all-or-nothing "select
 // everything, fall back to base on any error" check) means a page never
 // silently loses fields that ARE already migrated just because some other,
