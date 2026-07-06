@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ExternalLink, Loader2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { AlertTriangle, CalendarClock, ExternalLink, Loader2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import styles from '@/components/business/ui/DashboardPrimitives.module.css';
 import DigestCard from '@/components/market-pulse/DigestCard';
 import WatchlistSection from '@/components/market-pulse/WatchlistSection';
 import { SectorOverviewTable } from '@/components/market-pulse/SectorOverview';
+import { formatIndianDate } from '@/lib/date-format';
 import type { Fundamentals, Finding, RiskFinding, PredictionTracking, TickerNewsItem } from '@/components/market-pulse/StockMetrics';
 
 interface DigestRow {
@@ -89,19 +90,24 @@ export default function MarketPulseWorkspace() {
   const [digest, setDigest] = useState<DigestRow[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [digestDate, setDigestDate] = useState<string | null>(null);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [trackRecord, setTrackRecord] = useState<TrackRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
       try {
-        const res = await fetch('/api/business/market-pulse');
+        const url = selectedDate ? `/api/business/market-pulse?date=${selectedDate}` : '/api/business/market-pulse';
+        const res = await fetch(url);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? 'Failed to load Market Pulse');
         setDigest(json.digest ?? []);
         setNews(json.news ?? []);
         setDigestDate(json.digestDate ?? null);
+        setAvailableDates(json.availableDates ?? []);
         setTrackRecord(json.trackRecord ?? null);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load Market Pulse');
@@ -109,7 +115,7 @@ export default function MarketPulseWorkspace() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [selectedDate]);
 
   const divergences = digest.filter((d) => d.divergence_flag);
   const rest = digest.filter((d) => !d.divergence_flag);
@@ -134,9 +140,27 @@ export default function MarketPulseWorkspace() {
             SEBI-registered advisor before investing.
           </span>
         </div>
-        {digestDate && (
-          <div className="mt-3 type-caption text-[var(--text-tertiary)]">Last updated: {digestDate}</div>
-        )}
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          {digestDate && (
+            <div className="type-caption text-[var(--text-tertiary)]">Showing: {formatIndianDate(digestDate)}</div>
+          )}
+          {availableDates.length > 1 && (
+            <label className="inline-flex items-center gap-2 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-1.5 type-caption text-[var(--text-secondary)]">
+              <CalendarClock className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+              <select
+                value={digestDate ?? ''}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent type-caption text-[var(--text-secondary)] focus:outline-none"
+              >
+                {availableDates.map((d) => (
+                  <option key={d} value={d}>
+                    {formatIndianDate(d)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
       </div>
 
       {trackRecord && (trackRecord.live.total > 0 || trackRecord.backtest) && (

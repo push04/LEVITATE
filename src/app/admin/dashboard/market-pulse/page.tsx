@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { LineChart, Loader2 } from 'lucide-react';
+import { formatIndianDate } from '@/lib/date-format';
 
 type DigestRow = {
   ticker: string;
@@ -134,7 +135,7 @@ export default function AdminMarketPulsePage() {
           </button>
           {digestDate && (
             <span className="text-[11px] text-gray-400">
-              {digestDate} - {publishedCount}/{digest.length} published
+              {formatIndianDate(digestDate)} - {publishedCount}/{digest.length} published
             </span>
           )}
         </div>
@@ -148,7 +149,7 @@ export default function AdminMarketPulsePage() {
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="flex items-center justify-between border-b border-gray-100 p-4">
             <p className="text-[12px] font-semibold uppercase tracking-wide text-gray-400">
-              Today&apos;s digest ({digestDate})
+              Today&apos;s digest ({digestDate ? formatIndianDate(digestDate) : ''})
             </p>
             {publishMode === 'manual' && (
               <div className="flex flex-wrap gap-2">

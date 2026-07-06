@@ -12,9 +12,15 @@ export type PredictionTracking = {
 }
 
 // One prediction row per ticker per day (predictions.ticker,prediction_date is
-// unique) - this loads the most recent one for each ticker, plus that
-// ticker's own historical hit-rate, in a single query rather than N+1s.
-export async function loadPredictionTracking(supabase: SupabaseClient, tickers: string[]): Promise<Map<string, PredictionTracking>> {
+// unique) - this loads one per ticker, plus that ticker's own historical
+// hit-rate, in a single query rather than N+1s. When asOfDate is given (the
+// digest date the user is browsing), it picks that day's own prediction per
+// ticker instead of always the latest - since data is ordered most-recent
+// first, the first row per ticker with date <= asOfDate is either the exact
+// match or the nearest one before it. Accuracy stays computed across ALL of
+// a ticker's evaluated history regardless of asOfDate - it's that ticker's
+// overall track record, not scoped to one day.
+export async function loadPredictionTracking(supabase: SupabaseClient, tickers: string[], asOfDate?: string): Promise<Map<string, PredictionTracking>> {
   if (tickers.length === 0) return new Map()
 
   const { data } = await supabase
@@ -28,7 +34,9 @@ export async function loadPredictionTracking(supabase: SupabaseClient, tickers: 
 
   for (const row of data ?? []) {
     const ticker = row.ticker as string
-    if (!latestByTicker.has(ticker)) latestByTicker.set(ticker, row) // first hit per ticker = most recent (ordered desc)
+    if (!latestByTicker.has(ticker) && (!asOfDate || (row.prediction_date as string) <= asOfDate)) {
+      latestByTicker.set(ticker, row)
+    }
     if (row.evaluated) {
       const acc = accuracyByTicker.get(ticker) ?? { correct: 0, total: 0 }
       acc.total++

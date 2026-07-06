@@ -1,4 +1,5 @@
 import { CheckCircle2, XCircle, MinusCircle, TriangleAlert, LineChart, Wallet, ListChecks, CalendarClock, Gauge, Newspaper, ExternalLink } from 'lucide-react';
+import { formatIndianDate } from '@/lib/date-format';
 
 type Zone = { upto: number; color: string; label?: string };
 
@@ -385,9 +386,9 @@ export function PredictionTrackerCard({ prediction, currentPrice }: { prediction
       <SectionHeader icon={CalendarClock} label="Prediction tracking" />
       <div className="mt-2 rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-overlay)] p-3">
         <div className="type-caption text-[var(--text-tertiary)]">
-          Called <span className="font-semibold capitalize text-[var(--text-primary)]">{prediction.signal}</span> on {prediction.predictionDate}
+          Called <span className="font-semibold capitalize text-[var(--text-primary)]">{prediction.signal}</span> on {formatIndianDate(prediction.predictionDate)}
           {' · '}
-          {prediction.evaluated ? `checked on ${prediction.targetDate}` : `${daysElapsed} day${daysElapsed === 1 ? '' : 's'} in, targets ${prediction.targetDate}`}
+          {prediction.evaluated ? `checked on ${formatIndianDate(prediction.targetDate)}` : `${daysElapsed} day${daysElapsed === 1 ? '' : 's'} in, targets ${formatIndianDate(prediction.targetDate)}`}
         </div>
         <div className="mt-1.5 flex items-baseline gap-2">
           <span className={`type-heading font-semibold ${toneClass}`}>{statusLabel}</span>

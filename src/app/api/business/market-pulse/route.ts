@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { businessApiErrorResponse, requireBusinessCompany } from '@/lib/business-intelligence-server'
 import { getServiceSupabase } from '@/lib/supabase'
 import { buildDigestSelectColumns } from '@/lib/market-pulse-columns'
@@ -7,7 +7,7 @@ import { loadTickerNews } from '@/lib/market-pulse-ticker-news'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await requireBusinessCompany('marketPulse')
   } catch (err) {
@@ -15,22 +15,24 @@ export async function GET() {
   }
 
   const supabase = getServiceSupabase()
+  const requestedDate = request.nextUrl.searchParams.get('date')
 
-  // Digest is written once a day by the marketpulse scraper — use whatever
-  // the most recent digest_date actually is rather than assuming "today"
-  // (the scraper may not have run yet, or ran in a different timezone).
-  const { data: latestDateRow } = await supabase
+  // Digest is written once a day by the marketpulse scraper — default to
+  // whatever the most recent digest_date actually is rather than assuming
+  // "today" (the scraper may not have run yet, or ran in a different
+  // timezone), but let the caller pick an earlier date to browse history.
+  const { data: dateRows } = await supabase
     .from('daily_digest')
     .select('digest_date')
     .order('digest_date', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
-  if (!latestDateRow) {
-    return NextResponse.json({ digestDate: null, digest: [], news: [] })
+  const availableDates = Array.from(new Set((dateRows ?? []).map((r) => r.digest_date as string)))
+
+  if (availableDates.length === 0) {
+    return NextResponse.json({ digestDate: null, digest: [], news: [], availableDates: [] })
   }
 
-  const digestDate = latestDateRow.digest_date as string
+  const digestDate = requestedDate && availableDates.includes(requestedDate) ? requestedDate : availableDates[0]
 
   // Optional columns land via separate migrations that may not all be
   // applied yet — probed per-group (see buildDigestSelectColumns) so one
@@ -59,7 +61,7 @@ export async function GET() {
   const fundamentalsByTicker = new Map((fundamentalsRows ?? []).map((f) => [f.ticker, f]))
 
   const tickers = (digest ?? []).map((d) => d.ticker)
-  const predictionByTicker = await loadPredictionTracking(supabase, tickers)
+  const predictionByTicker = await loadPredictionTracking(supabase, tickers, digestDate)
   const newsByTicker = await loadTickerNews(supabase, tickers)
 
   const digestWithFundamentals = (digest ?? []).map((d) => ({
@@ -96,6 +98,7 @@ export async function GET() {
     digest: digestWithFundamentals,
     news: newsWithSentiment,
     trackRecord,
+    availableDates,
   })
 }
 

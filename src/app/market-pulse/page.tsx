@@ -5,7 +5,9 @@ import { getServiceSupabase } from '@/lib/supabase';
 import { buildDigestSelectColumns } from '@/lib/market-pulse-columns';
 import { loadPredictionTracking, type PredictionTracking } from '@/lib/market-pulse-predictions';
 import { loadTickerNews, type TickerNewsItem } from '@/lib/market-pulse-ticker-news';
+import { formatIndianDate } from '@/lib/date-format';
 import DigestCard from '@/components/market-pulse/DigestCard';
+import DigestDateSelector from '@/components/market-pulse/DigestDateSelector';
 import WatchlistSection from '@/components/market-pulse/WatchlistSection';
 import SectorOverview from '@/components/market-pulse/SectorOverview';
 import type { Fundamentals, Finding, RiskFinding } from '@/components/market-pulse/StockMetrics';
@@ -58,20 +60,24 @@ type DigestRow = {
   confidence_reason: string | null;
 };
 
-async function getPublishedDigest() {
+async function getPublishedDigest(requestedDate?: string) {
   const supabase = getServiceSupabase();
 
-  const { data: latestDateRow } = await supabase
+  // Only dates with at least one published row are offered - a date with
+  // only unpublished digest rows would otherwise render an empty page.
+  const { data: dateRows } = await supabase
     .from('daily_digest')
     .select('digest_date')
     .eq('published', true)
-    .order('digest_date', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order('digest_date', { ascending: false });
 
-  if (!latestDateRow) return { digestDate: null as string | null, digest: [] as DigestRow[] };
+  const availableDates = Array.from(new Set((dateRows ?? []).map((r) => r.digest_date as string)));
 
-  const digestDate = latestDateRow.digest_date as string;
+  if (availableDates.length === 0) {
+    return { digestDate: null as string | null, digest: [] as DigestRow[], availableDates };
+  }
+
+  const digestDate = requestedDate && availableDates.includes(requestedDate) ? requestedDate : availableDates[0];
 
   // Optional columns land via separate migrations that may not all be
   // applied yet - probed per-group (see buildDigestSelectColumns) so one
@@ -99,7 +105,7 @@ async function getPublishedDigest() {
   const fundamentalsByTicker = new Map((fundamentalsRows ?? []).map((f) => [f.ticker, f]));
 
   const tickers = (data ?? []).map((d) => d.ticker);
-  const predictionByTicker = await loadPredictionTracking(supabase, tickers);
+  const predictionByTicker = await loadPredictionTracking(supabase, tickers, digestDate);
   const newsByTicker = await loadTickerNews(supabase, tickers);
 
   const digest = (data ?? []).map((d) => ({
@@ -109,7 +115,7 @@ async function getPublishedDigest() {
     news: newsByTicker.get(d.ticker) ?? null,
   }));
 
-  return { digestDate, digest: digest as DigestRow[] };
+  return { digestDate, digest: digest as DigestRow[], availableDates };
 }
 
 type TrackRecord = {
@@ -145,8 +151,9 @@ async function getTrackRecord(): Promise<TrackRecord> {
   return { live: { total, correct, accuracyPct }, backtest: latestBacktest ?? null };
 }
 
-export default async function MarketPulsePage() {
-  const { digestDate, digest } = await getPublishedDigest();
+export default async function MarketPulsePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+  const { date: requestedDate } = await searchParams;
+  const { digestDate, digest, availableDates } = await getPublishedDigest(requestedDate);
   const trackRecord = await getTrackRecord();
 
   const bullish = digest.filter((d) => d.sentiment_trend === 'bullish').length;
@@ -169,9 +176,12 @@ export default async function MarketPulsePage() {
             surplus cash might go. The watchlist below is chosen fresh every day from actual
             market movers and news coverage, not a fixed list.
           </p>
-          {digestDate && (
-            <div className="mt-6 type-caption text-[var(--text-tertiary)]">Last updated {digestDate}</div>
-          )}
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            {digestDate && (
+              <div className="type-caption text-[var(--text-tertiary)]">Showing {formatIndianDate(digestDate)}</div>
+            )}
+            {digestDate && <DigestDateSelector dates={availableDates} selected={digestDate} />}
+          </div>
         </div>
       </section>
 
