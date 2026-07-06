@@ -25,6 +25,7 @@ import {
   UserCheck,
   Crosshair,
   Gavel,
+  Ticket,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -49,6 +50,7 @@ const GROUPS = [
       { label: 'AI Lead Database', icon: Database, href: '/admin/dashboard/growth/potential-leads', roles: ['super_admin', 'admin', 'sales'], badge: 'AI' },
       { label: 'BizHarvest', icon: Crosshair, href: '/admin/dashboard/growth/bizharvest', roles: ['super_admin', 'admin', 'sales'], badge: 'New' },
       { label: 'Tenders (BJ)', icon: Gavel, href: '/admin/dashboard/tenders', roles: ['super_admin', 'admin', 'sales'], badge: 'New' },
+      { label: 'Demo Invites', icon: Ticket, href: '/admin/dashboard/demo-invites', roles: ['super_admin', 'admin', 'sales'], badge: 'New' },
       { label: 'Marketplace Listings', icon: ShoppingBag, href: '/admin/dashboard/marketplace', roles: ['super_admin', 'admin', 'sales'], badge: 'New' },
       { label: 'Market Pulse', icon: LineChart, href: '/admin/dashboard/market-pulse', roles: ['super_admin', 'admin'], badge: 'New' },
       { label: 'Sales', icon: TrendingUp, href: '/admin/dashboard/sales', roles: ['super_admin', 'admin', 'manager', 'sales'] },

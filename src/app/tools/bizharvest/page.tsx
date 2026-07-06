@@ -1,10 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, Database, MapPin, Phone, Tag } from 'lucide-react';
+import { Suspense } from 'react';
+import { ArrowRight } from 'lucide-react';
 import { getServiceSupabase } from '@/lib/supabase';
-import { parseNotes, bizharvestSourceLabel } from '@/lib/bizharvest-analytics';
-import { maskPhone } from '@/lib/demo-mask';
-import BizHarvestDemoExplorer, { type DemoLead } from '@/components/tools/BizHarvestDemoExplorer';
+import BizHarvestDemoExplorer from '@/components/tools/BizHarvestDemoExplorer';
 
 export const dynamic = 'force-static';
 export const revalidate = 300;
@@ -12,80 +11,49 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: 'BizHarvest Live Demo - Levitate Labs',
   description:
-    'A live look at BizHarvest, our local-business lead scraper - real businesses pulled from Google Maps and JustDial, a small live sample shown here.',
+    'A live, invite-only look at BizHarvest, our local-business lead scraper - ask it a question in plain English and get real, live-scraped results.',
 };
 
-const DEMO_LIMIT = 24;
 // Bounded, not a full-table scan - a public page shouldn't run the same
 // unbounded query the internal admin analytics page does (see
 // getBizharvestAnalytics in src/lib/bizharvest-analytics.ts). This caps cost
 // from anonymous traffic while still giving a real (if approximate) count.
 const DISTINCT_SAMPLE_CAP = 4000;
 
-async function getBizHarvestDemoData() {
+async function getBizHarvestStats() {
   const supabase = getServiceSupabase();
 
-  const [totalRes, phoneRes, websiteRes, cityRes, catRes, sampleRes] = await Promise.all([
+  const [totalRes, phoneRes, cityRes, catRes] = await Promise.all([
     supabase.from('leads').select('id', { count: 'exact', head: true }).like('source', 'bizharvest_%'),
     supabase.from('leads').select('id', { count: 'exact', head: true }).like('source', 'bizharvest_%').not('phone', 'is', null),
-    supabase.from('leads').select('id', { count: 'exact', head: true }).like('source', 'bizharvest_%').not('website_link', 'is', null),
     supabase.from('leads').select('city').like('source', 'bizharvest_%').not('city', 'is', null).limit(DISTINCT_SAMPLE_CAP),
     supabase.from('leads').select('service_category').like('source', 'bizharvest_%').not('service_category', 'is', null).limit(DISTINCT_SAMPLE_CAP),
-    supabase
-      .from('leads')
-      .select('id, name, city, service_category, source, notes, created_at, phone, website_link')
-      .like('source', 'bizharvest_%')
-      .order('created_at', { ascending: false })
-      .limit(DEMO_LIMIT),
   ]);
 
-  const distinctCities = new Set((cityRes.data ?? []).map((r) => r.city)).size;
-  const distinctCategories = new Set((catRes.data ?? []).map((r) => r.service_category)).size;
-
-  const leads: DemoLead[] = (sampleRes.data ?? []).map((l) => {
-    const meta = parseNotes(l.notes);
-    return {
-      id: l.id,
-      name: l.name ?? 'Unknown business',
-      city: l.city,
-      category: l.service_category,
-      source: bizharvestSourceLabel(l.source),
-      rating: meta.rating ?? null,
-      hasWebsite: Boolean(l.website_link),
-      phoneMasked: maskPhone(l.phone),
-      scrapedAt: l.created_at,
-    };
-  });
-
   return {
-    leads,
-    stats: {
-      total: totalRes.count ?? 0,
-      withPhone: phoneRes.count ?? 0,
-      withWebsite: websiteRes.count ?? 0,
-      distinctCities,
-      distinctCategories,
-    },
+    total: totalRes.count ?? 0,
+    withPhone: phoneRes.count ?? 0,
+    distinctCities: new Set((cityRes.data ?? []).map((r) => r.city)).size,
+    distinctCategories: new Set((catRes.data ?? []).map((r) => r.service_category)).size,
   };
 }
 
 export default async function BizHarvestDemoPage() {
-  const { leads, stats } = await getBizHarvestDemoData();
+  const stats = await getBizHarvestStats();
   const phoneRate = stats.total > 0 ? Math.round((stats.withPhone / stats.total) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <section className="border-b border-[var(--border-default)] px-6 py-20 md:py-28">
         <div className="mx-auto max-w-4xl">
-          <div className="type-subheading text-[var(--text-accent)]">Live demo · BizHarvest</div>
+          <div className="type-subheading text-[var(--text-accent)]">Invite-only demo · BizHarvest</div>
           <h1 className="font-serif-display mt-4 text-[40px] leading-[1.05] tracking-tight text-[var(--text-primary)] md:text-[56px]">
-            Real local businesses, scraped and scored automatically.
+            Ask for real businesses, in plain English.
           </h1>
           <p className="mt-6 max-w-2xl type-body text-[17px] leading-8 text-[var(--text-secondary)]">
             BizHarvest continuously pulls real business listings from Google Maps and JustDial across
-            Indian cities - name, category, rating, phone, website presence - so outreach never starts
-            from a blank spreadsheet. Below is a live, small sample of what it has actually found, not
-            mock data. Full contact details and the complete database are reserved for customers.
+            Indian cities - name, category, rating, phone, website presence. Type a question below the
+            same way our own team does, and get real, live results back - not mock data.
           </p>
         </div>
       </section>
@@ -113,17 +81,19 @@ export default async function BizHarvestDemoPage() {
 
       <section className="px-6 py-16">
         <div className="mx-auto max-w-5xl">
-          <div className="type-subheading text-[var(--text-accent)]">Sample leads</div>
+          <div className="type-subheading text-[var(--text-accent)]">Try it yourself</div>
           <h2 className="font-serif-display mt-2 text-[26px] text-[var(--text-primary)]">
-            {leads.length} of {stats.total.toLocaleString('en-IN')} real scraped businesses
+            Up to 20 real results per question
           </h2>
           <p className="mt-2 max-w-xl type-body text-[var(--text-secondary)]">
-            Filter and search this live sample the same way our admin dashboard does. Phone numbers are
-            partially masked here - customers see the full number, instantly.
+            Ask for a city, a category, or a specific need - phone numbers are partially masked here;
+            customers see the full number instantly.
           </p>
 
           <div className="mt-8">
-            <BizHarvestDemoExplorer leads={leads} />
+            <Suspense fallback={null}>
+              <BizHarvestDemoExplorer />
+            </Suspense>
           </div>
         </div>
       </section>
