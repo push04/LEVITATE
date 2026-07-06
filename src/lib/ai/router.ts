@@ -28,24 +28,19 @@ interface Provider {
 }
 
 /**
- * Groq free-tier production models — all have 14,400 RPD / 30 RPM.
- * Ordered: fastest/lightest first so we exhaust the light model's
- * per-minute window before falling to heavier ones.
- *
- * Model IDs confirmed from https://console.groq.com/docs/models
+ * Checked directly against Groq's API (response rate-limit headers), not
+ * assumed: on this account, only llama-3.1-8b-instant actually has the
+ * generous 14,400 req/day free-tier limit. llama-3.3-70b-versatile,
+ * openai/gpt-oss-20b, and meta-llama/llama-4-scout-17b-16e-instruct are all
+ * capped at just 1,000/day here despite Groq's docs describing per-model
+ * pools, and gemma2-9b-it has been fully decommissioned by Groq (confirmed
+ * via a live API call returning "model has been decommissioned"). A
+ * fallback chain built on those doesn't add real capacity - it just burns
+ * through a 1,000/day budget fast (or fails outright on the decommissioned
+ * one) and ends up back on rate limits, so there is no real fallback here,
+ * just the one model that is actually reliable at this call volume.
  */
-const GROQ_MODELS = [
-  // Best for JSON/structured output — fast, cheap, 128K context
-  'llama-3.1-8b-instant',
-  // Good quality, longer context, high TPM
-  'llama-3.3-70b-versatile',
-  // OpenAI GPT-OSS 20B — solid quality, separate quota pool
-  'openai/gpt-oss-20b',
-  // Google Gemma 2 9B — separate capacity pool on Groq infra
-  'gemma2-9b-it',
-  // Preview: Llama 4 Scout — may have higher limits as newer model
-  'meta-llama/llama-4-scout-17b-16e-instruct',
-]
+const GROQ_MODELS = ['llama-3.1-8b-instant']
 
 function makeGroqProvider(): Provider {
   return {
@@ -56,7 +51,10 @@ function makeGroqProvider(): Provider {
       const errors: string[] = []
 
       for (const model of GROQ_MODELS) {
-        try {
+        // With only one model in the chain, a 429 is the per-minute (not
+        // per-day) window - waiting on Groq's own retry-after and retrying
+        // the same model recovers it, instead of immediately giving up.
+        for (let attempt = 1; attempt <= 3; attempt++) {
           const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -76,10 +74,14 @@ function makeGroqProvider(): Provider {
           })
 
           if (res.status === 429) {
-            // Per-minute rate limit on this model — silently try next
-            errors.push(`${model}: RPM limit hit`)
-            console.warn(`[AIRouter] Groq/${model} rate limited (429), trying next model`)
-            continue
+            if (attempt < 3) {
+              const retryAfterSec = Number(res.headers.get('retry-after')) || attempt * 5
+              console.warn(`[AIRouter] Groq/${model} rate limited, waiting ${retryAfterSec}s before retry ${attempt}/2`)
+              await new Promise((resolve) => setTimeout(resolve, retryAfterSec * 1000))
+              continue
+            }
+            errors.push(`${model}: RPM limit hit after retries`)
+            break
           }
 
           if (!res.ok) {
@@ -95,17 +97,11 @@ function makeGroqProvider(): Provider {
           }
 
           errors.push(`${model}: empty response`)
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err)
-          if (msg.includes('RPM limit') || msg.includes('429')) {
-            errors.push(`${model}: rate limited`)
-            continue
-          }
-          throw err // Non-rate-limit error — don't swallow it
+          break
         }
       }
 
-      throw new Error(`All Groq models rate limited: ${errors.join(' | ')}`)
+      throw new Error(`Groq rate limited: ${errors.join(' | ')}`)
     },
   }
 }
