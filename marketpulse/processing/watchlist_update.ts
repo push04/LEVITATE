@@ -49,6 +49,11 @@ Rules:
   const user = `RECENT HEADLINES:\n${headlines.map((h) => `- ${h}`).join("\n")}`;
 
   for (const model of GROQ_MODELS) {
+    // With no fallback model to shift load to anymore, a 429 here means the
+    // per-minute (not per-day) window on this one model - waiting a few
+    // seconds and retrying the SAME model recovers it, rather than giving up
+    // on the whole chunk immediately.
+    for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -66,34 +71,40 @@ Rules:
       });
 
       if (res.status === 429) {
-        console.warn(`[watchlist_update] ${model} rate limited, trying next model`);
-        continue;
+        if (attempt < 3) {
+          const retryAfterSec = Number(res.headers.get("retry-after")) || attempt * 5;
+          console.warn(`[watchlist_update] ${model} rate limited, waiting ${retryAfterSec}s before retry ${attempt}/2`);
+          await new Promise((resolve) => setTimeout(resolve, retryAfterSec * 1000));
+          continue;
+        }
+        console.warn(`[watchlist_update] ${model} still rate limited after retries, giving up on this chunk`);
+        break;
       }
       if (res.status === 413) {
-        console.warn(`[watchlist_update] ${model} HTTP 413 (payload too large) even for one chunk, trying next model`);
-        continue;
+        console.warn(`[watchlist_update] ${model} HTTP 413 (payload too large) even for one chunk`);
+        break;
       }
       if (!res.ok) {
-        console.warn(`[watchlist_update] ${model} HTTP ${res.status}, trying next model`);
-        continue;
+        console.warn(`[watchlist_update] ${model} HTTP ${res.status}`);
+        break;
       }
 
       const data = await res.json();
       const content: string = data.choices?.[0]?.message?.content ?? "";
       const match = content.match(/\[[\s\S]*\]/);
       if (!match) {
-        console.warn(`[watchlist_update] ${model} returned no parseable JSON array (got ${content.length} chars), trying next model`);
-        continue;
+        console.warn(`[watchlist_update] ${model} returned no parseable JSON array (got ${content.length} chars)`);
+        break;
       }
 
       let parsed: unknown;
       try {
         parsed = JSON.parse(match[0]);
       } catch {
-        console.warn(`[watchlist_update] ${model} returned malformed JSON (likely truncated), trying next model`);
-        continue;
+        console.warn(`[watchlist_update] ${model} returned malformed JSON (likely truncated)`);
+        break;
       }
-      if (!Array.isArray(parsed)) continue;
+      if (!Array.isArray(parsed)) break;
 
       return parsed
         .filter((p) => p && typeof p.ticker === "string")
@@ -104,6 +115,8 @@ Rules:
         }));
     } catch (err) {
       console.warn(`[watchlist_update] ${model} failed:`, err instanceof Error ? err.message : err);
+      break;
+    }
     }
   }
   return [];

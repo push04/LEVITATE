@@ -32,6 +32,10 @@ Respond ONLY with a JSON array, no prose: [{"ticker": "RELIANCE", "confidence": 
   const user = `STOCKS:\n${lines}`;
 
   for (const model of GROQ_MODELS) {
+    // With no fallback model to shift load to, a 429 here is the per-minute
+    // window, not daily exhaustion - waiting and retrying the same model
+    // recovers it instead of losing the whole chunk's confidence scores.
+    for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -49,30 +53,36 @@ Respond ONLY with a JSON array, no prose: [{"ticker": "RELIANCE", "confidence": 
       });
 
       if (res.status === 429) {
-        console.warn(`[confidence_score] ${model} rate limited, trying next model`);
-        continue;
+        if (attempt < 3) {
+          const retryAfterSec = Number(res.headers.get("retry-after")) || attempt * 5;
+          console.warn(`[confidence_score] ${model} rate limited, waiting ${retryAfterSec}s before retry ${attempt}/2`);
+          await new Promise((resolve) => setTimeout(resolve, retryAfterSec * 1000));
+          continue;
+        }
+        console.warn(`[confidence_score] ${model} still rate limited after retries, giving up on this chunk`);
+        break;
       }
       if (!res.ok) {
-        console.warn(`[confidence_score] ${model} HTTP ${res.status}, trying next model`);
-        continue;
+        console.warn(`[confidence_score] ${model} HTTP ${res.status}`);
+        break;
       }
 
       const data = await res.json();
       const content: string = data.choices?.[0]?.message?.content ?? "";
       const match = content.match(/\[[\s\S]*\]/);
       if (!match) {
-        console.warn(`[confidence_score] ${model} returned no parseable JSON array, trying next model`);
-        continue;
+        console.warn(`[confidence_score] ${model} returned no parseable JSON array`);
+        break;
       }
 
       let parsed: unknown;
       try {
         parsed = JSON.parse(match[0]);
       } catch {
-        console.warn(`[confidence_score] ${model} returned malformed JSON, trying next model`);
-        continue;
+        console.warn(`[confidence_score] ${model} returned malformed JSON`);
+        break;
       }
-      if (!Array.isArray(parsed)) continue;
+      if (!Array.isArray(parsed)) break;
 
       for (const p of parsed) {
         if (!p || typeof p.ticker !== "string" || typeof p.confidence !== "number") continue;
@@ -82,6 +92,8 @@ Respond ONLY with a JSON array, no prose: [{"ticker": "RELIANCE", "confidence": 
       return result; // succeeded with this model, no need to try the rest
     } catch (err) {
       console.warn(`[confidence_score] ${model} failed:`, err instanceof Error ? err.message : err);
+      break;
+    }
     }
   }
   return result;

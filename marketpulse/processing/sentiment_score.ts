@@ -31,6 +31,11 @@ Respond ONLY in JSON, no prose: {"ticker": "RELIANCE" or null, "sector": "Energy
   const user = `Headline: ${headline}\nSummary: ${summary || "(none)"}`;
 
   for (const model of GROQ_MODELS) {
+    // This runs once per headline with no fallback model, so a 429 (the
+    // per-minute window, not daily exhaustion) needs a short wait-and-retry
+    // rather than an immediate skip - otherwise every headline past the
+    // 30-RPM mark in a ~90-call batch silently gets classified as null.
+    for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
@@ -47,13 +52,20 @@ Respond ONLY in JSON, no prose: {"ticker": "RELIANCE" or null, "sector": "Energy
         signal: AbortSignal.timeout(20000),
       });
 
-      if (res.status === 429) continue;
-      if (!res.ok) continue;
+      if (res.status === 429) {
+        if (attempt < 3) {
+          const retryAfterSec = Number(res.headers.get("retry-after")) || attempt * 5;
+          await new Promise((resolve) => setTimeout(resolve, retryAfterSec * 1000));
+          continue;
+        }
+        break;
+      }
+      if (!res.ok) break;
 
       const data = await res.json();
       const content: string = data.choices?.[0]?.message?.content ?? "";
       const match = content.match(/\{[\s\S]*\}/);
-      if (!match) continue;
+      if (!match) break;
 
       const parsed = JSON.parse(match[0]);
       const sentiment = ["bullish", "bearish", "neutral"].includes(parsed.sentiment) ? parsed.sentiment : "neutral";
@@ -67,7 +79,8 @@ Respond ONLY in JSON, no prose: {"ticker": "RELIANCE" or null, "sector": "Energy
         summary: typeof parsed.summary === "string" ? parsed.summary.slice(0, 300) : headline,
       };
     } catch {
-      continue;
+      break;
+    }
     }
   }
   return null;
