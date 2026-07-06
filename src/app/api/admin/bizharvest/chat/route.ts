@@ -3,10 +3,11 @@ import { getServiceSupabase, fetchAllRows } from '@/lib/supabase'
 import { checkAdminAuth } from '@/lib/auth'
 import { callAI, aiRouter } from '@/lib/ai/router'
 import { parseNotes, bizharvestSourceLabel } from '@/lib/bizharvest-analytics'
+import { LEAD_STATUSES } from '@/lib/lead-status'
 
 export const dynamic = 'force-dynamic'
 
-const STATUSES = ['New', 'Contacted', 'Follow Up', 'Closed'] as const
+const STATUSES = LEAD_STATUSES
 const SOURCES = ['gmaps', 'justdial', 'hotfrog'] as const
 const SORTS = ['rating', 'recent', 'reviews'] as const
 
@@ -26,7 +27,7 @@ Extract search filters from the admin's request (which may reference an earlier 
 {
   "city": string or null,
   "category": string or null,
-  "status": one of "New","Contacted","Follow Up","Closed" or null,
+  "status": one of "New","Contacted","Follow Up","Done","Closed","Paid" or null,
   "hasPhone": boolean,
   "hasWebsite": one of "yes","no" or null,
   "minRating": number or null,

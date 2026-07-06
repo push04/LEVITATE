@@ -10,6 +10,7 @@ import {
   FileText, FileSpreadsheet, FileDown, Trash2,
 } from 'lucide-react'
 import { exportLeadsCSV, exportLeadsXLSX, exportLeadsPDF } from '@/lib/bizharvest-export'
+import { LEAD_STATUSES, LEAD_STATUS_PILL_CLASS, LEAD_STATUS_HEX } from '@/lib/lead-status'
 
 interface RecentLead {
   id: string
@@ -122,14 +123,39 @@ function StatusPill({ status }: { status: string }) {
   return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg}`}>{status}</span>
 }
 
-function LeadStatusPill({ status }: { status: string }) {
-  const cfg: Record<string, string> = {
-    New: 'bg-blue-50 text-blue-700 border-blue-200',
-    Contacted: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    'Follow Up': 'bg-purple-50 text-purple-700 border-purple-200',
-    Closed: 'bg-green-50 text-green-700 border-green-200',
+// Inline editable status - lets the admin move a lead through the pipeline
+// (or mark Done/Paid) right from the directory/chat-results table, instead
+// of only being able to view it.
+function LeadStatusSelect({ leadId, status, onChanged }: { leadId: string; status: string; onChanged: (id: string, status: string) => void }) {
+  const [saving, setSaving] = useState(false)
+  const handleChange = async (next: string) => {
+    if (next === status) return
+    setSaving(true)
+    onChanged(leadId, next)
+    try {
+      const res = await fetch('/api/admin/leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: leadId, status: next }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    } catch {
+      onChanged(leadId, status) // revert on failure
+    } finally {
+      setSaving(false)
+    }
   }
-  return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${cfg[status] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>{status}</span>
+  return (
+    <select
+      value={status}
+      disabled={saving}
+      onChange={e => handleChange(e.target.value)}
+      onClick={e => e.stopPropagation()}
+      className={`text-[10px] font-bold pl-1.5 pr-4 py-0.5 rounded-full border whitespace-nowrap outline-none disabled:opacity-50 ${LEAD_STATUS_PILL_CLASS[status] ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}
+    >
+      {LEAD_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+    </select>
+  )
 }
 
 function timeAgo(str: string) {
@@ -141,10 +167,8 @@ function timeAgo(str: string) {
   return `${Math.floor(h / 24)}d ago`
 }
 
-const PIPELINE_ORDER = ['New', 'Contacted', 'Follow Up', 'Closed']
-const PIPELINE_COLOR: Record<string, string> = {
-  New: '#2563eb', Contacted: '#eab308', 'Follow Up': '#7c3aed', Closed: '#16a34a',
-}
+const PIPELINE_ORDER = LEAD_STATUSES
+const PIPELINE_COLOR = LEAD_STATUS_HEX
 
 interface ChatLead {
   id: string
@@ -178,7 +202,7 @@ const CHAT_EXAMPLES = [
   'all salons, sorted by rating',
 ]
 
-function ChatResultsTable({ leads, query, onDeleted }: { leads: ChatLead[]; query: string; onDeleted: (ids: string[]) => void }) {
+function ChatResultsTable({ leads, query, onDeleted, onStatusChanged }: { leads: ChatLead[]; query: string; onDeleted: (ids: string[]) => void; onStatusChanged: (id: string, status: string) => void }) {
   const [exporting, setExporting] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
@@ -374,7 +398,7 @@ function ChatResultsTable({ leads, query, onDeleted }: { leads: ChatLead[]; quer
                 <td className="px-3 py-1.5 whitespace-nowrap">{l.phone || '—'}</td>
                 <td className="px-3 py-1.5">{l.city || '—'}</td>
                 <td className="px-3 py-1.5">{l.rating ? `${l.rating} ★` : '—'}</td>
-                <td className="px-3 py-1.5"><LeadStatusPill status={l.status} /></td>
+                <td className="px-3 py-1.5"><LeadStatusSelect leadId={l.id} status={l.status} onChanged={onStatusChanged} /></td>
               </tr>
             ))}
           </tbody>
@@ -428,6 +452,13 @@ function BizHarvestChat() {
     }))
   }, [])
 
+  const handleStatusChanged = useCallback((msgIndex: number, id: string, status: string) => {
+    setMessages(prev => prev.map((m, idx) => {
+      if (idx !== msgIndex || !m.leads) return m
+      return { ...m, leads: m.leads.map(l => (l.id === id ? { ...l, status } : l)) }
+    }))
+  }, [])
+
   return (
     <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
@@ -460,7 +491,7 @@ function BizHarvestChat() {
             }`}>
               <p className="whitespace-pre-line">{m.content}</p>
               {m.leads && m.leads.length > 0 && (
-                <ChatResultsTable leads={m.leads} query={messages[i - 1]?.content ?? 'leads'} onDeleted={ids => handleDeleted(i, ids)} />
+                <ChatResultsTable leads={m.leads} query={messages[i - 1]?.content ?? 'leads'} onDeleted={ids => handleDeleted(i, ids)} onStatusChanged={(id, status) => handleStatusChanged(i, id, status)} />
               )}
             </div>
           </div>
@@ -521,6 +552,10 @@ export default function BizHarvestAnalyticsPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const handleLeadStatusChanged = useCallback((id: string, status: string) => {
+    setStats(prev => (prev ? { ...prev, recentLeads: prev.recentLeads.map(l => (l.id === id ? { ...l, status } : l)) } : prev))
+  }, [])
 
   const filteredLeads = useMemo(() => {
     if (!stats) return []
@@ -790,7 +825,7 @@ export default function BizHarvestAnalyticsPage() {
                       <p className="text-[11px] text-gray-400 truncate">{l.category || '—'} · {l.city || '—'}</p>
                       {l.address && <p className="text-[11px] text-gray-400 truncate">{l.address}</p>}
                     </div>
-                    <LeadStatusPill status={l.status} />
+                    <LeadStatusSelect leadId={l.id} status={l.status} onChanged={handleLeadStatusChanged} />
                   </div>
                   <div className="mt-2 flex items-center justify-between text-[12px]">
                     <div className="flex items-center gap-2 text-gray-600">
@@ -857,7 +892,7 @@ export default function BizHarvestAnalyticsPage() {
                           </span>
                         ) : <span className="text-gray-300">—</span>}
                       </td>
-                      <td className="py-2"><LeadStatusPill status={l.status} /></td>
+                      <td className="py-2"><LeadStatusSelect leadId={l.id} status={l.status} onChanged={handleLeadStatusChanged} /></td>
                       <td className="py-2 text-gray-400 capitalize">{l.source}</td>
                       <td className="py-2 text-gray-400 whitespace-nowrap">{timeAgo(l.createdAt)}</td>
                     </tr>

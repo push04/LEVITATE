@@ -102,7 +102,7 @@ export function useBusinessLeadRecords(enabled: boolean, companyId?: string | nu
 
   const stats = useMemo(() => {
     const normalize = (value: string | null | undefined) => String(value || '').toLowerCase();
-    const isClosed = (status: string) => ['closed', 'won', 'lost'].includes(status);
+    const isClosed = (status: string) => ['closed', 'won', 'lost', 'done', 'paid'].includes(status);
     const isEngaged = (status: string) => ['contacted', 'follow up', 'follow_up', 'in progress', 'in_progress'].includes(status);
 
     return {

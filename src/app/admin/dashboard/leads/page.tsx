@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-    Search, Mail, Phone, Calendar,
-    MoreVertical, CheckCircle2, Clock, Upload,
+    Search, Mail, Phone, Calendar, Upload,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import ImportModal from '@/components/import/ImportModal';
+import { LEAD_STATUSES } from '@/lib/lead-status';
 
 // Types — match the actual `leads` table columns
 interface Lead {
@@ -41,6 +41,15 @@ function leadMessage(lead: Lead): string {
     const raw = lead.message ?? lead.notes ?? '';
     return typeof raw === 'string' ? raw : String(raw ?? '');
 }
+
+const STATUS_COLOR: Record<string, string> = {
+    New: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+    Contacted: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
+    'Follow Up': 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+    Done: 'bg-teal-500/10 text-teal-500 border-teal-500/20',
+    Closed: 'bg-green-500/10 text-green-500 border-green-500/20',
+    Paid: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+};
 
 function safeStr(val: unknown): string {
     if (val === null || val === undefined) return '';
@@ -89,15 +98,8 @@ export default function LeadsPage() {
         return matchesSearch && matchesStatus;
     });
 
-    const getStatusColor = (status: string | null | undefined) => {
-        switch (status) {
-            case 'New': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-            case 'Contacted': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
-            case 'Follow Up': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
-            case 'Closed': return 'bg-green-500/10 text-green-500 border-green-500/20';
-            default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
-        }
-    };
+    const getStatusColor = (status: string | null | undefined) =>
+        (status && STATUS_COLOR[status]) || 'bg-gray-500/10 text-gray-500 border-gray-500/20';
 
     return (
         <div className="space-y-8">
@@ -140,7 +142,7 @@ export default function LeadsPage() {
 
                 {/* Status Filter */}
                 <div className="flex bg-[var(--surface)] p-1 rounded-xl border border-[var(--border)] shrink-0 overflow-x-auto">
-                    {['All', 'New', 'Contacted', 'Follow Up', 'Closed'].map((status) => (
+                    {['All', ...LEAD_STATUSES].map((status) => (
                         <button
                             key={status}
                             onClick={() => setStatusFilter(status)}
@@ -226,33 +228,16 @@ export default function LeadsPage() {
 
                                 {/* Actions */}
                                 <div className="flex lg:flex-col items-center justify-center gap-2 pt-4 lg:pt-0 lg:pl-6 lg:border-l border-[var(--border)] shrink-0">
-                                    <p className="text-xs font-medium text-[var(--muted)] mb-2 uppercase hidden lg:block">Move To</p>
-                                    <div className="flex lg:flex-col gap-2 w-full">
-                                        {status !== 'Contacted' && (
-                                            <button
-                                                onClick={() => updateStatus(lead.id, 'Contacted')}
-                                                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20 transition-colors w-full justify-center"
-                                            >
-                                                <Clock className="w-3 h-3" /> Contacted
-                                            </button>
-                                        )}
-                                        {status !== 'Closed' && (
-                                            <button
-                                                onClick={() => updateStatus(lead.id, 'Closed')}
-                                                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors w-full justify-center"
-                                            >
-                                                <CheckCircle2 className="w-3 h-3" /> Close Deal
-                                            </button>
-                                        )}
-                                        {status !== 'Follow Up' && status !== 'Closed' && (
-                                            <button
-                                                onClick={() => updateStatus(lead.id, 'Follow Up')}
-                                                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 transition-colors w-full justify-center"
-                                            >
-                                                <MoreVertical className="w-3 h-3" /> Follow Up
-                                            </button>
-                                        )}
-                                    </div>
+                                    <p className="text-xs font-medium text-[var(--muted)] mb-2 uppercase hidden lg:block">Status</p>
+                                    <select
+                                        value={status}
+                                        onChange={(e) => updateStatus(lead.id, e.target.value)}
+                                        className={`w-full lg:w-36 px-3 py-2 rounded-lg text-xs font-semibold border outline-none cursor-pointer ${getStatusColor(status)}`}
+                                    >
+                                        {LEAD_STATUSES.map((s) => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </motion.div>
                         );

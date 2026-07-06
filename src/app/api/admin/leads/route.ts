@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServiceSupabase, fetchAllRows } from '@/lib/supabase';
 import { checkAdminAuth } from '@/lib/auth';
 import { queueBusinessLeadWhatsApp } from '@/lib/whatsapp/queue-business-lead';
+import { LEAD_STATUSES } from '@/lib/lead-status';
 
 export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
@@ -100,7 +101,7 @@ export async function PATCH(request: NextRequest) {
         }
 
         // Validate status if present
-        if (updates.status && !['New', 'Contacted', 'Follow Up', 'Closed'].includes(updates.status as string)) {
+        if (updates.status && !(LEAD_STATUSES as readonly string[]).includes(updates.status as string)) {
             return NextResponse.json({ success: false, error: 'Invalid status' }, { status: 400 });
         }
 

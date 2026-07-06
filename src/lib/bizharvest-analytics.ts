@@ -1,4 +1,5 @@
 import { fetchAllRows, getServiceSupabase } from '@/lib/supabase'
+import { LEAD_STATUSES } from '@/lib/lead-status'
 
 export interface BizHarvestNotes {
   rating?: number
@@ -117,12 +118,9 @@ export async function getBizharvestAnalytics(supabase: ReturnType<typeof getServ
   }))
 
   // ── Sales pipeline: where bizharvest leads are in the CRM funnel ─────────
-  const pipeline = {
-    New: leads.filter(l => l.status === 'New').length,
-    Contacted: leads.filter(l => l.status === 'Contacted').length,
-    'Follow Up': leads.filter(l => l.status === 'Follow Up').length,
-    Closed: leads.filter(l => l.status === 'Closed').length,
-  }
+  const pipeline = Object.fromEntries(
+    LEAD_STATUSES.map((status) => [status, leads.filter((l) => l.status === status).length])
+  ) as Record<(typeof LEAD_STATUSES)[number], number>
 
   // ── Ratings (Google Maps / JustDial star ratings scraped per business) ───
   const rated = leads.filter(l => typeof l.meta.rating === 'number' && (l.meta.rating as number) > 0)

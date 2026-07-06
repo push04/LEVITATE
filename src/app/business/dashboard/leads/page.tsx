@@ -70,7 +70,7 @@ function matchesFilter(record: BusinessLeadRecord, filter: LeadFilter) {
   const status = String(record.status || '').toLowerCase();
   if (filter === 'new') return status === 'new';
   if (filter === 'engaged') return status === 'contacted' || status === 'follow up' || status === 'follow_up' || status === 'in progress' || status === 'in_progress';
-  if (filter === 'closed') return status === 'closed' || status === 'won' || status === 'lost';
+  if (filter === 'closed') return status === 'closed' || status === 'won' || status === 'lost' || status === 'done' || status === 'paid';
   return true;
 }
 

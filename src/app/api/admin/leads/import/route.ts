@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkAdminAuth } from '@/lib/auth'
 import { getServiceSupabase } from '@/lib/supabase'
+import { LEAD_STATUSES } from '@/lib/lead-status'
 
 interface LeadRow {
   business_name?: string
@@ -29,7 +30,6 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = getServiceSupabase()
-  const VALID_STATUSES = ['New', 'Contacted', 'Follow Up', 'Closed']
 
   const rows = leads.map(l => ({
     business_name: l.business_name ?? l.name ?? 'Unknown',
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     service_category: l.service_category?.trim() || null,
     budget: l.budget?.trim() || null,
     notes: l.notes?.trim() || null,
-    status: VALID_STATUSES.includes(l.status ?? '') ? l.status : 'New',
+    status: (LEAD_STATUSES as readonly string[]).includes(l.status ?? '') ? l.status : 'New',
     source,
     website_link: l.website_link?.trim() || null,
     created_at: new Date().toISOString(),

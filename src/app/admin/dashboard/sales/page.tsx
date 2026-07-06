@@ -26,11 +26,11 @@ export default function SalesDashboard() {
             // 2. Campaigns Sent
             const { count: campaignsCount } = await supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('status', 'sent');
 
-            // 3. Active Deals (Leads with status not 'New' or 'Closed' approx, or specific status)
-            const { count: activeDealsCount } = await supabase.from('leads').select('*', { count: 'exact', head: true }).neq('status', 'Closed').neq('status', 'New');
+            // 3. Active Deals (not New, and not one of the terminal statuses)
+            const { count: activeDealsCount } = await supabase.from('leads').select('*', { count: 'exact', head: true }).not('status', 'in', '(New,Closed,Done,Paid)');
 
-            // 4. Conversion (Closed / Total)
-            const { count: closedCount } = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'Closed');
+            // 4. Conversion (terminal / Total) - Closed, Done, and Paid all mean the deal is finished
+            const { count: closedCount } = await supabase.from('leads').select('*', { count: 'exact', head: true }).in('status', ['Closed', 'Done', 'Paid']);
 
             const total = leadsCount || 0;
             const closed = closedCount || 0;
