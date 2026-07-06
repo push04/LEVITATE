@@ -34,17 +34,17 @@ async function loadUniverse(): Promise<UniverseEntry[]> {
   return (data ?? []) as UniverseEntry[];
 }
 
-async function askGroqForTickersInChunk(headlines: string[]): Promise<Array<{ ticker: string; reason: string }>> {
+async function askGroqForTickersInChunk(headlines: string[]): Promise<Array<{ ticker: string; company: string; reason: string }>> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey || headlines.length === 0) return [];
 
   const system = `You are a financial news analyst for the Indian stock market (NSE). Given a batch of recent news headlines, identify any specific NSE-listed companies that are prominently mentioned or central to a major event (results, regulatory action, big deal, notable price move).
 
 Rules:
-- Return the company's actual NSE ticker symbol (uppercase, as traded on NSE - e.g. RELIANCE, TCS, INFY, HDFCBANK). Only include a ticker if you are confident it is the correct, real NSE symbol for that company; if you're not sure of the exact symbol, omit it rather than guessing.
+- Return your best guess at the company's actual NSE ticker symbol (uppercase, as traded on NSE - e.g. RELIANCE, TCS, INFY, HDFCBANK) AND the company's name as written in the headline. The ticker is only a best guess - it gets verified separately against the real, official list of NSE symbols, so it is fine to be unsure of the exact symbol as long as the company name is accurate.
 - Do not include general market commentary, indices, or vague sector mentions - only specific, named companies.
-- Return at most ${MAX_TRENDING_PICKS} tickers, ranked most-prominent first.
-- Respond ONLY with a JSON array, no prose: [{"ticker": "RELIANCE", "reason": "one short phrase on why it's in the news"}, ...]`;
+- Return at most ${MAX_TRENDING_PICKS} companies, ranked most-prominent first.
+- Respond ONLY with a JSON array, no prose: [{"ticker": "RELIANCE", "company": "Reliance Industries", "reason": "one short phrase on why it's in the news"}, ...]`;
 
   const user = `RECENT HEADLINES:\n${headlines.map((h) => `- ${h}`).join("\n")}`;
 
@@ -97,7 +97,11 @@ Rules:
 
       return parsed
         .filter((p) => p && typeof p.ticker === "string")
-        .map((p) => ({ ticker: (p.ticker as string).toUpperCase().trim(), reason: String(p.reason ?? "").slice(0, 200) }));
+        .map((p) => ({
+          ticker: (p.ticker as string).toUpperCase().trim(),
+          company: String(p.company ?? "").trim(),
+          reason: String(p.reason ?? "").slice(0, 200),
+        }));
     } catch (err) {
       console.warn(`[watchlist_update] ${model} failed:`, err instanceof Error ? err.message : err);
     }
@@ -109,21 +113,53 @@ Rules:
 // the next chunk - rather than one giant prompt. Every candidate ticker Groq
 // returns is validated against the real nse_universe table before use; this
 // function itself does zero validation, that happens in updateWatchlist().
-async function askGroqForTrendingTickers(headlines: string[]): Promise<Array<{ ticker: string; reason: string }>> {
+async function askGroqForTrendingTickers(headlines: string[]): Promise<Array<{ ticker: string; company: string; reason: string }>> {
   if (!process.env.GROQ_API_KEY || headlines.length === 0) return [];
 
-  const merged = new Map<string, string>(); // ticker -> reason (first-seen wins)
+  const merged = new Map<string, { company: string; reason: string }>(); // ticker -> {company, reason} (first-seen wins)
 
   for (let i = 0; i < headlines.length; i += HEADLINES_PER_CHUNK) {
     const chunk = headlines.slice(i, i + HEADLINES_PER_CHUNK);
     const chunkResults = await askGroqForTickersInChunk(chunk);
     for (const r of chunkResults) {
-      if (!merged.has(r.ticker)) merged.set(r.ticker, r.reason);
+      if (!merged.has(r.ticker)) merged.set(r.ticker, { company: r.company, reason: r.reason });
     }
     console.log(`[watchlist_update] chunk ${Math.floor(i / HEADLINES_PER_CHUNK) + 1}/${Math.ceil(headlines.length / HEADLINES_PER_CHUNK)}: ${chunkResults.length} tickers found, ${merged.size} unique so far`);
   }
 
-  return Array.from(merged.entries()).map(([ticker, reason]) => ({ ticker, reason }));
+  return Array.from(merged.entries()).map(([ticker, v]) => ({ ticker, company: v.company, reason: v.reason }));
+}
+
+// Groq is asked to remember a ticker SYMBOL from its own training, which it
+// often gets subtly wrong even for a real, well-known company (using the
+// company's colloquial/full name instead - "MARUTISUZUKI" instead of the
+// real "MARUTI", "VODAFONEIDEA" instead of "IDEA", "AUSSMALLFIN" instead of
+// "AUBANK") - confirmed empirically against a real run's rejected list. The
+// company NAME Groq extracts from the headline text tends to be far more
+// reliable than its ticker recall, so this is a second, independent check
+// against the real universe's own company_name column before giving up on a
+// candidate - still fully verified against real data, never blind-trusted.
+function normalizeCompanyName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\(.*?\)/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\b(ltd|limited|inc|plc|the|company|co)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function companyNameMatches(candidateName: string, realName: string): boolean {
+  const a = normalizeCompanyName(candidateName);
+  const b = normalizeCompanyName(realName);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  // One name is a whole prefix/substring of the other (e.g. "Maruti Suzuki"
+  // vs "Maruti Suzuki India") - require a reasonable minimum length so short
+  // strings can't coincidentally "contain" an unrelated company's name.
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  return shorter.length >= 6 && longer.includes(shorter);
 }
 
 export async function updateWatchlist(): Promise<{ active: number; trending: number; pruned: number }> {
@@ -161,13 +197,35 @@ export async function updateWatchlist(): Promise<{ active: number; trending: num
 
   const headlines = (recentNews ?? []).map((n) => n.title as string);
   const groqCandidates = await askGroqForTrendingTickers(headlines);
-  // Validate every Groq-suggested ticker against the real, NSE-sourced
+  // Validate every Groq-suggested company against the real, NSE-sourced
   // universe - anything Groq got wrong (hallucinated or misremembered) is
-  // silently dropped here, never trusted blind.
-  const trending = groqCandidates
-    .filter((t) => validTickers.has(t.ticker))
-    .slice(0, MAX_TRENDING_PICKS);
-  console.log(`[watchlist_update] Groq suggested ${groqCandidates.length} tickers from ${headlines.length} headlines, ${trending.length} validated against the real NSE universe`);
+  // dropped, never trusted blind. Two independent checks against real data:
+  // exact ticker match first, then (since Groq's remembered ticker symbol is
+  // often subtly wrong even for a real company) a company-name match against
+  // the universe's own company_name column as a second chance.
+  const seenTickers = new Set<string>();
+  const trending: Array<{ ticker: string; reason: string }> = [];
+  let resolvedByName = 0;
+  for (const c of groqCandidates) {
+    if (validTickers.has(c.ticker)) {
+      if (!seenTickers.has(c.ticker)) {
+        seenTickers.add(c.ticker);
+        trending.push({ ticker: c.ticker, reason: c.reason });
+      }
+      continue;
+    }
+    if (!c.company) continue;
+    const match = universe.find((u) => companyNameMatches(c.company, u.company_name));
+    if (match && !seenTickers.has(match.ticker)) {
+      seenTickers.add(match.ticker);
+      trending.push({ ticker: match.ticker, reason: c.reason || `Trending in recent news (matched via company name)` });
+      resolvedByName++;
+    }
+  }
+  trending.splice(MAX_TRENDING_PICKS);
+  console.log(
+    `[watchlist_update] Groq suggested ${groqCandidates.length} tickers from ${headlines.length} headlines, ${trending.length} validated against the real NSE universe (${resolvedByName} via company-name match after ticker mismatch)`
+  );
 
   // 3. Real, objective market movers - top gainers/losers/most-active by
   // actual price change % and volume across the full universe (populated by
