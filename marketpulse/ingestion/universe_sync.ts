@@ -125,9 +125,14 @@ export async function syncUniverse(): Promise<{ synced: number }> {
   }
 
   try {
+    // NSE's bot-protection silently times out any request carrying a
+    // self-identifying User-Agent (e.g. "MarketPulse/1.0") - confirmed by
+    // direct A/B test: identical requests succeed instantly with a normal
+    // browser UA and hang indefinitely with an identifying one. Use a real
+    // browser UA, same as the other NSE-hitting scripts in this project.
     const csv = await fetchText(
       "https://nsearchives.nseindia.com/content/indices/ind_nifty500list.csv",
-      "Mozilla/5.0 (compatible; MarketPulse/1.0; +https://levitatelabs.online)"
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     );
     const rows = parseNse500Csv(csv);
     if (rows.length < 100) throw new Error(`Parsed suspiciously few rows (${rows.length}) - NSE may have changed the CSV format`);

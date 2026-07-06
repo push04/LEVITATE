@@ -12,6 +12,7 @@ const OPTIONAL_DIGEST_COLUMN_GROUPS = [
   'current_price, macd, macd_signal, sma_20, sma_50, adx_14, atr_14, stoch_k, cci_20, williams_r_14, volume, avg_volume_20, high_52w, low_52w',
   'signal_findings, risk_findings',
   'raw_trend_signal',
+  'confidence_score, confidence_reason',
 ]
 
 export async function buildDigestSelectColumns(supabase: SupabaseClient, baseColumns: string): Promise<string> {

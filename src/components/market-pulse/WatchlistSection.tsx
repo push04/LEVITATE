@@ -12,7 +12,7 @@ type SignalFilter = 'all' | 'bullish' | 'bearish' | 'neutral';
 type RiskFilter = 'all' | 'elevated' | 'moderate' | 'low';
 
 const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
-  { value: 'default', label: 'Default (movers first)' },
+  { value: 'default', label: 'Confidence: buy to sell to hold' },
   { value: 'price_desc', label: 'Price change: high to low' },
   { value: 'price_asc', label: 'Price change: low to high' },
   { value: 'signal', label: 'Signal: bullish first' },
@@ -20,6 +20,16 @@ const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
   { value: 'volume', label: 'Volume vs 20d avg' },
   { value: 'ticker', label: 'Ticker (A-Z)' },
 ];
+
+// Default view: highest-confidence bullish (buy) first, then bearish (sell),
+// then neutral (hold) last - confidence_score is computed once during the
+// daily pipeline run (processing/confidence_score.ts, Groq-scored with a
+// deterministic fallback), not recomputed here.
+function byConfidence(a: DigestCardData, b: DigestCardData): number {
+  const signalDiff = (SIGNAL_RANK[a.trend_signal] ?? 3) - (SIGNAL_RANK[b.trend_signal] ?? 3);
+  if (signalDiff !== 0) return signalDiff;
+  return (b.confidence_score ?? -1) - (a.confidence_score ?? -1);
+}
 
 function sortDigest(items: DigestCardData[], key: SortKey): DigestCardData[] {
   const sorted = [...items];
@@ -41,7 +51,7 @@ function sortDigest(items: DigestCardData[], key: SortKey): DigestCardData[] {
     case 'ticker':
       return sorted.sort((a, b) => a.ticker.localeCompare(b.ticker));
     default:
-      return sorted;
+      return sorted.sort(byConfidence);
   }
 }
 

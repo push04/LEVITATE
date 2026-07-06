@@ -54,6 +54,8 @@ type DigestRow = {
   risk_findings: RiskFinding[] | null;
   prediction: PredictionTracking | null;
   news: TickerNewsItem[] | null;
+  confidence_score: number | null;
+  confidence_reason: string | null;
 };
 
 async function getPublishedDigest() {

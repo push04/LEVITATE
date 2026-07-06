@@ -36,6 +36,8 @@ export type DigestCardData = {
   risk_findings?: RiskFinding[] | null;
   prediction?: PredictionTracking | null;
   news?: TickerNewsItem[] | null;
+  confidence_score?: number | null;
+  confidence_reason?: string | null;
 } & TechnicalMetrics;
 
 function formatPct(value: number | null) {
@@ -130,7 +132,11 @@ export default function DigestCard({
           <SignalPill source="News" value={d.sentiment_trend} />
           <SignalPill source="Technicals" value={d.trend_signal} />
           <RiskBadge level={d.risk_level} />
+          {d.confidence_score != null && (
+            <span className="type-caption text-[var(--text-tertiary)]">Confidence: {Math.round(d.confidence_score)}/100</span>
+          )}
         </div>
+        {d.confidence_reason && <p className="type-caption text-[var(--text-tertiary)]">{d.confidence_reason}</p>}
       </summary>
 
       <div className="border-t border-[var(--border-default)] p-4 sm:p-5">

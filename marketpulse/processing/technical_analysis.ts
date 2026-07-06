@@ -42,6 +42,10 @@ export type TechnicalRead = {
   // checklist (icon + tone per line) instead of a wall of prose.
   findings: Finding[];
   riskFindings: RiskFinding[];
+  // Deterministic 0-100 fallback confidence (from how far the point margin
+  // clears the bullish/bearish threshold) - used to rank stocks for display
+  // when Groq confidence-scoring isn't available for a given run.
+  deterministicConfidence: number;
 };
 
 function pct(n: number, digits = 1) {
@@ -277,6 +281,13 @@ export function analyzeTechnicals(t: TechnicalSnapshot): TechnicalRead {
   const trendSignal: TechnicalRead["trendSignal"] =
     bullishPoints - bearishPoints >= margin ? "bullish" : bearishPoints - bullishPoints >= margin ? "bearish" : "neutral";
 
+  // How far the winning side clears the required margin, scaled to 0-100 -
+  // a rough, deterministic stand-in for "how strong is this call" when Groq
+  // confidence-scoring isn't available. A bare pass of the margin scores low;
+  // a wide, lopsided margin (most indicators agreeing) scores high.
+  const netPoints = Math.abs(bullishPoints - bearishPoints);
+  const deterministicConfidence = trendSignal === "neutral" ? Math.max(0, 50 - netPoints * 10) : Math.min(100, 40 + netPoints * 12);
+
   return {
     outlook: notes.length > 0 ? notes.join(" ") : "Not enough indicator history yet to form a technical read.",
     riskNotes: risks.length > 0 ? risks.join(" ") : "No elevated risk flags from current technicals.",
@@ -284,5 +295,6 @@ export function analyzeTechnicals(t: TechnicalSnapshot): TechnicalRead {
     riskLevel,
     findings,
     riskFindings,
+    deterministicConfidence,
   };
 }
