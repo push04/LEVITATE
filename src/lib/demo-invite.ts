@@ -2,6 +2,11 @@ import { getServiceSupabase } from '@/lib/supabase';
 
 export const DEMO_RESULT_LIMIT = 20;
 
+// bizharvest/tenderpulse are query-capped demos (N tries); market_pulse is a
+// time-based trial (N days from first redemption) into the real business
+// dashboard experience - different access model, so it's excluded from
+// DemoTool (which only the try-count helpers below use) and can't be
+// combined via 'both'.
 export type DemoTool = 'bizharvest' | 'tenderpulse';
 
 export type DemoInvite = {
@@ -9,8 +14,9 @@ export type DemoInvite = {
   code: string;
   business_name: string;
   contact_name: string | null;
-  tool: 'bizharvest' | 'tenderpulse' | 'both';
+  tool: 'bizharvest' | 'tenderpulse' | 'both' | 'market_pulse';
   max_tries: number;
+  trial_days: number | null;
   is_active: boolean;
   expires_at: string | null;
   first_redeemed_at: string | null;
@@ -24,7 +30,7 @@ export async function findActiveInvite(code: string): Promise<DemoInvite | null>
   const supabase = getServiceSupabase();
   const { data } = await supabase
     .from('demo_invites')
-    .select('id, code, business_name, contact_name, tool, max_tries, is_active, expires_at, first_redeemed_at')
+    .select('id, code, business_name, contact_name, tool, max_tries, trial_days, is_active, expires_at, first_redeemed_at')
     .eq('code', normalizeInviteCode(code))
     .maybeSingle();
 
@@ -35,6 +41,22 @@ export async function findActiveInvite(code: string): Promise<DemoInvite | null>
 
 export function inviteAllowsTool(invite: DemoInvite, tool: DemoTool): boolean {
   return invite.tool === 'both' || invite.tool === tool;
+}
+
+// Trial clock starts at first redemption, not at invite creation - a code
+// sitting unused in someone's inbox shouldn't burn down its own trial.
+export function marketPulseTrialStatus(invite: DemoInvite): { active: boolean; daysRemaining: number; expiresAt: string | null } {
+  const trialDays = invite.trial_days ?? 3;
+  if (!invite.first_redeemed_at) {
+    return { active: true, daysRemaining: trialDays, expiresAt: null };
+  }
+  const expiresAtMs = new Date(invite.first_redeemed_at).getTime() + trialDays * 86400000;
+  const msRemaining = expiresAtMs - Date.now();
+  return {
+    active: msRemaining > 0,
+    daysRemaining: Math.max(0, Math.ceil(msRemaining / 86400000)),
+    expiresAt: new Date(expiresAtMs).toISOString(),
+  };
 }
 
 // Skips the round-trip entirely once already redeemed (the common case -

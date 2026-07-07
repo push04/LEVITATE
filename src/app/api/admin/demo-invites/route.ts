@@ -55,8 +55,9 @@ export async function POST(request: NextRequest) {
   const businessName = typeof body?.businessName === 'string' ? body.businessName.trim() : '';
   if (!businessName) return NextResponse.json({ error: 'Business name is required' }, { status: 400 });
 
-  const tool = ['bizharvest', 'tenderpulse', 'both'].includes(body?.tool) ? body.tool : 'both';
+  const tool = ['bizharvest', 'tenderpulse', 'both', 'market_pulse'].includes(body?.tool) ? body.tool : 'both';
   const maxTries = Number.isFinite(body?.maxTries) && body.maxTries > 0 ? Math.floor(body.maxTries) : 3;
+  const trialDays = tool === 'market_pulse' && Number.isFinite(body?.trialDays) && body.trialDays > 0 ? Math.floor(body.trialDays) : tool === 'market_pulse' ? 3 : null;
   const code = typeof body?.code === 'string' && body.code.trim() ? body.code.trim().toUpperCase() : generateCode();
 
   const supabase = getServiceSupabase();
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
       contact_phone: body?.contactPhone || null,
       tool,
       max_tries: maxTries,
+      trial_days: trialDays,
       notes: body?.notes || null,
     })
     .select()

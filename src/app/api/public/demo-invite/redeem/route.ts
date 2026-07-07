@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findActiveInvite, markInviteRedeemed } from '@/lib/demo-invite';
+import { findActiveInvite, markInviteRedeemed, marketPulseTrialStatus } from '@/lib/demo-invite';
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
@@ -13,7 +13,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ valid: false, error: 'That invite code is invalid or has expired.' }, { status: 404 });
   }
 
+  const wasAlreadyRedeemed = Boolean(invite.first_redeemed_at);
   await markInviteRedeemed(invite);
+
+  const trial = invite.tool === 'market_pulse' ? marketPulseTrialStatus(invite) : null;
 
   return NextResponse.json({
     valid: true,
@@ -22,5 +25,13 @@ export async function POST(request: NextRequest) {
     contactName: invite.contact_name,
     tool: invite.tool,
     maxTries: invite.max_tries,
+    trial: trial
+      ? {
+          // On first-ever redemption the clock just started - report the
+          // full window rather than a stale pre-redemption computation.
+          active: wasAlreadyRedeemed ? trial.active : true,
+          daysRemaining: wasAlreadyRedeemed ? trial.daysRemaining : (invite.trial_days ?? 3),
+        }
+      : null,
   });
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CalendarClock, ExternalLink, Loader2, TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { AlertTriangle, CalendarClock, ExternalLink, Loader2, Lock, Mail, MessageCircle, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import styles from '@/components/business/ui/DashboardPrimitives.module.css';
 import DigestCard from '@/components/market-pulse/DigestCard';
 import WatchlistSection from '@/components/market-pulse/WatchlistSection';
@@ -86,7 +86,20 @@ function SentimentBadge({ sentiment }: { sentiment: string }) {
   );
 }
 
-export default function MarketPulseWorkspace() {
+interface MarketPulseWorkspaceProps {
+  // Trial mode: pass an invite code and this component fetches from the
+  // invite-gated public trial routes instead of the paid business ones,
+  // showing the exact same real experience for the trial window.
+  apiEndpoint?: string;
+  priceEndpoint?: string;
+  trialCode?: string;
+}
+
+export default function MarketPulseWorkspace({
+  apiEndpoint = '/api/business/market-pulse',
+  priceEndpoint = '/api/business/market-pulse/prices',
+  trialCode,
+}: MarketPulseWorkspaceProps = {}) {
   const [digest, setDigest] = useState<DigestRow[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [digestDate, setDigestDate] = useState<string | null>(null);
@@ -95,33 +108,87 @@ export default function MarketPulseWorkspace() {
   const [trackRecord, setTrackRecord] = useState<TrackRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [trialExpired, setTrialExpired] = useState(false);
+  const [trialBusinessName, setTrialBusinessName] = useState<string | null>(null);
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState<number | null>(null);
+
+  const scopedPriceEndpoint = trialCode ? `${priceEndpoint}?code=${encodeURIComponent(trialCode)}` : priceEndpoint;
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const url = selectedDate ? `/api/business/market-pulse?date=${selectedDate}` : '/api/business/market-pulse';
-        const res = await fetch(url);
+        const params = new URLSearchParams();
+        if (selectedDate) params.set('date', selectedDate);
+        if (trialCode) params.set('code', trialCode);
+        const qs = params.toString();
+        const res = await fetch(qs ? `${apiEndpoint}?${qs}` : apiEndpoint);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? 'Failed to load Market Pulse');
+        if (json.trialExpired) {
+          setTrialExpired(true);
+          setTrialBusinessName(json.businessName ?? null);
+          return;
+        }
         setDigest(json.digest ?? []);
         setNews(json.news ?? []);
         setDigestDate(json.digestDate ?? null);
         setAvailableDates(json.availableDates ?? []);
         setTrackRecord(json.trackRecord ?? null);
+        if (trialCode) {
+          setTrialBusinessName(json.businessName ?? null);
+          setTrialDaysRemaining(json.daysRemaining ?? null);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load Market Pulse');
       } finally {
         setLoading(false);
       }
     })();
-  }, [selectedDate]);
+  }, [selectedDate, apiEndpoint, trialCode]);
 
   const divergences = digest.filter((d) => d.divergence_flag);
   const rest = digest.filter((d) => !d.divergence_flag);
 
+  if (trialExpired) {
+    return (
+      <div className={`${styles.panel} p-8 text-center`}>
+        <Lock className="mx-auto h-8 w-8 text-[var(--gold-base)]" />
+        <h2 className="mt-3 type-heading text-[var(--text-primary)]">
+          {trialBusinessName ? `${trialBusinessName}'s` : 'Your'} trial has ended
+        </h2>
+        <p className="mx-auto mt-2 max-w-md type-body text-[var(--text-secondary)]">
+          To keep getting daily Market Pulse digests, predictions, and technicals, email us or get in
+          touch - we&rsquo;ll set your business up properly.
+        </p>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <a
+            href="mailto:pushpal@levitatelabs.online"
+            className="inline-flex items-center gap-2 rounded-[10px] bg-[linear-gradient(135deg,var(--gold-base),var(--gold-muted))] px-5 py-2.5 type-body font-semibold text-[var(--text-inverse)]"
+          >
+            <Mail className="h-4 w-4" /> Email pushpal@levitatelabs.online
+          </a>
+          <a
+            href="/#contact"
+            className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-5 py-2.5 type-body font-semibold text-[var(--text-primary)]"
+          >
+            <MessageCircle className="h-4 w-4" /> Contact us
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {trialCode && (
+        <div className="rounded-[14px] border border-[rgba(201,165,90,0.3)] bg-[var(--gold-glow)] p-4">
+          <p className="type-body text-[var(--text-primary)]">
+            Trial active{trialBusinessName ? ` for ${trialBusinessName}` : ''}
+            {trialDaysRemaining != null ? ` - ${trialDaysRemaining} day${trialDaysRemaining === 1 ? '' : 's'} remaining` : ''}.
+          </p>
+        </div>
+      )}
       <div className={`${styles.panel} p-6 md:p-8`}>
         <div className="type-subheading text-[var(--text-tertiary)]">Market Pulse</div>
         <h1 className="mt-3 type-hero text-[var(--text-primary)]">Where the market's attention is today</h1>
@@ -225,7 +292,7 @@ export default function MarketPulseWorkspace() {
                 Sentiment and price are moving in opposite directions - the market may not have caught up yet, or the news reaction is overdone.
               </p>
               <div className="mt-4 space-y-3">
-                {divergences.map((d) => <DigestCard key={d.ticker} d={d} priceEndpoint="/api/business/market-pulse/prices" highlighted />)}
+                {divergences.map((d) => <DigestCard key={d.ticker} d={d} priceEndpoint={scopedPriceEndpoint} highlighted />)}
               </div>
             </div>
           )}
@@ -237,7 +304,7 @@ export default function MarketPulseWorkspace() {
               news trends - not a fixed list.
             </p>
             <div className="mt-4">
-              <WatchlistSection items={rest} priceEndpoint="/api/business/market-pulse/prices" />
+              <WatchlistSection items={rest} priceEndpoint={scopedPriceEndpoint} />
             </div>
           </div>
 

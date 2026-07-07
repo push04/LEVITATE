@@ -17,7 +17,8 @@ export default function PriceChart({ ticker, priceEndpoint }: { ticker: string; 
 
     (async () => {
       try {
-        const res = await fetch(`${priceEndpoint}?ticker=${encodeURIComponent(ticker)}`);
+        const separator = priceEndpoint.includes('?') ? '&' : '?';
+        const res = await fetch(`${priceEndpoint}${separator}ticker=${encodeURIComponent(ticker)}`);
         const json = await res.json() as { bars?: Bar[]; error?: string };
         if (!res.ok) throw new Error(json.error ?? 'Failed to load price history');
         if (cancelled || !containerRef.current) return;

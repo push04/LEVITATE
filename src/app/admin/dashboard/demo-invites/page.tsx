@@ -12,8 +12,9 @@ type Invite = {
   contact_name: string | null
   contact_email: string | null
   contact_phone: string | null
-  tool: 'bizharvest' | 'tenderpulse' | 'both'
+  tool: 'bizharvest' | 'tenderpulse' | 'both' | 'market_pulse'
   max_tries: number
+  trial_days: number | null
   is_active: boolean
   created_at: string
   first_redeemed_at: string | null
@@ -31,7 +32,18 @@ function inviteLinks(invite: Pick<Invite, 'tool' | 'code'>): { label: string; ur
   if (invite.tool === 'tenderpulse' || invite.tool === 'both') {
     links.push({ label: 'TenderPulse', url: `${SITE_URL}/tools/tenderpulse?invite=${invite.code}` })
   }
+  if (invite.tool === 'market_pulse') {
+    links.push({ label: 'Market Pulse', url: `${SITE_URL}/tools/market-pulse?invite=${invite.code}` })
+  }
   return links
+}
+
+function trialStatusLabel(invite: Invite): string {
+  const days = invite.trial_days ?? 3
+  if (!invite.first_redeemed_at) return `Trial: ${days} days, not started yet`
+  const expiresAtMs = new Date(invite.first_redeemed_at).getTime() + days * 86400000
+  const daysLeft = Math.ceil((expiresAtMs - Date.now()) / 86400000)
+  return daysLeft > 0 ? `Trial: ${daysLeft} of ${days} days left` : 'Trial: expired'
 }
 
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -62,8 +74,9 @@ export default function DemoInvitesPage() {
   const [contactName, setContactName] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [contactPhone, setContactPhone] = useState('')
-  const [tool, setTool] = useState<'both' | 'bizharvest' | 'tenderpulse'>('both')
+  const [tool, setTool] = useState<'both' | 'bizharvest' | 'tenderpulse' | 'market_pulse'>('both')
   const [maxTries, setMaxTries] = useState(3)
+  const [trialDays, setTrialDays] = useState(3)
   const [notes, setNotes] = useState('')
 
   const load = useCallback(async () => {
@@ -89,13 +102,13 @@ export default function DemoInvitesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          businessName, contactName, contactEmail, contactPhone, tool, maxTries, notes,
+          businessName, contactName, contactEmail, contactPhone, tool, maxTries, trialDays, notes,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
       setJustCreated({ ...data.invite, usage: { bizharvest: 0, tenderpulse: 0 } })
-      setBusinessName(''); setContactName(''); setContactEmail(''); setContactPhone(''); setNotes(''); setTool('both'); setMaxTries(3)
+      setBusinessName(''); setContactName(''); setContactEmail(''); setContactPhone(''); setNotes(''); setTool('both'); setMaxTries(3); setTrialDays(3)
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create invite')
@@ -126,9 +139,9 @@ export default function DemoInvitesPage() {
         <h1 className="text-2xl font-bold text-gray-900">Demo Invites</h1>
       </div>
       <p className="text-[13px] text-gray-400 -mt-4">
-        Gives a specific business a personal, limited-try invite code to the public BizHarvest / TenderPulse
-        AI query demos - they enter the code, get welcomed by name, and get a capped number of free queries
-        before being asked to purchase.
+        Gives a specific business a personal invite code - either a limited-try AI query demo (BizHarvest /
+        TenderPulse) or a time-boxed full-access trial (Market Pulse). They enter the code, get welcomed by
+        name, and are asked to purchase once their tries or trial days run out.
       </p>
 
       <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -161,10 +174,21 @@ export default function DemoInvitesPage() {
             className="rounded-lg border border-gray-200 px-3 py-2 text-base"
           />
           <select value={tool} onChange={(e) => setTool(e.target.value as typeof tool)} className="rounded-lg border border-gray-200 px-3 py-2 text-base">
-            <option value="both">Both demos</option>
-            <option value="bizharvest">BizHarvest only</option>
-            <option value="tenderpulse">TenderPulse only</option>
+            <option value="both">BizHarvest + TenderPulse demos</option>
+            <option value="bizharvest">BizHarvest demo only</option>
+            <option value="tenderpulse">TenderPulse demo only</option>
+            <option value="market_pulse">Market Pulse trial</option>
           </select>
+          {tool === 'market_pulse' ? (
+            <input
+              type="number"
+              min={1}
+              placeholder="Trial length (days)"
+              value={trialDays}
+              onChange={(e) => setTrialDays(Number(e.target.value) || 3)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-base"
+            />
+          ) : (
           <input
             type="number"
             min={1}
@@ -173,6 +197,7 @@ export default function DemoInvitesPage() {
             onChange={(e) => setMaxTries(Number(e.target.value) || 3)}
             className="rounded-lg border border-gray-200 px-3 py-2 text-base"
           />
+          )}
           <input
             placeholder="Notes (internal only)"
             value={notes}
@@ -229,9 +254,15 @@ export default function DemoInvitesPage() {
                     {invite.contact_email || invite.contact_phone || 'No contact on file'}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-400">
-                    {invite.tool !== 'tenderpulse' && `BizHarvest: ${invite.usage.bizharvest}/${invite.max_tries} used`}
-                    {invite.tool === 'both' && ' · '}
-                    {invite.tool !== 'bizharvest' && `TenderPulse: ${invite.usage.tenderpulse}/${invite.max_tries} used`}
+                    {invite.tool === 'market_pulse' ? (
+                      trialStatusLabel(invite)
+                    ) : (
+                      <>
+                        {invite.tool !== 'tenderpulse' && `BizHarvest: ${invite.usage.bizharvest}/${invite.max_tries} used`}
+                        {invite.tool === 'both' && ' · '}
+                        {invite.tool !== 'bizharvest' && `TenderPulse: ${invite.usage.tenderpulse}/${invite.max_tries} used`}
+                      </>
+                    )}
                     {!invite.first_redeemed_at && ' · not opened yet'}
                   </p>
                 </div>
