@@ -1,8 +1,22 @@
 import type { Config } from '@netlify/functions'
-import { callAI } from '../../src/lib/ai/router'
 import { sendLeadEmail } from '../../src/lib/email/client'
 import { getServiceSupabase } from '../../src/lib/supabase'
 import { requireInternalAuth } from './internal-auth'
+
+// Fixed template only — no per-lead AI generation. The AI-generated JSON
+// occasionally failed to parse, leaving messageBody defaulted to the raw,
+// unparsed AI response (literal {"subject": "...", "body": "..."} text sent
+// to real leads - confirmed in agent_emails for ~41% of all outreach/followup
+// sends). Uses the same admin-editable outreach_templates row as the
+// non-cron /api/outreach/trigger route.
+function fillTemplate(template: string, lead: { name?: string; service_category?: string; city?: string }): string {
+  const vars: Record<string, string> = {
+    business_name: lead.name ?? 'your business',
+    category: lead.service_category ?? 'business',
+    city: lead.city ?? 'your city',
+  }
+  return template.replace(/\{(\w+)\}/g, (_: string, k: string) => vars[k] ?? `{${k}}`)
+}
 
 async function logEmail(
   supabase: ReturnType<typeof getServiceSupabase>,
@@ -35,6 +49,17 @@ async function outreachHandler() {
   const supabase = getServiceSupabase()
 
   try {
+    const { data: activeTemplate } = await supabase
+      .from('outreach_templates')
+      .select('subject, body')
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (!activeTemplate) {
+      console.log('[Outreach] No active outreach template configured - skipping')
+      return
+    }
+
     const { data: hotLeads } = await supabase
       .from('leads')
       .select('*')
@@ -55,53 +80,15 @@ async function outreachHandler() {
 
     for (const lead of hotLeads) {
       try {
-        // Re-fetch lead to guard against race condition before doing expensive AI call
+        // Re-fetch lead to guard against race condition
         const { data: freshLead } = await supabase.from('leads').select('last_outreach_at').eq('id', lead.id).single()
         if (freshLead?.last_outreach_at != null) {
           console.log(`[Outreach] Skipping ${lead.name} — already contacted by another run`)
           continue
         }
 
-        const body = await callAI(
-          `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara, Gujarat.
-Levitate Labs builds AI agents and automation systems for Indian businesses — auto-replies to customer inquiries 24/7, automated lead follow-ups, appointment booking bots, WhatsApp automation, agentic AI for business growth.
-
-Write a short genuine cold email to a local Indian business owner.
-
-STRICT RULES:
-- Under 85 words in the body
-- NO mention of websites, Google, SEO, online presence, social media — we are NOT a digital marketing agency
-- NO greetings like "Hello sir" or "Dear sir" — use "Hi" or their business name directly
-- NO em dashes, NO exclamation marks, NO buzzwords like "leverage", "cutting-edge", "innovative"
-- Subject: 4-7 words, mention their business type specifically. E.g. "AI follow-ups for your clinic", "Auto-replies for your salon", "Saving time at your restaurant". NEVER generic.
-- Body: name ONE specific time-wasting or revenue-losing problem their business type faces (missed calls, slow responses, manual booking, forgetting to follow up)
-- Say how AI automation solves it — give ONE concrete example ("our system auto-replies to every WhatsApp inquiry within 30 seconds")
-- Offer a free 15-min demo, zero commitment
-- End with one yes/no question
-- Sign: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
-- Return JSON only: {"subject": "...", "body": "..."}`,
-          JSON.stringify({
-            business_name: lead.name,
-            category: lead.service_category,
-            city: lead.city,
-            has_website: lead.has_website ?? false
-          }),
-          400,
-          'outreach'
-        )
-
-        let subject = `Hi, quick question about ${lead.name}`
-        let messageBody = body
-
-        try {
-          const jsonMatch = body.match(/\{[\s\S]*\}/)
-          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : body)
-          subject = parsed.subject ?? subject
-          messageBody = parsed.body ?? messageBody
-        } catch {}
-
-        messageBody = messageBody.replace(/---/g, '-').replace(/--/g, '-')
-        subject = subject.replace(/---/g, '-').replace(/--/g, '-')
+        const subject = fillTemplate(activeTemplate.subject, lead)
+        const messageBody = fillTemplate(activeTemplate.body, lead)
 
         const emailSuccess = await sendLeadEmail(lead.email, subject, messageBody)
         if (emailSuccess) {

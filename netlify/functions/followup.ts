@@ -1,5 +1,4 @@
 import type { Config } from '@netlify/functions'
-import { callAI } from '../../src/lib/ai/router'
 import { sendLeadEmail } from '../../src/lib/email/client'
 import { getServiceSupabase } from '../../src/lib/supabase'
 import { requireInternalAuth } from './internal-auth'
@@ -11,6 +10,40 @@ function daysSince(dateStr: string): number {
 function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms))
 }
+
+// Fixed templates only — no per-lead AI generation (see outreach.ts for why:
+// the AI-JSON parsing failure mode was confirmed sending literal
+// {"subject": "...", "body": "..."} text to real leads in ~41% of sends).
+function fillTemplate(template: string, lead: { name?: string; service_category?: string; city?: string }): string {
+  const vars: Record<string, string> = {
+    business_name: lead.name ?? 'your business',
+    category: lead.service_category ?? 'business',
+    city: lead.city ?? 'your city',
+  }
+  return template.replace(/\{(\w+)\}/g, (_: string, k: string) => vars[k] ?? `{${k}}`)
+}
+
+const DAY3_FOLLOWUP_SUBJECT = 'Following up on my earlier message - {business_name}'
+const DAY3_FOLLOWUP_BODY = `Hi {business_name},
+
+Following up on my note a few days ago about AI automation for {category} businesses. Just to share a quick example, a clinic we worked with now handles 40 appointment bookings a day with zero staff involved.
+
+Would it be worth a quick chat to see if something similar could help you?
+
+Pushpal Sanyal
+Levitate Labs
+levitatelabs.online`
+
+const FINAL_FOLLOWUP_SUBJECT = 'One last try - {business_name}'
+const FINAL_FOLLOWUP_BODY = `Hi {business_name},
+
+This will be my last note on this. We help businesses automate repetitive work like follow-ups, inquiries, and bookings using AI, and I thought it might be useful for {category} businesses like yours.
+
+No pressure at all. If the timing is ever right, feel free to reach out.
+
+Pushpal Sanyal
+Levitate Labs
+levitatelabs.online`
 
 async function logEmail(
   supabase: ReturnType<typeof getServiceSupabase>,
@@ -55,42 +88,17 @@ async function followupHandler() {
 
     let followedUp = 0
 
-    for (const lead of contactedLeads ?? []) {
+    for (const [i, lead] of (contactedLeads ?? []).entries()) {
+      // Random pacing between sends within a run - never fire multiple
+      // leads back-to-back with zero gap (looks bot-like to spam filters).
+      // Kept well inside Netlify's ~10s function budget.
+      if (i > 0) await sleep(1000 + Math.random() * 2000)
+
       const days = daysSince(lead.last_outreach_at)
 
       if (lead.outreach_count === 1 && days >= 3) {
-        const body = await callAI(
-          `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara.
-Levitate Labs builds AI automation systems for Indian businesses — auto-replies to customer inquiries, automated lead follow-ups, appointment booking bots, WhatsApp automation, revenue growth through agentic AI.
-
-Write a short follow-up email (2nd contact, 3 days after first).
-
-RULES:
-- Under 70 words
-- NO mention of websites, Google, SEO, social media, "find you online" — we do AI automation, not digital marketing
-- NO em dashes, NO exclamation marks, NO "sir"
-- Acknowledge you messaged before briefly
-- Try a different angle — mention a specific AI automation result like "one clinic we work with now handles 40 appointment bookings a day with zero staff effort"
-- Zero pressure, light tone
-- End with one soft yes/no question about whether AI automation might help them
-- Sign: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
-- Return JSON: {"subject": "...", "body": "..."}`,
-          JSON.stringify({ business_name: lead.name, category: lead.service_category, city: lead.city }),
-          250,
-          'followup'
-        )
-
-        let subject = `Following up on my earlier message - ${lead.name}`
-        let emailBody = body
-        try {
-          const jsonMatch = body.match(/\{[\s\S]*\}/)
-          const p = JSON.parse(jsonMatch ? jsonMatch[0] : body)
-          subject = p.subject ?? subject
-          emailBody = p.body ?? emailBody
-        } catch {}
-
-        emailBody = emailBody.replace(/---/g, '-').replace(/--/g, '-')
-        subject = subject.replace(/---/g, '-').replace(/--/g, '-')
+        const subject = fillTemplate(DAY3_FOLLOWUP_SUBJECT, lead)
+        const emailBody = fillTemplate(DAY3_FOLLOWUP_BODY, lead)
 
         if (await sendLeadEmail(lead.email, subject, emailBody)) {
           await supabase.from('leads').update({
@@ -102,36 +110,8 @@ RULES:
         }
 
       } else if (lead.outreach_count === 2 && days >= 7) {
-        const body = await callAI(
-          `You are Pushpal Sanyal, Founder of Levitate Labs from Vadodara.
-Write a FINAL follow-up email (3rd and last contact).
-
-RULES:
-- Under 55 words - very short
-- NO mention of websites, Google, SEO, social media — we do AI automation, not digital marketing
-- NO em dashes, NO exclamation marks, NO "sir"
-- Be honest this is the last message - no pressure
-- One line reminder: we help businesses automate repetitive work (follow-ups, inquiries, bookings) using AI so they can focus on growth
-- Leave the door open warmly — if timing is ever right, they can reach out
-- No hard pitch
-- Sign: "Pushpal Sanyal | Founder, Levitate Labs | levitatelabs.online"
-- Return JSON: {"subject": "...", "body": "..."}`,
-          JSON.stringify({ business_name: lead.name, category: lead.service_category }),
-          200,
-          'followup'
-        )
-
-        let subject = `One last try - ${lead.name}`
-        let emailBody = body
-        try {
-          const jsonMatch = body.match(/\{[\s\S]*\}/)
-          const p = JSON.parse(jsonMatch ? jsonMatch[0] : body)
-          subject = p.subject ?? subject
-          emailBody = p.body ?? emailBody
-        } catch {}
-
-        emailBody = emailBody.replace(/---/g, '-').replace(/--/g, '-')
-        subject = subject.replace(/---/g, '-').replace(/--/g, '-')
+        const subject = fillTemplate(FINAL_FOLLOWUP_SUBJECT, lead)
+        const emailBody = fillTemplate(FINAL_FOLLOWUP_BODY, lead)
 
         if (await sendLeadEmail(lead.email!, subject, emailBody)) {
           await supabase.from('leads').update({
