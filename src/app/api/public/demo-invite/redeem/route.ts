@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ valid: false, error: 'That invite code is invalid or has expired.' }, { status: 404 });
   }
 
-  await markInviteRedeemed(invite.id);
+  await markInviteRedeemed(invite);
 
   return NextResponse.json({
     valid: true,

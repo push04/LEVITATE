@@ -19,11 +19,16 @@ const DISTINCT_SAMPLE_CAP = 4000;
 async function getTenderPulseStats() {
   const supabase = getServiceSupabase();
 
+  // Same "not actually expired" definition as the query API (status alone
+  // can lag reality) - keeps this stat consistent with what a query returns.
+  const nowIso = new Date().toISOString();
+  const notExpiredFilter = `bid_submission_deadline.is.null,bid_submission_deadline.gte.${nowIso}`;
+
   const [totalRes, sourcesRes, districtRes, categoryRes] = await Promise.all([
-    supabase.from('tenders').select('id', { count: 'exact', head: true }).eq('status', 'active').eq('is_hidden', false),
+    supabase.from('tenders').select('id', { count: 'exact', head: true }).eq('status', 'active').eq('is_hidden', false).or(notExpiredFilter),
     supabase.from('sources').select('id', { count: 'exact', head: true }).eq('is_active', true),
-    supabase.from('tenders').select('district').eq('status', 'active').eq('is_hidden', false).not('district', 'is', null).limit(DISTINCT_SAMPLE_CAP),
-    supabase.from('tenders').select('category').eq('status', 'active').eq('is_hidden', false).not('category', 'is', null).limit(DISTINCT_SAMPLE_CAP),
+    supabase.from('tenders').select('district').eq('status', 'active').eq('is_hidden', false).or(notExpiredFilter).not('district', 'is', null).limit(DISTINCT_SAMPLE_CAP),
+    supabase.from('tenders').select('category').eq('status', 'active').eq('is_hidden', false).or(notExpiredFilter).not('category', 'is', null).limit(DISTINCT_SAMPLE_CAP),
   ]);
 
   return {

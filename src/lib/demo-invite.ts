@@ -13,6 +13,7 @@ export type DemoInvite = {
   max_tries: number;
   is_active: boolean;
   expires_at: string | null;
+  first_redeemed_at: string | null;
 };
 
 export function normalizeInviteCode(code: string): string {
@@ -23,7 +24,7 @@ export async function findActiveInvite(code: string): Promise<DemoInvite | null>
   const supabase = getServiceSupabase();
   const { data } = await supabase
     .from('demo_invites')
-    .select('id, code, business_name, contact_name, tool, max_tries, is_active, expires_at')
+    .select('id, code, business_name, contact_name, tool, max_tries, is_active, expires_at, first_redeemed_at')
     .eq('code', normalizeInviteCode(code))
     .maybeSingle();
 
@@ -36,15 +37,15 @@ export function inviteAllowsTool(invite: DemoInvite, tool: DemoTool): boolean {
   return invite.tool === 'both' || invite.tool === tool;
 }
 
-// Only stamps first_redeemed_at the first time - the `.is()` filter means
-// this update touches zero rows (silently) on every redemption after the
-// first, so it never overwrites the original redemption timestamp.
-export async function markInviteRedeemed(inviteId: string): Promise<void> {
+// Skips the round-trip entirely once already redeemed (the common case -
+// every visit after the first) instead of firing a no-op UPDATE every time.
+export async function markInviteRedeemed(invite: DemoInvite): Promise<void> {
+  if (invite.first_redeemed_at) return;
   const supabase = getServiceSupabase();
   await supabase
     .from('demo_invites')
     .update({ first_redeemed_at: new Date().toISOString(), last_used_at: new Date().toISOString() })
-    .eq('id', inviteId)
+    .eq('id', invite.id)
     .is('first_redeemed_at', null);
 }
 
@@ -58,6 +59,10 @@ export async function getInviteTriesUsed(inviteId: string, tool: DemoTool): Prom
   return count ?? 0;
 }
 
+// Deliberately fire-and-forget from the caller's perspective (see usage in
+// the two public query routes) - the visitor's response doesn't need to
+// wait on usage logging, it only needs to have already happened before the
+// *next* request's getInviteTriesUsed() count.
 export async function recordInviteQuery(inviteId: string, tool: DemoTool, query: string, resultCount: number): Promise<void> {
   const supabase = getServiceSupabase();
   await Promise.all([

@@ -31,6 +31,7 @@ function timeAgo(str: string) {
 export default function BizHarvestDemoExplorer() {
   const searchParams = useSearchParams();
 
+  const [initializing, setInitializing] = useState(true);
   const [code, setCode] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [gateLoading, setGateLoading] = useState(false);
@@ -79,18 +80,32 @@ export default function BizHarvestDemoExplorer() {
 
   useEffect(() => {
     const fromUrl = searchParams.get('invite');
-    if (fromUrl) {
-      void redeem(fromUrl);
-      return;
-    }
+    let saved: string | null = null;
     try {
-      const saved = sessionStorage.getItem(CODE_STORAGE_KEY);
-      if (saved) void redeem(saved);
+      saved = sessionStorage.getItem(CODE_STORAGE_KEY);
     } catch {
       /* non-fatal */
     }
+    const candidate = fromUrl || saved;
+    if (!candidate) {
+      setInitializing(false);
+      return;
+    }
+    void (async () => {
+      await redeem(candidate);
+      setInitializing(false);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  if (initializing) {
+    return (
+      <div className="mx-auto max-w-md rounded-[16px] border border-[var(--border-default)] bg-[var(--bg-elevated)] p-8 text-center">
+        <Loader2 className="mx-auto h-6 w-6 animate-spin text-[var(--gold-base)]" />
+        <p className="mt-3 type-body text-[var(--text-secondary)]">Loading your demo...</p>
+      </div>
+    );
+  }
 
   const runQuery = async (text: string) => {
     const q = text.trim();
@@ -114,11 +129,14 @@ export default function BizHarvestDemoExplorer() {
         setError(data.error ?? 'Something went wrong');
         return;
       }
+      // Note: even on the visitor's last allowed try, this branch still
+      // shows their results - the paywall only appears once the server
+      // actually blocks the *next* attempt (the `data.limitReached` branch
+      // above), not the moment triesUsed reaches triesLimit.
       setResults(data.results);
       setFellBack(data.fellBack);
       setTriesUsed(data.triesUsed);
       setTriesLimit(data.triesLimit);
-      if (data.triesUsed >= data.triesLimit) setLimitReached(true);
     } catch {
       setError('Could not reach the server - try again.');
     } finally {

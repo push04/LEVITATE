@@ -106,8 +106,15 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = getServiceSupabase();
+  // `status = 'active'` alone can lag reality if the scraper hasn't yet
+  // flipped a tender to closed - filter on the actual deadline too so a
+  // demo visitor never sees something that's already expired. Tenders with
+  // no deadline on file are kept (we genuinely don't know either way), never
+  // labeled live or expired on the frontend for that reason.
+  const nowIso = new Date().toISOString();
+  const notExpiredFilter = `bid_submission_deadline.is.null,bid_submission_deadline.gte.${nowIso}`;
 
-  let base = supabase.from('tenders').select(SELECT).eq('status', 'active').eq('is_hidden', false);
+  let base = supabase.from('tenders').select(SELECT).eq('status', 'active').eq('is_hidden', false).or(notExpiredFilter);
   if (filters.district) base = base.ilike('district', `%${filters.district}%`);
   if (filters.category) base = base.eq('category', filters.category);
   if (filters.minValueInr) base = base.gte('estimated_value_inr', filters.minValueInr);
@@ -128,6 +135,7 @@ export async function POST(request: NextRequest) {
       .select(SELECT)
       .eq('status', 'active')
       .eq('is_hidden', false)
+      .or(notExpiredFilter)
       .order('bid_submission_deadline', { ascending: true, nullsFirst: false })
       .limit(DEMO_RESULT_LIMIT);
     rows = (fallback.data ?? []) as unknown as TenderRow[];
