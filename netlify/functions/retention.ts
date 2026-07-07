@@ -5,7 +5,6 @@
  */
 
 import type { Config } from '@netlify/functions'
-import { callAI } from '../../src/lib/ai/router'
 import { sendEmail } from '../../src/lib/email/client'
 import { getServiceSupabase } from '../../src/lib/supabase'
 import { awardCredits, CREDIT_EVENTS } from '../../src/lib/agents/base-agent'
@@ -14,6 +13,39 @@ import { requireInternalAuth } from './internal-auth'
 function daysSince(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
 }
+
+// Fixed templates only — no per-lead AI generation (same JSON-parsing
+// failure mode confirmed elsewhere in this codebase: on parse failure this
+// function used to fall through to `emailBody = body`, the raw unparsed AI
+// text, and send that as-is to a paying client).
+function fillClientTemplate(template: string, vars: { business_name: string; owner_name: string }): string {
+  return template
+    .replace(/\{business_name\}/g, vars.business_name)
+    .replace(/\{owner_name\}/g, vars.owner_name)
+}
+
+const CHECKIN_30D_SUBJECT = 'How is the website going? - {business_name}'
+const CHECKIN_30D_BODY = `Hi {owner_name},
+
+It has been about a month since {business_name}'s website launched. How has it been going so far? If there is anything small you would like tweaked, happy to do one free adjustment.
+
+Separately, if you would ever like us to keep an eye on updates and uptime ongoing, we offer a simple monthly maintenance plan for Rs. 1500/month, entirely optional.
+
+Best,
+Pushpal
+Levitate Labs
+levitatelabs.online`
+
+const SEO_90D_SUBJECT = 'Get more customers from Google - {business_name}'
+const SEO_90D_BODY = `Hi {owner_name},
+
+It has been about 3 months since we built {business_name}'s website. Wanted to check in and mention something that might help: we can optimize the site so more people searching on Google actually find it, as a one-time Rs. 3000 project.
+
+No pressure at all, just wanted to put it on your radar. Let me know if it sounds useful.
+
+Best,
+Pushpal
+Levitate Labs`
 
 export default async () => {
   const supabase = getServiceSupabase()
@@ -36,54 +68,56 @@ export default async () => {
 
       const days = daysSince(lastProject.delivered_at)
       const name = client.owner_name
+      const templateVars = { business_name: client.business_name, owner_name: name }
 
+      let stage = ''
       let subject = ''
-      let body = ''
+      let emailBody = ''
 
       if (days === 30 || (days > 28 && days < 33)) {
-        // 30-day check-in + maintenance upsell
-        body = await callAI(
-          `Write a warm email check-in for a satisfied client.
-Their website launched ${days} days ago.
-Goals: 1) Ask how it's going 2) Offer 1 free tweak 3) Softly mention monthly maintenance plan (₹1500/month)
-Keep it short, warm, conversational. NOT salesy.
-Return JSON: {"subject": "...", "body": "..."}
-Sign: "Pushpal\nLevitate Labs\nlevitatelabs.online"`,
-          JSON.stringify({ business_name: client.business_name, owner_name: name, project_type: lastProject.type }),
-          300,
-          'retention'
-        )
-        subject = `How is the website going? — ${client.business_name}`
+        stage = '30d'
+        subject = fillClientTemplate(CHECKIN_30D_SUBJECT, templateVars)
+        emailBody = fillClientTemplate(CHECKIN_30D_BODY, templateVars)
       } else if (days === 90 || (days > 87 && days < 93)) {
-        // 3-month SEO upsell
-        body = await callAI(
-          `Write an email to a happy client we built a website for 3 months ago.
-Offer: "We can optimize your site for Google — so more people find you."
-Price: ₹3000 one-time
-Casual, friendly, not pushy. End with a soft question.
-Return JSON: {"subject": "...", "body": "..."}
-Sign: "Pushpal\nLevitate Labs"`,
-          JSON.stringify({ business_name: client.business_name, owner_name: name }),
-          250,
-          'retention'
-        )
-        subject = `Get more customers from Google — ${client.business_name}`
+        stage = '90d'
+        subject = fillClientTemplate(SEO_90D_SUBJECT, templateVars)
+        emailBody = fillClientTemplate(SEO_90D_BODY, templateVars)
       } else if (days === 180 || (days > 177 && days < 183)) {
-        // 6-month anniversary + annual plan
-        subject = `6 months since your website launched! 🎉`
-        body = `Hi ${name},\n\nIt's been 6 months since we launched your website for ${client.business_name}! Hope it's been bringing in business!\n\nWe're offering an annual maintenance plan — security updates, speed optimization, content updates & priority support — for just ₹1499/month.\n\nWould you be interested?\n\nBest,\nPushpal\nLevitate Labs\nlevitatelabs.online`
+        stage = '180d'
+        subject = `6 months since your website launched!`
+        emailBody = `Hi ${name},\n\nIt's been 6 months since we launched your website for ${client.business_name}! Hope it's been bringing in business!\n\nWe're offering an annual maintenance plan - security updates, speed optimization, content updates & priority support - for just Rs. 1499/month.\n\nWould you be interested?\n\nBest,\nPushpal\nLevitate Labs\nlevitatelabs.online`
       }
 
-      let emailBody = body
-      try {
-        const p = JSON.parse(body)
-        subject = p.subject ?? subject
-        emailBody = p.body ?? body
-      } catch { /* use raw */ }
+      if (!stage || !client.email) continue
 
-      if (emailBody && client.email) {
-        await sendEmail(client.email, subject, emailBody)
-        await awardCredits('retention', CREDIT_EVENTS.RETENTION_UPSELL, `Retention email to ${client.business_name}`)
+      // This function runs every 12 hours but a client sits inside a given
+      // day-window for 4-5 calendar days - without this guard the same
+      // milestone email would go out on every run within that window
+      // instead of once. Scope the dedup check to this stage's subject so
+      // the 30d/90d/180d milestones don't suppress each other.
+      const { data: alreadySent } = await supabase
+        .from('agent_emails')
+        .select('id')
+        .eq('agent_name', 'retention')
+        .eq('to_email', client.email)
+        .eq('subject', subject)
+        .gte('created_at', new Date(Date.now() - 10 * 86400000).toISOString())
+        .limit(1)
+      if (alreadySent?.length) continue
+
+      const emailSent = await sendEmail(client.email, subject, emailBody)
+      if (emailSent) {
+        await supabase.from('agent_emails').insert({
+          lead_id: null,
+          agent_name: 'retention',
+          direction: 'outbound',
+          to_email: client.email,
+          from_email: process.env.SMTP_FROM ?? process.env.SMTP_USER ?? 'ai@levitatelabs.online',
+          subject,
+          body: emailBody,
+          status: 'sent'
+        })
+        await awardCredits('retention', CREDIT_EVENTS.RETENTION_UPSELL, `Retention email (${stage}) to ${client.business_name}`)
         messaged++
       }
     }
@@ -104,5 +138,10 @@ Sign: "Pushpal\nLevitate Labs"`,
 }
 
 export const config: Config = {
-  schedule: '0 */12 * * *' // Every 12 hours
+  // 16:00 UTC = 9:30 PM IST, Sundays only - matches the header comment.
+  // This ran every 12 hours (every day) until now, which the day-window
+  // matching (days>28 && days<33 etc) turns into ~8-10 redundant matches
+  // per client per milestone; the dedup guard above now makes that safe,
+  // but there is no reason to invoke this 60x more often than intended.
+  schedule: '0 16 * * 0'
 }
