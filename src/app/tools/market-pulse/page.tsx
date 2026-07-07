@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Suspense } from 'react';
-import { LineChart, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, LineChart, ShieldCheck, Sparkles } from 'lucide-react';
 import MarketPulseTrialGate from '@/components/tools/MarketPulseTrialGate';
 
 export const dynamic = 'force-dynamic';
@@ -58,11 +59,46 @@ export default function MarketPulseTrialPage() {
         </div>
       </section>
 
-      <section className="px-6 py-16">
+      <section className="border-b border-[var(--border-default)] px-6 py-16">
         <div className="mx-auto max-w-5xl">
           <Suspense fallback={null}>
             <MarketPulseTrialGate />
           </Suspense>
+        </div>
+      </section>
+
+      <section className="px-6 py-20">
+        <div className="mx-auto max-w-4xl text-center">
+          <h2 className="font-serif-display text-[28px] text-[var(--text-primary)] md:text-[34px]">
+            Don&rsquo;t have an invite code?
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl type-body text-[var(--text-secondary)]">
+            Market Pulse trials are handed out one business at a time. Email us and we&rsquo;ll set you
+            up with a code, or explore what else Levitate Labs builds.
+          </p>
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="mailto:pushpal@levitatelabs.online"
+              className="inline-flex items-center gap-2 rounded-[10px] bg-[linear-gradient(135deg,var(--gold-base),var(--gold-muted))] px-6 py-3 text-sm font-semibold text-[var(--text-inverse)] shadow-[0_4px_16px_rgba(176,141,87,0.3)] transition-transform hover:-translate-y-px"
+            >
+              Email pushpal@levitatelabs.online
+              <ArrowRight className="h-4 w-4" />
+            </a>
+            <Link
+              href="/tools/bizharvest"
+              className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-6 py-3 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-overlay)]"
+            >
+              Try the BizHarvest demo
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/tools/tenderpulse"
+              className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--border-default)] bg-[var(--bg-surface)] px-6 py-3 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-overlay)]"
+            >
+              Try the TenderPulse demo
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </section>
     </div>

@@ -97,18 +97,21 @@ export default function MarketPulseTrialGate() {
             e.preventDefault();
             void redeem(codeInput);
           }}
-          className="mt-4 flex gap-2"
+          className="mt-4 flex flex-col gap-2 sm:flex-row"
         >
           <input
             value={codeInput}
             onChange={(e) => setCodeInput(e.target.value)}
             placeholder="e.g. ABCD1234"
-            className="flex-1 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-2.5 text-center type-body uppercase tracking-wider text-[var(--text-primary)] outline-none focus:border-[var(--gold-base)]"
+            // text-[16px] (not the design system's smaller type-body) is
+            // deliberate - anything under 16px makes iOS Safari auto-zoom
+            // the viewport on focus, which is jarring on a code-entry field.
+            className="flex-1 rounded-[8px] border border-[var(--border-default)] bg-[var(--bg-overlay)] px-3 py-3 text-center text-[16px] uppercase tracking-wider text-[var(--text-primary)] outline-none focus:border-[var(--gold-base)]"
           />
           <button
             type="submit"
             disabled={gateLoading || !codeInput.trim()}
-            className="rounded-[8px] bg-[var(--gold-base)] px-5 py-2.5 type-body font-semibold text-[var(--text-inverse)] disabled:opacity-50"
+            className="rounded-[8px] bg-[var(--gold-base)] px-5 py-3 type-body font-semibold text-[var(--text-inverse)] disabled:opacity-50"
           >
             {gateLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Unlock'}
           </button>
