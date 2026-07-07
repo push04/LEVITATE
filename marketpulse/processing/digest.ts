@@ -160,6 +160,25 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
     }
   }
 
+  // A prediction persists across days while its call hasn't changed - a
+  // ticker that's still "bullish" today shouldn't get a brand-new
+  // prediction row (and a reset-to-0%-since-prediction baseline) every
+  // single day it stays in the watchlist. Only start a fresh prediction
+  // when the signal actually changes, or the prior one has already been
+  // evaluated (its window closed). Otherwise the existing row keeps
+  // running - viewing any date's digest for that ticker then shows real
+  // drift since the ORIGINAL call, not since whichever day you happen to
+  // be looking at.
+  const { data: activePredictionRows } = await supabase
+    .from("predictions")
+    .select("ticker, signal, target_date")
+    .eq("evaluated", false)
+    .gte("target_date", digestDate);
+  const activePredictionByTicker = new Map<string, { signal: string; target_date: string }>();
+  for (const p of activePredictionRows ?? []) {
+    activePredictionByTicker.set(p.ticker as string, { signal: p.signal as string, target_date: p.target_date as string });
+  }
+
   let tickersInDigest = 0;
   let divergences = 0;
   const rows: Array<Record<string, unknown>> = [];
@@ -323,15 +342,23 @@ export async function buildDigest(): Promise<{ tickersInDigest: number; divergen
     // automatically by processing/evaluate_predictions.ts once
     // PREDICTION_TARGET_DAYS have passed. This is what the accuracy track
     // record is built from; nothing here is asserted without being checked.
-    predictions.push({
-      ticker,
-      company_name: w.company_name,
-      prediction_date: digestDate,
-      signal: effectiveTrendSignal,
-      price_at_prediction: latest.close,
-      target_days: PREDICTION_TARGET_DAYS,
-      target_date: addDays(digestDate, PREDICTION_TARGET_DAYS),
-    });
+    // Skip creating a new row if this ticker already has an active,
+    // unevaluated prediction with the same signal - let it keep running
+    // instead of resetting the baseline price every day (see the
+    // activePredictionByTicker note above the main loop).
+    const activePrediction = activePredictionByTicker.get(ticker);
+    const alreadyTrackingThisCall = activePrediction?.signal === effectiveTrendSignal;
+    if (!alreadyTrackingThisCall) {
+      predictions.push({
+        ticker,
+        company_name: w.company_name,
+        prediction_date: digestDate,
+        signal: effectiveTrendSignal,
+        price_at_prediction: latest.close,
+        target_days: PREDICTION_TARGET_DAYS,
+        target_date: addDays(digestDate, PREDICTION_TARGET_DAYS),
+      });
+    }
   }
 
   // Confidence-scores every ticker in one pass after the main loop (not
