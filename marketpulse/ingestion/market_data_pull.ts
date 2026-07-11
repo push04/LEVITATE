@@ -36,10 +36,16 @@ async function fetchOhlc(yahooSymbol: string): Promise<Array<{ date: string; ope
   // 1y (not 3mo) so technical_analysis.ts can compute real 52-week high/low
   // proximity, not just short-window indicators.
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=1y&interval=1d`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; MarketPulse/1.0; +https://levitatelabs.online)" },
-    signal: AbortSignal.timeout(15000),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; MarketPulse/1.0; +https://levitatelabs.online)" },
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (err) {
+    const cause = err instanceof Error && err.cause ? ` (${String(err.cause)})` : "";
+    throw new Error(`${err instanceof Error ? err.message : String(err)}${cause}`);
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
   const data = (await res.json()) as YahooChartResponse;
@@ -120,7 +126,7 @@ export async function pullMarketData(): Promise<{ tickersUpdated: number; rowsUp
 
       const { error: upsertError } = await supabase.from("price_data").upsert(result.value.payload, { onConflict: "ticker,date" });
       if (upsertError) {
-        console.warn(`[market_data_pull] ${row.ticker} upsert failed:`, upsertError.message);
+        console.warn(`[market_data_pull] ${row.ticker} upsert failed:`, upsertError.details || upsertError.message);
         failed.push(row.ticker);
         continue;
       }

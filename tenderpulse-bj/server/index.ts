@@ -75,12 +75,20 @@ app.get("/api/tenders", async (req, res) => {
 
   if (q) tenders = await smartSearch(tenders, q);
 
-  tenders.sort((a, b) => {
-    const av = (a as any)[sortBy] ?? "";
-    const bv = (b as any)[sortBy] ?? "";
-    const cmp = av < bv ? -1 : av > bv ? 1 : 0;
-    return sortDir === "desc" ? -cmp : cmp;
-  });
+  // When ranking by relevance (the default while a search query is active),
+  // preserve the order smartSearch returned — re-sorting by any column here
+  // would throw the whole relevance ranking away. Only apply a column sort
+  // when the user explicitly picked one (or there's no query to rank against).
+  const rankByRelevance = sortBy === "relevance" && !!q;
+  if (!rankByRelevance) {
+    const col = sortBy === "relevance" ? "bid_submission_deadline" : sortBy;
+    tenders.sort((a, b) => {
+      const av = (a as any)[col] ?? "";
+      const bv = (b as any)[col] ?? "";
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+  }
 
   const total = tenders.length;
   const p = Math.max(1, Number(page));

@@ -102,6 +102,21 @@ export default function TendersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
+  // While a search query is active, default to relevance ranking so the server
+  // keeps smartSearch's best-match-first order instead of re-sorting by
+  // deadline. Clearing the query reverts to the deadline sort; an explicit
+  // column-header click still overrides (toggleSort sets a real column).
+  useEffect(() => {
+    if (q.trim()) {
+      setSortBy((prev: string) => (prev === "bid_submission_deadline" ? "relevance" : prev));
+    } else {
+      setSortBy((prev: string) => (prev === "relevance" ? "bid_submission_deadline" : prev));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+
+  const rankedByRelevance = !!q.trim() && sortBy === "relevance";
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   function toggleSelect(id: string) {
@@ -169,7 +184,16 @@ export default function TendersPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold">Tenders</h1>
         <p className="text-sm text-ink-secondary dark:text-ink-secondary-dark">
-          {total} tender{total === 1 ? "" : "s"} tracked across Bihar &amp; Jharkhand sources.
+          {rankedByRelevance ? (
+            <>
+              {total} match{total === 1 ? "" : "es"} for “{q.trim()}”, ranked by relevance ·{" "}
+              <button onClick={() => toggleSort("bid_submission_deadline")} className="text-series-1 hover:underline">
+                sort by deadline
+              </button>
+            </>
+          ) : (
+            <>{total} tender{total === 1 ? "" : "s"} tracked across Bihar &amp; Jharkhand sources.</>
+          )}
         </p>
       </div>
 

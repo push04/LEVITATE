@@ -6,6 +6,7 @@ import {
   Gavel, Loader2, AlertCircle, RefreshCw, Search, Sparkles, Download,
   Mail, Building2, Send, Trash2, RotateCcw, X, ChevronRight, ExternalLink,
 } from 'lucide-react'
+import { rankTenders } from '@/lib/tenderpulse-search'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Tender {
@@ -18,6 +19,7 @@ interface Tender {
   bid_submission_deadline: string | null
   publish_date: string | null
   nit_document_url: string | null
+  estimated_value_inr: number | null
   notes: string | null
   tags: string[] | null
   is_hidden: boolean
@@ -66,6 +68,13 @@ const CATEGORY_LABELS: Record<string, string> = {
   mining: 'Mining', health: 'Health', education: 'Education', other: 'Other',
 }
 const GOLD = '#B08D57'
+
+// Sort comparator: soonest deadline first, tenders with no deadline last.
+function byDeadline(a: Tender, b: Tender) {
+  if (!a.bid_submission_deadline) return 1
+  if (!b.bid_submission_deadline) return -1
+  return a.bid_submission_deadline.localeCompare(b.bid_submission_deadline)
+}
 
 function StatCard({ label, value, tone, delay = 0 }: { label: string; value: number | string; tone?: string; delay?: number }) {
   return (
@@ -202,17 +211,10 @@ export default function TenderPulsePage() {
     if (category) list = list.filter((t) => t.category === category)
 
     if (hasUsableAiFilters) {
-      if (aiFilters!.categories?.length) list = list.filter((t) => aiFilters!.categories.includes(t.category))
-      if (aiFilters!.districts?.length)
-        list = list.filter((t) => aiFilters!.districts.some((d: string) => t.district?.toLowerCase().includes(d.toLowerCase())))
+      // Hard structured pre-filters that aren't part of topical relevance —
+      // apply them first so ranking runs over the right candidate set.
       if (aiFilters!.states?.length)
         list = list.filter((t) => aiFilters!.states.some((s: string) => t.sources?.state?.toLowerCase() === s.toLowerCase()))
-      if (aiFilters!.keywords?.length) {
-        list = list.filter((t) => {
-          const hay = `${t.title} ${t.organization ?? ''}`.toLowerCase()
-          return aiFilters!.keywords.some((k: string) => hay.includes(k.toLowerCase()))
-        })
-      }
       if (aiFilters!.urgent_only) {
         list = list.filter((t) => {
           if (!t.bid_submission_deadline) return false
@@ -220,7 +222,30 @@ export default function TenderPulsePage() {
           return days >= 0 && days <= 7
         })
       }
-    } else if (query.trim() && !searching) {
+
+      // Topical relevance: score category/district/keywords/value into a graded
+      // rank (best match first) instead of a binary keyword in/out filter. This
+      // is what makes the AI search *sort* accurately, not just filter text.
+      const ranked = rankTenders(
+        list,
+        {
+          categories: aiFilters!.categories,
+          districts: aiFilters!.districts,
+          keywords: aiFilters!.keywords,
+          min_value: aiFilters!.min_value,
+          max_value: aiFilters!.max_value,
+        },
+        query,
+        { corpusAware: true }
+      )
+      list = ranked.map((r) => r.tender)
+      // While searching, "Smart sort" = relevance (the ranked order above).
+      // Turning it off re-orders the same matches by deadline.
+      if (!smartSort) list = [...list].sort(byDeadline)
+      return list
+    }
+
+    if (query.trim() && !searching) {
       // No usable AI-parsed filters (AI unavailable, or the query didn't map to
       // any structured field) — fall back to plain substring search instead of
       // silently showing the entire unfiltered list.
@@ -228,17 +253,14 @@ export default function TenderPulsePage() {
       list = list.filter((t) => `${t.title} ${t.organization ?? ''} ${t.district ?? ''}`.toLowerCase().includes(q))
     }
 
+    // No active query: "Smart sort" = the urgency/completeness smart_score.
     if (smartSort) {
       list = [...list].sort((a, b) => (b.smart_score ?? 0) - (a.smart_score ?? 0))
     } else {
-      list = [...list].sort((a, b) => {
-        if (!a.bid_submission_deadline) return 1
-        if (!b.bid_submission_deadline) return -1
-        return a.bid_submission_deadline.localeCompare(b.bid_submission_deadline)
-      })
+      list = [...list].sort(byDeadline)
     }
     return list
-  }, [tenders, showHidden, category, aiFilters, query, searching, smartSort])
+  }, [tenders, showHidden, category, aiFilters, hasUsableAiFilters, query, searching, smartSort])
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
